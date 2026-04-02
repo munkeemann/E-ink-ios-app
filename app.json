@@ -1,4 +1,23 @@
 {
-  "name": "ECardsApp",
-  "displayName": "E-Cards"
+  "expo": {
+    "name": "E-Cards",
+    "slug": "e-cards",
+    "scheme": "ecards",
+    "version": "1.0.0",
+    "sdkVersion": "55.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "platforms": ["ios", "android"],
+    "plugins": [
+      "expo-router"
+    ],
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0d0d1a"
+      }
+    },
+    "ios": {
+      "supportsTablet": true
+    }
+  }
 }

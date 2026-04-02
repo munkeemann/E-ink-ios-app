@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -n \"file://\" /c/e-cards/ReactNativeApp/app/index.tsx /c/e-cards/ReactNativeApp/app/deck/[id].tsx)"
+    ]
+  }
+}
