@@ -25,9 +25,7 @@ export default function ScryScreen() {
   const N = Math.max(1, parseInt(count ?? '3', 10));
 
   const [deck, setDeck] = useState<Deck | null>(null);
-  // topCards: cards kept on top (draggable)
   const [topCards, setTopCards] = useState<CardInstance[]>([]);
-  // bottomCards: cards the user sends to the bottom of library
   const [bottomCards, setBottomCards] = useState<CardInstance[]>([]);
   const [busy, setBusy] = useState(false);
 
@@ -49,7 +47,7 @@ export default function ScryScreen() {
   if (!deck) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#e0c070" />
+        <ActivityIndicator color="#D0BCFF" />
       </View>
     );
   }
@@ -68,12 +66,7 @@ export default function ScryScreen() {
     if (!deck) return;
     setBusy(true);
     try {
-      // Build new full card list:
-      //   1. topCards in new drag order → places 1..k
-      //   2. Rest of library (cards not scried) → renumbered after topCards
-      //   3. bottomCards → placed at the very end of library
       const commander = deck.cards.filter(c => c.place === 'commander');
-
       const scrySet = new Set([...topCards, ...bottomCards]);
       const restLibrary = deck.cards
         .filter(c => c.zone === 'LIB' && !scrySet.has(c))
@@ -163,7 +156,7 @@ export default function ScryScreen() {
           disabled={busy}
         >
           {busy ? (
-            <ActivityIndicator color="#1a1a2e" />
+            <ActivityIndicator color="#D0BCFF" />
           ) : (
             <Text style={styles.confirmText}>✓ Confirm & Send Sleeves</Text>
           )}
@@ -174,28 +167,28 @@ export default function ScryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0d0d1a' },
+  container: { flex: 1, backgroundColor: '#292E32' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   sectionHeader: {
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 6,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#353A40',
     borderBottomWidth: 1,
-    borderColor: '#2d2d50',
+    borderColor: '#625b71',
   },
   sectionTitle: {
-    color: '#e0c070',
+    color: '#D0BCFF',
     fontSize: 14,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
-  sectionHint: { color: '#555', fontSize: 11, marginTop: 2 },
+  sectionHint: { color: '#625b71', fontSize: 11, marginTop: 2 },
   list: { flexGrow: 0, maxHeight: 340 },
   listContent: { paddingVertical: 4 },
   emptyText: {
-    color: '#555',
+    color: '#625b71',
     textAlign: 'center',
     paddingVertical: 20,
     fontStyle: 'italic',
@@ -205,39 +198,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 14,
     paddingVertical: 12,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#353A40',
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: '#2d2d50',
+    borderColor: '#625b71',
     gap: 10,
   },
-  cardRowActive: { backgroundColor: '#2d2d50', elevation: 8 },
-  dragHandle: { color: '#555', fontSize: 18 },
-  cardName: { color: '#ddd', fontSize: 15, flex: 1 },
-  cardHint: { color: '#444', fontSize: 10 },
+  cardRowActive: { backgroundColor: '#6650a4', elevation: 8 },
+  dragHandle: { color: '#CCC2DC', fontSize: 18 },
+  cardName: { color: '#D4CDC1', fontSize: 15, flex: 1 },
+  cardHint: { color: '#625b71', fontSize: 10 },
   bottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,
     paddingVertical: 11,
-    backgroundColor: '#12121f',
+    backgroundColor: '#292E32',
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: '#1e1e38',
+    borderColor: '#353A40',
   },
-  bottomName: { color: '#888', fontSize: 14, flex: 1 },
-  bottomHint: { color: '#444', fontSize: 11 },
+  bottomName: { color: '#CCC2DC', fontSize: 14, flex: 1 },
+  bottomHint: { color: '#625b71', fontSize: 11 },
   footer: {
     padding: 14,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#353A40',
     borderTopWidth: 1,
-    borderColor: '#2d2d50',
+    borderColor: '#625b71',
     marginTop: 'auto',
   },
   confirmBtn: {
-    backgroundColor: '#e0c070',
+    backgroundColor: '#6650a4',
     borderRadius: 10,
     paddingVertical: 15,
     alignItems: 'center',
   },
   confirmBtnDisabled: { opacity: 0.5 },
-  confirmText: { color: '#1a1a2e', fontSize: 16, fontWeight: '800' },
+  confirmText: { color: '#D0BCFF', fontSize: 16, fontWeight: '800' },
 });

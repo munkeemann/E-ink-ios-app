@@ -15,8 +15,6 @@ import { beginGame } from '../../src/api/piServer';
 import { getDeck, saveDeck } from '../../src/storage/deckStorage';
 import { CardInstance, Deck } from '../../src/types';
 
-// ── helpers ──────────────────────────────────────────────────────────────────
-
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -34,19 +32,15 @@ function reassignLibraryPlaces(cards: CardInstance[]): CardInstance[] {
   return [...commander, ...library];
 }
 
-// ── component ─────────────────────────────────────────────────────────────────
-
 export default function InGameScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [deck, setDeck] = useState<Deck | null>(null);
   const [busy, setBusy] = useState(false);
   const [busyLabel, setBusyLabel] = useState('');
 
-  // Scry input
   const [scryModalVisible, setScryModalVisible] = useState(false);
   const [scryCountText, setScryCountText] = useState('3');
 
-  // Tutor modal
   const [tutorModalVisible, setTutorModalVisible] = useState(false);
   const [tutorQuery, setTutorQuery] = useState('');
 
@@ -59,7 +53,7 @@ export default function InGameScreen() {
   if (!deck) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#e0c070" />
+        <ActivityIndicator color="#D0BCFF" />
       </View>
     );
   }
@@ -68,8 +62,6 @@ export default function InGameScreen() {
   const library = deck.cards
     .filter(c => c.zone === 'LIB')
     .sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10));
-
-  // ── actions ──────────────────────────────────────────────────────────────
 
   const doBeginGame = async (cards: CardInstance[]) => {
     setBusy(true);
@@ -118,7 +110,6 @@ export default function InGameScreen() {
     setTutorModalVisible(false);
     setTutorQuery('');
 
-    // Move match to place "1", shift everything else
     const others = library.filter(c => c !== match);
     const reordered = [match, ...others].map((c, i) => ({
       ...c,
@@ -132,8 +123,6 @@ export default function InGameScreen() {
     await doBeginGame(newCards);
   };
 
-  // ── render ────────────────────────────────────────────────────────────────
-
   const renderCard = ({ item, index }: { item: CardInstance; index: number }) => (
     <View style={styles.cardRow}>
       <Text style={styles.cardPos}>{index + 1}</Text>
@@ -143,7 +132,6 @@ export default function InGameScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header — deck name */}
       <View style={styles.header}>
         <Text style={styles.deckName}>{deck.name}</Text>
         {commander && (
@@ -151,7 +139,6 @@ export default function InGameScreen() {
         )}
       </View>
 
-      {/* Library list */}
       <FlatList
         data={library}
         keyExtractor={(c, i) => `${c.baseName}-${i}`}
@@ -163,7 +150,6 @@ export default function InGameScreen() {
         }
       />
 
-      {/* Action buttons */}
       <View style={styles.toolbar}>
         <Pressable
           style={[styles.btn, busy && styles.btnDisabled]}
@@ -190,7 +176,7 @@ export default function InGameScreen() {
 
       {busy && (
         <View style={styles.busyOverlay}>
-          <ActivityIndicator color="#e0c070" />
+          <ActivityIndicator color="#D0BCFF" />
           <Text style={styles.busyText}>{busyLabel}</Text>
         </View>
       )}
@@ -245,7 +231,7 @@ export default function InGameScreen() {
               value={tutorQuery}
               onChangeText={setTutorQuery}
               placeholder="Lightning Bolt"
-              placeholderTextColor="#444"
+              placeholderTextColor="#625b71"
               autoFocus
               autoCapitalize="words"
             />
@@ -271,21 +257,21 @@ export default function InGameScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0d0d1a' },
+  container: { flex: 1, backgroundColor: '#292E32' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#353A40',
     borderBottomWidth: 1,
-    borderColor: '#2d2d50',
+    borderColor: '#625b71',
   },
-  deckName: { color: '#e0c070', fontSize: 18, fontWeight: '800' },
-  commanderName: { color: '#888', fontSize: 13, marginTop: 2 },
+  deckName: { color: '#D0BCFF', fontSize: 18, fontWeight: '800' },
+  commanderName: { color: '#CCC2DC', fontSize: 13, marginTop: 2 },
   list: { flex: 1 },
   listContent: { paddingBottom: 8 },
   listHeader: {
-    color: '#666',
+    color: '#625b71',
     fontSize: 11,
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -298,35 +284,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: '#1e1e38',
+    borderColor: '#353A40',
   },
   cardPos: {
     width: 32,
-    color: '#555',
+    color: '#625b71',
     fontSize: 12,
     textAlign: 'right',
     marginRight: 12,
   },
-  cardName: { color: '#ddd', fontSize: 15 },
+  cardName: { color: '#D4CDC1', fontSize: 15 },
   toolbar: {
     flexDirection: 'row',
     gap: 10,
     padding: 14,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#353A40',
     borderTopWidth: 1,
-    borderColor: '#2d2d50',
+    borderColor: '#625b71',
   },
   btn: {
     flex: 1,
-    backgroundColor: '#2d2d50',
+    backgroundColor: '#6650a4',
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#3d3d70',
+    borderColor: '#D0BCFF',
   },
   btnDisabled: { opacity: 0.4 },
-  btnText: { color: '#e0c070', fontSize: 14, fontWeight: '700' },
+  btnText: { color: '#D0BCFF', fontSize: 14, fontWeight: '700' },
   busyOverlay: {
     position: 'absolute',
     bottom: 80,
@@ -337,33 +323,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     padding: 8,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(41,46,50,0.85)',
   },
-  busyText: { color: '#aaa', fontSize: 13 },
-  // Modal
+  busyText: { color: '#CCC2DC', fontSize: 13 },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: 'rgba(0,0,0,0.75)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 32,
   },
   modalCard: {
     width: '100%',
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#353A40',
     borderRadius: 14,
     padding: 22,
     borderWidth: 1,
-    borderColor: '#2d2d50',
+    borderColor: '#625b71',
     gap: 12,
   },
-  modalTitle: { color: '#e0c070', fontSize: 20, fontWeight: '800' },
-  modalLabel: { color: '#aaa', fontSize: 14 },
+  modalTitle: { color: '#D0BCFF', fontSize: 20, fontWeight: '800' },
+  modalLabel: { color: '#CCC2DC', fontSize: 14 },
   modalInput: {
-    backgroundColor: '#0d0d1a',
-    color: '#fff',
+    backgroundColor: '#292E32',
+    color: '#D4CDC1',
     borderWidth: 1,
-    borderColor: '#3d3d70',
+    borderColor: '#625b71',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -376,15 +361,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#3d3d70',
+    borderColor: '#625b71',
   },
-  modalCancelText: { color: '#888', fontSize: 15 },
+  modalCancelText: { color: '#625b71', fontSize: 15 },
   modalConfirmBtn: {
     flex: 1,
-    backgroundColor: '#e0c070',
+    backgroundColor: '#6650a4',
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
   },
-  modalConfirmText: { color: '#1a1a2e', fontSize: 15, fontWeight: '800' },
+  modalConfirmText: { color: '#D0BCFF', fontSize: 15, fontWeight: '800' },
 });

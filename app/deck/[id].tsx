@@ -29,7 +29,7 @@ export default function DeckPreviewScreen() {
   if (!deck) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#e0c070" />
+        <ActivityIndicator color="#D0BCFF" />
       </View>
     );
   }
@@ -68,7 +68,7 @@ export default function DeckPreviewScreen() {
       <View style={styles.header}>
         {deck.commanderImagePath ? (
           <Image
-            source={{ uri: `file://${deck.commanderImagePath}` }}
+            source={{ uri: deck.commanderImagePath }}
             style={styles.headerArt}
             resizeMode="cover"
           />
@@ -94,7 +94,7 @@ export default function DeckPreviewScreen() {
 
       {sending ? (
         <View style={styles.sendingBar}>
-          <ActivityIndicator color="#e0c070" size="small" />
+          <ActivityIndicator color="#D0BCFF" size="small" />
           <Text style={styles.sendingText}>
             Sending sleeves… {sendProgress.sent}/{sendProgress.total}
           </Text>
@@ -109,20 +109,20 @@ export default function DeckPreviewScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0d0d1a' },
+  container: { flex: 1, backgroundColor: '#292E32' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: {
     flexDirection: 'row',
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#353A40',
     borderBottomWidth: 1,
-    borderColor: '#2d2d50',
+    borderColor: '#625b71',
   },
   headerArt: { width: 90, height: 124 },
-  headerArtPlaceholder: { backgroundColor: '#2a2a4e' },
+  headerArtPlaceholder: { backgroundColor: '#353A40' },
   headerInfo: { flex: 1, padding: 14, justifyContent: 'center', gap: 4 },
-  deckTitle: { color: '#e0c070', fontSize: 20, fontWeight: '800' },
-  commanderName: { color: '#ccc', fontSize: 13 },
-  deckMeta: { color: '#666', fontSize: 12 },
+  deckTitle: { color: '#D0BCFF', fontSize: 20, fontWeight: '800' },
+  commanderName: { color: '#CCC2DC', fontSize: 13 },
+  deckMeta: { color: '#625b71', fontSize: 12 },
   list: { flex: 1 },
   listContent: { paddingVertical: 8 },
   cardRow: {
@@ -131,33 +131,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: '#1e1e38',
+    borderColor: '#353A40',
   },
   cardIndex: {
     width: 30,
-    color: '#555',
+    color: '#625b71',
     fontSize: 12,
     textAlign: 'right',
     marginRight: 12,
   },
-  cardName: { color: '#ddd', fontSize: 15 },
+  cardName: { color: '#D4CDC1', fontSize: 15 },
   sendingBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
     padding: 18,
-    backgroundColor: '#1a1a2e',
+    backgroundColor: '#353A40',
     borderTopWidth: 1,
-    borderColor: '#2d2d50',
+    borderColor: '#625b71',
   },
-  sendingText: { color: '#aaa', fontSize: 14 },
+  sendingText: { color: '#CCC2DC', fontSize: 14 },
   beginBtn: {
     margin: 16,
-    backgroundColor: '#e0c070',
+    backgroundColor: '#6650a4',
     borderRadius: 10,
     paddingVertical: 16,
     alignItems: 'center',
   },
-  beginBtnText: { color: '#1a1a2e', fontSize: 18, fontWeight: '800' },
+  beginBtnText: { color: '#D0BCFF', fontSize: 18, fontWeight: '800' },
 });

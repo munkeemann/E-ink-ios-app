@@ -1,5 +1,3 @@
-import * as FileSystem from 'expo-file-system';
-
 const DELAY_MS = 110;
 
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
@@ -24,12 +22,16 @@ function extractImageUrl(data: Record<string, unknown>): string | null {
 
 export async function fetchCard(cardName: string): Promise<FetchedCard> {
   const url = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}`;
+  console.log('[Scryfall] GET', url);
   const resp = await fetch(url, {
     headers: { 'User-Agent': 'ECardsApp/1.0', Accept: 'application/json' },
   });
   if (!resp.ok) {
-    const err = await resp.json().catch(() => ({})) as { details?: string };
-    throw new Error(err.details ?? `Card not found: "${cardName}"`);
+    const body = await resp.text().catch(() => '');
+    console.error('[Scryfall] Error', resp.status, body);
+    let details: string | undefined;
+    try { details = (JSON.parse(body) as { details?: string }).details; } catch { /* non-JSON */ }
+    throw new Error(details ?? `Card not found: "${cardName}" (HTTP ${resp.status})`);
   }
   const data = (await resp.json()) as Record<string, unknown>;
 
@@ -41,22 +43,7 @@ export async function fetchCard(cardName: string): Promise<FetchedCard> {
     ? colorArr.filter((x): x is string => typeof x === 'string')
     : [];
 
-  // Ensure cards directory exists
-  const dir = `${FileSystem.documentDirectory}cards/`;
-  const dirInfo = await FileSystem.getInfoAsync(dir);
-  if (!dirInfo.exists) {
-    await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
-  }
-
-  const safeFileName = cardName.replace(/[^a-zA-Z0-9]/g, '_') + '.jpg';
-  const localPath = dir + safeFileName;
-
-  const fileInfo = await FileSystem.getInfoAsync(localPath);
-  if (!fileInfo.exists) {
-    await FileSystem.downloadAsync(imageUrl, localPath);
-  }
-
-  return { imagePath: localPath, colorIdentity };
+  return { imagePath: imageUrl, colorIdentity };
 }
 
 export async function fetchCards(

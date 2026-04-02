@@ -53,13 +53,11 @@ export default function ImportDeckScreen() {
 
     const [commanderEntry, ...libraryEntries] = entries;
 
-    // Expand library entries by count
     const libraryNames: string[] = [];
     for (const e of libraryEntries) {
       for (let i = 0; i < e.count; i++) libraryNames.push(e.name);
     }
 
-    // Unique names to fetch (commander may count > 1 but fetched once)
     const uniqueNames = [
       ...new Set([commanderEntry.name, ...libraryNames]),
     ];
@@ -77,10 +75,8 @@ export default function ImportDeckScreen() {
         console.warn('Some cards failed:', errors);
       }
 
-      // Build cards array
       const cards: CardInstance[] = [];
 
-      // Commander — always placed as "commander", zone BTFLD
       for (let i = 0; i < commanderEntry.count; i++) {
         cards.push({
           baseName: commanderEntry.name,
@@ -94,23 +90,18 @@ export default function ImportDeckScreen() {
         });
       }
 
-      // Track duplicate counters for display names
       const nameCount: Record<string, number> = {};
-
       libraryNames.forEach((name, idx) => {
         nameCount[name] = (nameCount[name] ?? 0) + 1;
-        const count = nameCount[name];
-        // We'll resolve display names in a second pass; use raw count for now
         cards.push({
           baseName: name,
-          displayName: name, // finalized below
+          displayName: name,
           imagePath: results[name]?.imagePath ?? '',
           place: String(idx + 1),
           zone: 'LIB',
         });
       });
 
-      // Fix display names: add " 2", " 3" suffix for duplicates
       const seen: Record<string, number> = {};
       const totalCount: Record<string, number> = {};
       for (const c of cards.filter(c => c.place !== 'commander')) {
@@ -124,7 +115,6 @@ export default function ImportDeckScreen() {
         }
       }
 
-      // Collect all color identity
       const allColors = new Set<string>();
       for (const name of uniqueNames) {
         for (const c of results[name]?.colorIdentity ?? []) allColors.add(c);
@@ -169,7 +159,7 @@ export default function ImportDeckScreen() {
           value={deckName}
           onChangeText={setDeckName}
           placeholder="e.g. Ur-Dragon"
-          placeholderTextColor="#444"
+          placeholderTextColor="#625b71"
           editable={!importing}
         />
 
@@ -181,10 +171,8 @@ export default function ImportDeckScreen() {
           style={[styles.input, styles.textArea]}
           value={deckList}
           onChangeText={setDeckList}
-          placeholder={
-            '1 The Ur-Dragon\n1 Scion of the Ur-Dragon\n4 Cultivate\n...'
-          }
-          placeholderTextColor="#444"
+          placeholder={'1 The Ur-Dragon\n1 Scion of the Ur-Dragon\n4 Cultivate\n...'}
+          placeholderTextColor="#625b71"
           multiline
           textAlignVertical="top"
           editable={!importing}
@@ -192,7 +180,7 @@ export default function ImportDeckScreen() {
 
         {importing ? (
           <View style={styles.progressBox}>
-            <ActivityIndicator size="large" color="#e0c070" />
+            <ActivityIndicator size="large" color="#D0BCFF" />
             <Text style={styles.progressText}>
               Fetching cards…{' '}
               <Text style={styles.progressNum}>
@@ -211,10 +199,10 @@ export default function ImportDeckScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0d0d1a' },
+  container: { flex: 1, backgroundColor: '#292E32' },
   scroll: { padding: 18 },
   label: {
-    color: '#e0c070',
+    color: '#D0BCFF',
     fontSize: 13,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -222,31 +210,27 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     marginTop: 14,
   },
-  hint: { color: '#666', fontSize: 12, marginBottom: 8 },
+  hint: { color: '#625b71', fontSize: 12, marginBottom: 8 },
   input: {
-    backgroundColor: '#1a1a2e',
-    color: '#fff',
+    backgroundColor: '#353A40',
+    color: '#D4CDC1',
     borderWidth: 1,
-    borderColor: '#2d2d50',
+    borderColor: '#625b71',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 15,
   },
   textArea: { height: 300, lineHeight: 22 },
-  progressBox: {
-    marginTop: 24,
-    alignItems: 'center',
-    gap: 12,
-  },
-  progressText: { color: '#aaa', fontSize: 15 },
-  progressNum: { color: '#e0c070', fontWeight: '700' },
+  progressBox: { marginTop: 24, alignItems: 'center', gap: 12 },
+  progressText: { color: '#CCC2DC', fontSize: 15 },
+  progressNum: { color: '#D0BCFF', fontWeight: '700' },
   button: {
     marginTop: 28,
-    backgroundColor: '#e0c070',
+    backgroundColor: '#6650a4',
     borderRadius: 10,
     paddingVertical: 15,
     alignItems: 'center',
   },
-  buttonText: { color: '#1a1a2e', fontSize: 17, fontWeight: '800' },
+  buttonText: { color: '#D0BCFF', fontSize: 17, fontWeight: '800' },
 });

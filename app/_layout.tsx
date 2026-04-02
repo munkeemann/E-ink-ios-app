@@ -7,10 +7,10 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.root}>
       <Stack
         screenOptions={{
-          headerStyle: { backgroundColor: '#1a1a2e' },
-          headerTintColor: '#e0c070',
-          headerTitleStyle: { fontWeight: 'bold' },
-          contentStyle: { backgroundColor: '#0d0d1a' },
+          headerStyle: { backgroundColor: '#292E32' },
+          headerTintColor: '#D0BCFF',
+          headerTitleStyle: { fontWeight: 'bold', color: '#D4CDC1' },
+          contentStyle: { backgroundColor: '#292E32' },
         }}
       >
         <Stack.Screen name="index" options={{ title: 'MTG Deck Manager' }} />

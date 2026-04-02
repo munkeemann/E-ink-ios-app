@@ -7,17 +7,32 @@
     "sdkVersion": "55.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
-    "platforms": ["ios", "android"],
+    "icon": "./assets/images/Logo.png",
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "plugins": [
       "expo-router"
     ],
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#0d0d1a"
-      }
+      },
+      "package": "com.anonymous.ecards"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.e-cards",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e98e35bb-d4d2-4bec-9061-b9b6f338ff2d"
+      }
     }
   }
 }
