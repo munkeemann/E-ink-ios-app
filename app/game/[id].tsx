@@ -5,7 +5,6 @@ import {
   FlatList,
   Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -70,7 +69,6 @@ export default function InGameScreen() {
 
   // Multi-select
   const [selectedCards, setSelectedCards] = useState<Set<string>>(new Set());
-  const [multiMovePickerVisible, setMultiMovePickerVisible] = useState(false);
 
   const [scryModalVisible, setScryModalVisible] = useState(false);
   const [scryCountText, setScryCountText] = useState('3');
@@ -82,7 +80,6 @@ export default function InGameScreen() {
 
   const [millModalVisible, setMillModalVisible] = useState(false);
   const [millCountText, setMillCountText] = useState('1');
-  const [milledCards, setMilledCards] = useState<CardInstance[] | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -153,101 +150,113 @@ export default function InGameScreen() {
   // ─── Mulligan ─────────────────────────────────────────────────────────────
   const handleMulligan = async () => {
     console.log('[Mulligan] Button tapped');
-    if (!deck) { console.log('[Mulligan] Aborted — no deck'); return; }
-
-    const deckCards = Array.isArray(deck.cards) ? deck.cards : [];
-    let handCards = deckCards.filter(c => c.zone === 'HND');
-    console.log(`[Mulligan] Cards in HND zone: ${handCards.length}`);
-
-    // If no cards are explicitly in Hand, treat top 7 library cards as the starting hand
-    if (handCards.length === 0) {
-      const sortedLibForHand = deckCards
-        .filter(c => c.zone === 'LIB')
-        .sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10));
-      handCards = sortedLibForHand.slice(0, 7);
-      console.log(`[Mulligan] No HND cards — treating top ${handCards.length} library cards as hand`);
-    }
-
-    if (handCards.length === 0) {
-      console.log('[Mulligan] Aborted — library is empty');
-      return;
-    }
-
-    const sortedLib = deckCards
-      .filter(c => c.zone === 'LIB' && !handCards.includes(c))
-      .sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10));
-
-    const handSize = handCards.length;
-    console.log(`[Mulligan] Hand size: ${handSize}, remaining library: ${sortedLib.length}`);
-
-    if (sortedLib.length < handSize) {
-      console.log('[Mulligan] Aborted — not enough library cards to draw a new hand');
-      return;
-    }
-
-    const newHandSource = sortedLib.slice(0, handSize);
-    const remainingLib = sortedLib.slice(handSize);
-    console.log(`[Mulligan] New hand source: ${newHandSource.map(c => c.baseName).join(', ')}`);
-
-    // Sleeve IDs the player is physically holding, sorted ascending
-    const oldSleeveIds = handCards
-      .map(c => sleeveIdForCard(c))
-      .sort((a, b) => a - b);
-    console.log(`[Mulligan] Old sleeve IDs: ${oldSleeveIds.join(', ')}`);
-
-    // Remap those sleeve IDs onto the new hand cards (place = sleeveId - 1)
-    const newHandCards: CardInstance[] = newHandSource.map((card, i) => ({
-      ...card,
-      place: String(oldSleeveIds[i] - 1),
-      zone: 'HND' as Zone,
-    }));
-    console.log(`[Mulligan] New hand cards with sleeve IDs: ${newHandCards.map(c => `${c.baseName}→sleeve${sleeveIdForCard(c)}`).join(', ')}`);
-
-    // Reshuffle remaining library, assign contiguous places from 1
-    const shuffledRemaining: CardInstance[] = shuffle(remainingLib).map((c, i) => ({
-      ...c,
-      place: String(i + 1),
-      zone: 'LIB' as Zone,
-    }));
-
-    // Old hand cards go to bottom of library with highest place values
-    const bottomedCards: CardInstance[] = handCards.map((c, i) => ({
-      ...c,
-      place: String(shuffledRemaining.length + i + 1),
-      zone: 'LIB' as Zone,
-    }));
-    console.log(`[Mulligan] Bottomed cards: ${bottomedCards.map(c => c.baseName).join(', ')}`);
-
-    const commanderCards = deckCards.filter(c => c.place === 'commander');
-    const otherCards = deckCards.filter(
-      c => c.zone !== 'LIB' && c.zone !== 'HND' && c.place !== 'commander',
-    );
-
-    const finalCards = [...commanderCards, ...shuffledRemaining, ...bottomedCards, ...newHandCards, ...otherCards];
-    console.log(`[Mulligan] Final card count: ${finalCards.length}`);
-
-    const updated = { ...deck, cards: finalCards };
-    await saveDeck(updated);
-    setDeck(updated);
-    setMulliganCount(prev => prev + 1);
-    console.log('[Mulligan] Deck saved, pushing images to Pi');
-
-    setBusy(true);
-    setBusyLabel('Sending new hand…');
     try {
-      const sleeves = connectedSleeves ?? await getRegisteredSleeves();
-      console.log(`[Mulligan] Registered sleeves: ${sleeves.join(', ')}`);
-      if (sleeves.length > 0) {
-        await beginGame(newHandCards, sleeves);
-        console.log('[Mulligan] Pi push complete');
-      } else {
-        console.log('[Mulligan] No sleeves connected — skipping Pi push');
+      if (!deck) { console.log('[Mulligan] Aborted — no deck'); return; }
+
+      const deckCards = Array.isArray(deck.cards) ? deck.cards : [];
+      let handCards = deckCards.filter(c => c.zone === 'HND');
+      console.log(`[Mulligan] Cards in HND zone: ${handCards.length}`);
+
+      // If no cards are in Hand, treat top 7 library cards as the starting hand
+      if (handCards.length === 0) {
+        const sortedLibForHand = deckCards
+          .filter(c => c.zone === 'LIB')
+          .sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10));
+        handCards = sortedLibForHand.slice(0, 7);
+        console.log(`[Mulligan] No HND cards — using top ${handCards.length} library cards as hand`);
+      }
+
+      if (handCards.length === 0) {
+        console.log('[Mulligan] Aborted — no hand cards and library is empty');
+        Alert.alert('No cards in hand to mulligan');
+        return;
+      }
+
+      const handSize = handCards.length;
+      const handCardSet = new Set(handCards);
+
+      const sortedLib = deckCards
+        .filter(c => c.zone === 'LIB' && !handCardSet.has(c))
+        .sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10));
+      console.log(`[Mulligan] Hand size: ${handSize}, remaining library: ${sortedLib.length}`);
+
+      if (sortedLib.length < handSize) {
+        console.log('[Mulligan] Aborted — not enough library cards');
+        Alert.alert('Not enough cards', 'Library does not have enough cards for a new hand.');
+        return;
+      }
+
+      const newHandSource = sortedLib.slice(0, handSize);
+      const remainingLib = sortedLib.slice(handSize);
+      console.log(`[Mulligan] New hand source: ${newHandSource.map(c => c.baseName).join(', ')}`);
+
+      // Sleeve IDs the player is physically holding, sorted ascending
+      const oldSleeveIds = handCards
+        .map(c => sleeveIdForCard(c))
+        .sort((a, b) => a - b);
+      console.log(`[Mulligan] Old sleeve IDs: ${oldSleeveIds.join(', ')}`);
+
+      // Remap sleeve IDs onto the new hand cards (place = sleeveId - 1)
+      const newHandCards: CardInstance[] = newHandSource.map((card, i) => ({
+        ...card,
+        place: String(oldSleeveIds[i] - 1),
+        zone: 'HND' as Zone,
+      }));
+      console.log(`[Mulligan] New hand: ${newHandCards.map(c => `${c.baseName}→sleeve${sleeveIdForCard(c)}`).join(', ')}`);
+
+      // Reshuffle remaining library with contiguous places from 1
+      const shuffledRemaining: CardInstance[] = shuffle(remainingLib).map((c, i) => ({
+        ...c,
+        place: String(i + 1),
+        zone: 'LIB' as Zone,
+      }));
+
+      // Old hand cards go to bottom of library
+      const bottomedCards: CardInstance[] = handCards.map((c, i) => ({
+        ...c,
+        place: String(shuffledRemaining.length + i + 1),
+        zone: 'LIB' as Zone,
+      }));
+      console.log(`[Mulligan] Bottomed: ${bottomedCards.map(c => c.baseName).join(', ')}`);
+
+      const commanderCards = deckCards.filter(c => c.place === 'commander');
+      const otherCards = deckCards.filter(
+        c => c.zone !== 'LIB' && c.zone !== 'HND' && c.place !== 'commander',
+      );
+
+      const finalCards = [...commanderCards, ...shuffledRemaining, ...bottomedCards, ...newHandCards, ...otherCards];
+      console.log(`[Mulligan] Final card count: ${finalCards.length}`);
+
+      const updated = { ...deck, cards: finalCards };
+      await saveDeck(updated);
+      setDeck(updated);
+      setMulliganCount(prev => prev + 1);
+      console.log('[Mulligan] Deck saved');
+
+      Alert.alert(
+        'Mulligan',
+        `Put on bottom of library:\n${bottomedCards.map(c => c.displayName).join('\n')}`,
+      );
+
+      // Push new hand images to Pi
+      setBusy(true);
+      setBusyLabel('Sending new hand…');
+      try {
+        const sleeves = connectedSleeves ?? await getRegisteredSleeves();
+        console.log(`[Mulligan] Registered sleeves: ${sleeves.join(', ')}`);
+        if (sleeves.length > 0) {
+          await beginGame(newHandCards, sleeves);
+          console.log('[Mulligan] Pi push complete');
+        } else {
+          console.log('[Mulligan] No sleeves connected — skipping Pi push');
+        }
+      } finally {
+        setBusy(false);
+        setBusyLabel('');
       }
     } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-      setBusyLabel('');
+      console.error('[Mulligan] Unexpected error:', e);
+      Alert.alert('Mulligan error', e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -273,15 +282,18 @@ export default function InGameScreen() {
 
   // ─── Move selected cards (multi-select) ───────────────────────────────────
   const handleMoveSelected = async (destZone: Zone) => {
+    console.log(`[MoveSelected] Moving ${selectedCards.size} cards to ${destZone}`);
     if (!deck || selectedCards.size === 0) return;
-    setMultiMovePickerVisible(false);
-    setActiveZone(null);
 
-    const keys = selectedCards;
+    const sourceZone = activeZone;
+    setActiveZone(null);
+    setSelectedCards(new Set());
+
+    const keys = new Set(selectedCards);
     const deckCards = Array.isArray(deck.cards) ? deck.cards : [];
 
     const updated = deckCards.map(c => {
-      if (keys.has(cardKey(c)) && c.zone === activeZone) {
+      if (keys.has(cardKey(c)) && c.zone === sourceZone) {
         if (destZone === 'GRV') sendToGraveyard(sleeveIdForCard(c)).catch(() => {});
         return { ...c, zone: destZone };
       }
@@ -296,7 +308,20 @@ export default function InGameScreen() {
     const newDeck = { ...deck, cards: [...commanderCards, ...libCards, ...otherCards] };
     await saveDeck(newDeck);
     setDeck(newDeck);
-    setSelectedCards(new Set());
+    console.log('[MoveSelected] Done');
+  };
+
+  const openMoveSelectedPicker = () => {
+    console.log('[MoveSelected] Opening zone picker');
+    if (selectedCards.size === 0) return;
+    const options = MOVABLE_ZONES
+      .filter(z => z.id !== activeZone)
+      .map(zone => ({ text: zone.label, onPress: () => handleMoveSelected(zone.id) }));
+    Alert.alert(
+      `Move ${selectedCards.size} card${selectedCards.size !== 1 ? 's' : ''} to…`,
+      undefined,
+      [...options, { text: 'Cancel', style: 'cancel' as const }],
+    );
   };
 
   const toggleCardSelected = (card: CardInstance) => {
@@ -339,9 +364,11 @@ export default function InGameScreen() {
 
   // ─── Mill ─────────────────────────────────────────────────────────────────
   const handleMillConfirm = async () => {
+    console.log('[Mill] Confirm tapped');
     const n = parseInt(millCountText, 10);
     if (isNaN(n) || n < 1) { Alert.alert('Invalid', 'Enter a number ≥ 1'); return; }
     if (!deck) return;
+
     setMillModalVisible(false);
 
     const deckCards = Array.isArray(deck.cards) ? deck.cards : [];
@@ -350,6 +377,8 @@ export default function InGameScreen() {
       .sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10));
 
     const toMill = sortedLib.slice(0, n);
+    console.log(`[Mill] Milling ${toMill.length} cards: ${toMill.map(c => c.baseName).join(', ')}`);
+
     if (toMill.length === 0) { Alert.alert('Library empty', 'No cards to mill.'); return; }
 
     const milledSet = new Set(toMill);
@@ -362,7 +391,12 @@ export default function InGameScreen() {
     const newDeck = { ...deck, cards: [...commanderCards, ...libCards, ...otherCards] };
     await saveDeck(newDeck);
     setDeck(newDeck);
-    setMilledCards(toMill);
+    console.log('[Mill] Done, showing results');
+
+    Alert.alert(
+      `Milled ${toMill.length} card${toMill.length !== 1 ? 's' : ''}`,
+      toMill.map(c => c.displayName).join('\n'),
+    );
   };
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -461,7 +495,7 @@ export default function InGameScreen() {
                 <Pressable
                   style={[styles.moveSelectedBtn, selectedCards.size === 0 && styles.moveSelectedBtnDisabled]}
                   disabled={selectedCards.size === 0}
-                  onPress={() => setMultiMovePickerVisible(true)}
+                  onPress={openMoveSelectedPicker}
                 >
                   <Text style={styles.moveSelectedBtnText}>
                     Move {selectedCards.size > 0 ? `(${selectedCards.size})` : 'selected'} to…
@@ -492,30 +526,6 @@ export default function InGameScreen() {
                 }}
               />
             )}
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      {/* Multi-select move destination picker */}
-      <Modal
-        visible={multiMovePickerVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setMultiMovePickerVisible(false)}
-      >
-        <Pressable style={styles.sheetBackdrop} onPress={() => setMultiMovePickerVisible(false)}>
-          <Pressable style={styles.sheet} onPress={() => {}}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Move {selectedCards.size} card{selectedCards.size !== 1 ? 's' : ''} to…</Text>
-            {MOVABLE_ZONES.filter(z => z.id !== activeZone).map(zone => (
-              <Pressable
-                key={zone.id}
-                style={[styles.zonePickerRow, { borderLeftColor: zone.color }]}
-                onPress={() => handleMoveSelected(zone.id)}
-              >
-                <Text style={[styles.zonePickerText, { color: zone.color }]}>{zone.label}</Text>
-              </Pressable>
-            ))}
           </Pressable>
         </Pressable>
       </Modal>
@@ -578,24 +588,6 @@ export default function InGameScreen() {
             </View>
           </Pressable>
         </Pressable>
-      </Modal>
-
-      {/* Mill results */}
-      <Modal visible={milledCards !== null} transparent animationType="fade" onRequestClose={() => setMilledCards(null)}>
-        <View style={styles.sheetBackdrop}>
-          <View style={[styles.sheet, styles.millResultsSheet]}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Milled {milledCards?.length ?? 0} card{milledCards?.length !== 1 ? 's' : ''}</Text>
-            <ScrollView style={styles.millResultsList}>
-              {(milledCards ?? []).map((c, i) => (
-                <Text key={i} style={styles.millResultCard}>{c.displayName}</Text>
-              ))}
-            </ScrollView>
-            <Pressable style={[styles.confirmBtn, { marginTop: 14 }]} onPress={() => setMilledCards(null)}>
-              <Text style={styles.confirmBtnText}>Done</Text>
-            </Pressable>
-          </View>
-        </View>
       </Modal>
 
     </View>
