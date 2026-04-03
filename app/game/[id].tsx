@@ -5,15 +5,16 @@ import {
   FlatList,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { beginGame, getRegisteredSleeves, sendToGraveyard } from '../../src/api/piServer';
+import { PI_SERVER, beginGame, getRegisteredSleeves, sendToGraveyard } from '../../src/api/piServer';
 import { getDeck, saveDeck } from '../../src/storage/deckStorage';
-import { CardInstance, Deck } from '../../src/types';
+import { CardInstance, Deck, TokenTemplate } from '../../src/types';
 
 type Zone = 'LIB' | 'HND' | 'BTFLD' | 'GRV' | 'EXL' | 'CMD';
 
@@ -27,6 +28,9 @@ const ZONE_CONFIG: { id: Zone; label: string; color: string }[] = [
 ];
 
 const MOVABLE_ZONES = ZONE_CONFIG.filter(z => z.id !== 'CMD');
+
+const MTG_COLORS = ['W', 'U', 'B', 'R', 'G'];
+const COLOR_LABELS: Record<string, string> = { W: '☀️', U: '💧', B: '💀', R: '🔥', G: '🌲' };
 
 function cardKey(card: CardInstance): string {
   return `${card.baseName}__${card.place}`;
@@ -66,8 +70,6 @@ export default function InGameScreen() {
   const [connectedSleeves, setConnectedSleeves] = useState<number[] | null>(null);
 
   const [activeZone, setActiveZone] = useState<Zone | null>(null);
-
-  // Multi-select
   const [selectedCards, setSelectedCards] = useState<Set<string>>(new Set());
 
   const [scryModalVisible, setScryModalVisible] = useState(false);
@@ -76,10 +78,23 @@ export default function InGameScreen() {
   const [tutorModalVisible, setTutorModalVisible] = useState(false);
   const [tutorQuery, setTutorQuery] = useState('');
 
-  const [mulliganCount, setMulliganCount] = useState(0);
-
   const [millModalVisible, setMillModalVisible] = useState(false);
   const [millCountText, setMillCountText] = useState('1');
+
+  // Mulligan bottom sheet (shown after Begin Game)
+  const [mulliganSheetVisible, setMulliganSheetVisible] = useState(false);
+  const [mulliganCount, setMulliganCount] = useState(0);
+  const [mulliganBottomed, setMulliganBottomed] = useState<string[]>([]);
+  const [mulliganBusy, setMulliganBusy] = useState(false);
+
+  // Create Token modal
+  const [tokenModalVisible, setTokenModalVisible] = useState(false);
+  const [tokenTab, setTokenTab] = useState<'custom' | 'favorites'>('custom');
+  const [tokenName, setTokenName] = useState('');
+  const [tokenPower, setTokenPower] = useState('1');
+  const [tokenToughness, setTokenToughness] = useState('1');
+  const [tokenColors, setTokenColors] = useState<string[]>([]);
+  const [tokenCreating, setTokenCreating] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -118,14 +133,17 @@ export default function InGameScreen() {
   // ─── Begin Game ───────────────────────────────────────────────────────────
   const doBeginGame = async (gameCards: CardInstance[]) => {
     setMulliganCount(0);
+    setMulliganBottomed([]);
     setBusy(true);
     setBusyLabel('Checking sleeves…');
     try {
       const sleeves = await getRegisteredSleeves();
       setConnectedSleeves(sleeves);
-      if (sleeves.length === 0) return;
-      setBusyLabel('Sending sleeves…');
-      await beginGame(gameCards, sleeves);
+      if (sleeves.length > 0) {
+        setBusyLabel('Sending sleeves…');
+        await beginGame(gameCards, sleeves);
+      }
+      setMulliganSheetVisible(true);
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : String(e));
     } finally {
@@ -147,77 +165,61 @@ export default function InGameScreen() {
     await doBeginGame(newCards);
   };
 
-  // ─── Mulligan ─────────────────────────────────────────────────────────────
-  const handleMulligan = async () => {
-    console.log('[Mulligan] Button tapped');
+  // ─── Mulligan (from post-Begin-Game sheet) ────────────────────────────────
+  const handleMulliganFromSheet = async () => {
+    console.log('[Mulligan] Sheet tapped');
+    if (!deck) return;
+    setMulliganBusy(true);
     try {
-      if (!deck) { console.log('[Mulligan] Aborted — no deck'); return; }
-
       const deckCards = Array.isArray(deck.cards) ? deck.cards : [];
       let handCards = deckCards.filter(c => c.zone === 'HND');
-      console.log(`[Mulligan] Cards in HND zone: ${handCards.length}`);
 
-      // If no cards are in Hand, treat top 7 library cards as the starting hand
       if (handCards.length === 0) {
-        const sortedLibForHand = deckCards
+        const sortedLib = deckCards
           .filter(c => c.zone === 'LIB')
           .sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10));
-        handCards = sortedLibForHand.slice(0, 7);
-        console.log(`[Mulligan] No HND cards — using top ${handCards.length} library cards as hand`);
+        handCards = sortedLib.slice(0, 7);
       }
 
       if (handCards.length === 0) {
-        console.log('[Mulligan] Aborted — no hand cards and library is empty');
-        Alert.alert('No cards in hand to mulligan');
+        Alert.alert('No cards to mulligan');
         return;
       }
 
-      const handSize = handCards.length;
       const handCardSet = new Set(handCards);
-
       const sortedLib = deckCards
         .filter(c => c.zone === 'LIB' && !handCardSet.has(c))
         .sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10));
-      console.log(`[Mulligan] Hand size: ${handSize}, remaining library: ${sortedLib.length}`);
 
-      if (sortedLib.length < handSize) {
-        console.log('[Mulligan] Aborted — not enough library cards');
+      if (sortedLib.length < handCards.length) {
         Alert.alert('Not enough cards', 'Library does not have enough cards for a new hand.');
         return;
       }
 
-      const newHandSource = sortedLib.slice(0, handSize);
-      const remainingLib = sortedLib.slice(handSize);
-      console.log(`[Mulligan] New hand source: ${newHandSource.map(c => c.baseName).join(', ')}`);
+      const newHandSource = sortedLib.slice(0, handCards.length);
+      const remainingLib = sortedLib.slice(handCards.length);
 
-      // Sleeve IDs the player is physically holding, sorted ascending
       const oldSleeveIds = handCards
         .map(c => sleeveIdForCard(c))
         .sort((a, b) => a - b);
-      console.log(`[Mulligan] Old sleeve IDs: ${oldSleeveIds.join(', ')}`);
 
-      // Remap sleeve IDs onto the new hand cards (place = sleeveId - 1)
       const newHandCards: CardInstance[] = newHandSource.map((card, i) => ({
         ...card,
         place: String(oldSleeveIds[i] - 1),
         zone: 'HND' as Zone,
       }));
-      console.log(`[Mulligan] New hand: ${newHandCards.map(c => `${c.baseName}→sleeve${sleeveIdForCard(c)}`).join(', ')}`);
 
-      // Reshuffle remaining library with contiguous places from 1
       const shuffledRemaining: CardInstance[] = shuffle(remainingLib).map((c, i) => ({
         ...c,
         place: String(i + 1),
         zone: 'LIB' as Zone,
       }));
 
-      // Old hand cards go to bottom of library
       const bottomedCards: CardInstance[] = handCards.map((c, i) => ({
         ...c,
         place: String(shuffledRemaining.length + i + 1),
         zone: 'LIB' as Zone,
       }));
-      console.log(`[Mulligan] Bottomed: ${bottomedCards.map(c => c.baseName).join(', ')}`);
 
       const commanderCards = deckCards.filter(c => c.place === 'commander');
       const otherCards = deckCards.filter(
@@ -225,42 +227,37 @@ export default function InGameScreen() {
       );
 
       const finalCards = [...commanderCards, ...shuffledRemaining, ...bottomedCards, ...newHandCards, ...otherCards];
-      console.log(`[Mulligan] Final card count: ${finalCards.length}`);
-
       const updated = { ...deck, cards: finalCards };
       await saveDeck(updated);
       setDeck(updated);
-      setMulliganCount(prev => prev + 1);
-      console.log('[Mulligan] Deck saved');
 
-      Alert.alert(
-        'Mulligan',
-        `Put on bottom of library:\n${bottomedCards.map(c => c.displayName).join('\n')}`,
-      );
+      const newCount = mulliganCount + 1;
+      setMulliganCount(newCount);
+      setMulliganBottomed(bottomedCards.map(c => c.displayName));
 
-      // Push new hand images to Pi
-      setBusy(true);
-      setBusyLabel('Sending new hand…');
-      try {
-        const sleeves = connectedSleeves ?? await getRegisteredSleeves();
-        console.log(`[Mulligan] Registered sleeves: ${sleeves.join(', ')}`);
-        if (sleeves.length > 0) {
-          await beginGame(newHandCards, sleeves);
-          console.log('[Mulligan] Pi push complete');
-        } else {
-          console.log('[Mulligan] No sleeves connected — skipping Pi push');
-        }
-      } finally {
-        setBusy(false);
-        setBusyLabel('');
+      const sleeves = connectedSleeves ?? await getRegisteredSleeves();
+      if (sleeves.length > 0) {
+        await beginGame(newHandCards, sleeves);
       }
     } catch (e) {
-      console.error('[Mulligan] Unexpected error:', e);
+      console.error('[Mulligan] Error:', e);
       Alert.alert('Mulligan error', e instanceof Error ? e.message : String(e));
+    } finally {
+      setMulliganBusy(false);
     }
   };
 
-  // ─── Move card (single, legacy — used by CMD zone fallthrough) ────────────
+  const handleKeepHand = () => {
+    setMulliganSheetVisible(false);
+    if (mulliganCount > 0) {
+      Alert.alert(
+        'London Mulligan',
+        `Put ${mulliganCount} card${mulliganCount > 1 ? 's' : ''} from your hand to the bottom of your library.\n\nUse the zone move buttons in the Hand zone.`,
+      );
+    }
+  };
+
+  // ─── Move card (single, used by CMD zone) ────────────────────────────────
   const handleMoveCard = async (card: CardInstance, destZone: Zone) => {
     if (!deck) return;
 
@@ -280,9 +277,8 @@ export default function InGameScreen() {
     setDeck(newDeck);
   };
 
-  // ─── Move selected cards (multi-select) ───────────────────────────────────
+  // ─── Move selected cards ──────────────────────────────────────────────────
   const handleMoveSelected = async (destZone: Zone) => {
-    console.log(`[MoveSelected] Moving ${selectedCards.size} cards to ${destZone}`);
     if (!deck || selectedCards.size === 0) return;
 
     const sourceZone = activeZone;
@@ -308,11 +304,9 @@ export default function InGameScreen() {
     const newDeck = { ...deck, cards: [...commanderCards, ...libCards, ...otherCards] };
     await saveDeck(newDeck);
     setDeck(newDeck);
-    console.log('[MoveSelected] Done');
   };
 
   const openMoveSelectedPicker = () => {
-    console.log('[MoveSelected] Opening zone picker');
     if (selectedCards.size === 0) return;
     const options = MOVABLE_ZONES
       .filter(z => z.id !== activeZone)
@@ -364,7 +358,6 @@ export default function InGameScreen() {
 
   // ─── Mill ─────────────────────────────────────────────────────────────────
   const handleMillConfirm = async () => {
-    console.log('[Mill] Confirm tapped');
     const n = parseInt(millCountText, 10);
     if (isNaN(n) || n < 1) { Alert.alert('Invalid', 'Enter a number ≥ 1'); return; }
     if (!deck) return;
@@ -377,8 +370,6 @@ export default function InGameScreen() {
       .sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10));
 
     const toMill = sortedLib.slice(0, n);
-    console.log(`[Mill] Milling ${toMill.length} cards: ${toMill.map(c => c.baseName).join(', ')}`);
-
     if (toMill.length === 0) { Alert.alert('Library empty', 'No cards to mill.'); return; }
 
     const milledSet = new Set(toMill);
@@ -391,11 +382,102 @@ export default function InGameScreen() {
     const newDeck = { ...deck, cards: [...commanderCards, ...libCards, ...otherCards] };
     await saveDeck(newDeck);
     setDeck(newDeck);
-    console.log('[Mill] Done, showing results');
 
     Alert.alert(
       `Milled ${toMill.length} card${toMill.length !== 1 ? 's' : ''}`,
       toMill.map(c => c.displayName).join('\n'),
+    );
+  };
+
+  // ─── Create Token ─────────────────────────────────────────────────────────
+  const createTokenFromValues = async (
+    name: string,
+    power: string,
+    toughness: string,
+    colors: string[],
+  ) => {
+    if (!name.trim()) { Alert.alert('Missing name', 'Enter a token name.'); return; }
+    setTokenCreating(true);
+    try {
+      let imagePath = '';
+      const colorStr = colors.length > 0 ? `+c:${colors.join('')}` : '';
+      const query = encodeURIComponent(`is:token t:${name.trim()}${colorStr}`);
+      try {
+        const resp = await fetch(`https://api.scryfall.com/cards/search?q=${query}`);
+        if (resp.ok) {
+          const data = await resp.json() as { data?: Array<Record<string, unknown>> };
+          const first = data.data?.[0];
+          if (first) {
+            const uris = first.image_uris as Record<string, string> | undefined;
+            if (uris?.large) {
+              imagePath = uris.large;
+            } else {
+              const faces = first.card_faces as Array<Record<string, unknown>> | undefined;
+              const faceUris = faces?.[0]?.image_uris as Record<string, string> | undefined;
+              if (faceUris?.large) imagePath = faceUris.large;
+            }
+          }
+        }
+      } catch {
+        // Scryfall unavailable — create token without image
+      }
+
+      const tokenCard: CardInstance = {
+        baseName: name.trim(),
+        displayName: `${name.trim()} Token`,
+        imagePath,
+        place: String(Date.now()),
+        zone: 'BTFLD',
+      };
+
+      const deckCards = Array.isArray(deck?.cards) ? deck!.cards : [];
+      const newCards = [...deckCards, tokenCard];
+      const updated = { ...deck!, cards: newCards };
+      await saveDeck(updated);
+      setDeck(updated);
+
+      // Push token image to first registered sleeve for display
+      if (imagePath) {
+        const sleeves = connectedSleeves ?? await getRegisteredSleeves();
+        if (sleeves.length > 0) {
+          const targetSleeve = sleeves[0];
+          try {
+            const imageResp = await fetch(imagePath);
+            if (imageResp.ok) {
+              const buf = await imageResp.arrayBuffer();
+              await fetch(`${PI_SERVER}/display?sleeve_id=${targetSleeve}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'image/jpeg' },
+                body: buf,
+              });
+            }
+          } catch {
+            // Pi offline — token still added to state
+          }
+        }
+      }
+
+      setTokenModalVisible(false);
+      setTokenName('');
+      setTokenPower('1');
+      setTokenToughness('1');
+      setTokenColors([]);
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : String(e));
+    } finally {
+      setTokenCreating(false);
+    }
+  };
+
+  const handleCreateToken = () =>
+    createTokenFromValues(tokenName, tokenPower, tokenToughness, tokenColors);
+
+  const handleCreateFromTemplate = (t: TokenTemplate) =>
+    createTokenFromValues(t.name, t.power, t.toughness, t.colors);
+
+  const toggleTokenColor = (c: string) => {
+    setTokenColors(prev =>
+      prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c],
     );
   };
 
@@ -407,6 +489,8 @@ export default function InGameScreen() {
       </View>
     );
   }
+
+  const favorites = Array.isArray(deck.tokens) ? deck.tokens : [];
 
   return (
     <View style={styles.container}>
@@ -425,46 +509,68 @@ export default function InGameScreen() {
         </Text>
       </View>
 
-      {/* Zone buttons */}
-      <View style={styles.zoneRow}>
-        {ZONE_CONFIG.map(zone => (
-          <Pressable
-            key={zone.id}
-            style={[styles.zoneBtn, { borderColor: zone.color }]}
-            onPress={() => { setSelectedCards(new Set()); setActiveZone(zone.id); }}
-          >
-            <Text style={[styles.zoneBtnLabel, { color: zone.color }]}>{zone.label}</Text>
-            {zone.id === 'CMD'
-              ? <Text style={[styles.zoneBtnCommander, { color: zone.color }]} numberOfLines={1}>
-                  {commander?.displayName ?? '—'}
-                </Text>
-              : <Text style={[styles.zoneBtnCount, { color: zone.color }]}>({zoneCounts[zone.id]})</Text>
-            }
-          </Pressable>
-        ))}
+      {/* Zone grid — 2 rows × 3 cols */}
+      <View style={styles.zoneGrid}>
+        <View style={styles.zoneGridRow}>
+          {ZONE_CONFIG.slice(0, 3).map(zone => (
+            <Pressable
+              key={zone.id}
+              style={[styles.zoneBtn, { borderColor: zone.color }]}
+              onPress={() => { setSelectedCards(new Set()); setActiveZone(zone.id); }}
+            >
+              <Text style={[styles.zoneBtnLabel, { color: zone.color }]}>{zone.label}</Text>
+              {zone.id === 'CMD'
+                ? <Text style={[styles.zoneBtnCommander, { color: zone.color }]} numberOfLines={1}>
+                    {commander?.displayName ?? '—'}
+                  </Text>
+                : <Text style={[styles.zoneBtnCount, { color: zone.color }]}>{zoneCounts[zone.id]}</Text>
+              }
+            </Pressable>
+          ))}
+        </View>
+        <View style={styles.zoneGridRow}>
+          {ZONE_CONFIG.slice(3, 6).map(zone => (
+            <Pressable
+              key={zone.id}
+              style={[styles.zoneBtn, { borderColor: zone.color }]}
+              onPress={() => { setSelectedCards(new Set()); setActiveZone(zone.id); }}
+            >
+              <Text style={[styles.zoneBtnLabel, { color: zone.color }]}>{zone.label}</Text>
+              <Text style={[styles.zoneBtnCount, { color: zone.color }]}>{zoneCounts[zone.id]}</Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
 
-      {/* Action buttons */}
-      <View style={styles.actions}>
-        <Pressable style={[styles.actionBtn, busy && styles.btnDisabled]} onPress={handleShuffle} disabled={busy}>
-          <Text style={styles.actionBtnText}>🔀 Shuffle</Text>
-        </Pressable>
-        <Pressable style={[styles.actionBtn, busy && styles.btnDisabled]} onPress={() => setScryModalVisible(true)} disabled={busy}>
-          <Text style={styles.actionBtnText}>👁 Scry</Text>
-        </Pressable>
-        <Pressable style={[styles.actionBtn, busy && styles.btnDisabled]} onPress={() => setTutorModalVisible(true)} disabled={busy}>
-          <Text style={styles.actionBtnText}>🔍 Tutor</Text>
-        </Pressable>
-        <Pressable style={[styles.actionBtn, busy && styles.btnDisabled]} onPress={handleMulligan} disabled={busy}>
-          <Text style={styles.actionBtnText}>
-            {mulliganCount === 0 ? '✋ Mulligan' : `✋ Mulligan (${mulliganCount})`}
-          </Text>
-        </Pressable>
-        <Pressable style={[styles.actionBtn, busy && styles.btnDisabled]} onPress={() => setMillModalVisible(true)} disabled={busy}>
-          <Text style={styles.actionBtnText}>💀 Mill</Text>
-        </Pressable>
-        <Pressable style={[styles.actionBtn, styles.beginGameBtn, busy && styles.btnDisabled]} onPress={() => doBeginGame(cards)} disabled={busy}>
-          <Text style={styles.actionBtnText}>▶ Begin Game</Text>
+      {/* Action grid — 2 rows × 3 cols + full-width Begin Game */}
+      <View style={styles.actionGrid}>
+        <View style={styles.actionRow}>
+          <Pressable style={[styles.actionBtn, busy && styles.btnDisabled]} onPress={handleShuffle} disabled={busy}>
+            <Text style={styles.actionIcon}>🔀</Text>
+            <Text style={styles.actionLabel}>Shuffle</Text>
+          </Pressable>
+          <Pressable style={[styles.actionBtn, busy && styles.btnDisabled]} onPress={() => setScryModalVisible(true)} disabled={busy}>
+            <Text style={styles.actionIcon}>👁</Text>
+            <Text style={styles.actionLabel}>Scry</Text>
+          </Pressable>
+          <Pressable style={[styles.actionBtn, busy && styles.btnDisabled]} onPress={() => setTutorModalVisible(true)} disabled={busy}>
+            <Text style={styles.actionIcon}>🔍</Text>
+            <Text style={styles.actionLabel}>Tutor</Text>
+          </Pressable>
+        </View>
+        <View style={styles.actionRow}>
+          <Pressable style={[styles.actionBtn, busy && styles.btnDisabled]} onPress={() => setMillModalVisible(true)} disabled={busy}>
+            <Text style={styles.actionIcon}>💀</Text>
+            <Text style={styles.actionLabel}>Mill</Text>
+          </Pressable>
+          <Pressable style={[styles.actionBtn, busy && styles.btnDisabled]} onPress={() => setTokenModalVisible(true)} disabled={busy}>
+            <Text style={styles.actionIcon}>✨</Text>
+            <Text style={styles.actionLabel}>Create Token</Text>
+          </Pressable>
+          <View style={styles.actionBtnSpacer} />
+        </View>
+        <Pressable style={[styles.beginGameBtn, busy && styles.btnDisabled]} onPress={() => doBeginGame(cards)} disabled={busy}>
+          <Text style={styles.beginGameText}>▶ Begin Game</Text>
         </Pressable>
       </View>
 
@@ -485,8 +591,6 @@ export default function InGameScreen() {
         <Pressable style={styles.sheetBackdrop} onPress={() => { setActiveZone(null); setSelectedCards(new Set()); }}>
           <Pressable style={styles.sheet} onPress={() => {}}>
             <View style={styles.sheetHandle} />
-
-            {/* Header row with title + Move Selected button */}
             <View style={styles.zoneSheetHeader}>
               <Text style={styles.sheetTitle}>
                 {ZONE_CONFIG.find(z => z.id === activeZone)?.label} ({zoneCards.length})
@@ -527,6 +631,66 @@ export default function InGameScreen() {
               />
             )}
           </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Mulligan bottom sheet */}
+      <Modal
+        visible={mulliganSheetVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={handleKeepHand}
+      >
+        <Pressable style={styles.sheetBackdrop} onPress={() => {}}>
+          <View style={styles.sheet}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Opening Hand</Text>
+
+            {mulliganCount === 0 ? (
+              <Text style={styles.mulliganInfo}>
+                Take your opening 7 from the top of your library.{'\n'}Would you like to mulligan?
+              </Text>
+            ) : (
+              <>
+                <Text style={styles.mulliganInfo}>
+                  Mulligan #{mulliganCount} — new hand sent to sleeves.
+                  {'\n'}Remember: keep {7 - mulliganCount} card{7 - mulliganCount !== 1 ? 's' : ''} when you're done.
+                </Text>
+                {mulliganBottomed.length > 0 && (
+                  <View style={styles.mulliganBottomedBox}>
+                    <Text style={styles.mulliganBottomedLabel}>Returned to library:</Text>
+                    {mulliganBottomed.map((name, i) => (
+                      <Text key={i} style={styles.mulliganBottomedCard}>• {name}</Text>
+                    ))}
+                  </View>
+                )}
+              </>
+            )}
+
+            {mulliganBusy && (
+              <View style={styles.mulliganBusyRow}>
+                <ActivityIndicator color="#D0BCFF" size="small" />
+                <Text style={styles.busyText}>Sending new hand…</Text>
+              </View>
+            )}
+
+            <View style={styles.sheetActions}>
+              <Pressable
+                style={[styles.cancelBtn, mulliganBusy && styles.btnDisabled]}
+                onPress={handleKeepHand}
+                disabled={mulliganBusy}
+              >
+                <Text style={styles.cancelBtnText}>Keep Hand</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.confirmBtn, mulliganBusy && styles.btnDisabled]}
+                onPress={handleMulliganFromSheet}
+                disabled={mulliganBusy}
+              >
+                <Text style={styles.confirmBtnText}>Mulligan</Text>
+              </Pressable>
+            </View>
+          </View>
         </Pressable>
       </Modal>
 
@@ -590,6 +754,132 @@ export default function InGameScreen() {
         </Pressable>
       </Modal>
 
+      {/* Create Token — bottom sheet */}
+      <Modal visible={tokenModalVisible} transparent animationType="slide" onRequestClose={() => setTokenModalVisible(false)}>
+        <Pressable style={styles.sheetBackdrop} onPress={() => setTokenModalVisible(false)}>
+          <Pressable style={[styles.sheet, styles.tokenSheet]} onPress={() => {}}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Create Token</Text>
+
+            {/* Tab switcher */}
+            <View style={styles.tabRow}>
+              <Pressable
+                style={[styles.tab, tokenTab === 'custom' && styles.tabActive]}
+                onPress={() => setTokenTab('custom')}
+              >
+                <Text style={[styles.tabText, tokenTab === 'custom' && styles.tabTextActive]}>Custom</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.tab, tokenTab === 'favorites' && styles.tabActive]}
+                onPress={() => setTokenTab('favorites')}
+              >
+                <Text style={[styles.tabText, tokenTab === 'favorites' && styles.tabTextActive]}>
+                  Favorites {favorites.length > 0 ? `(${favorites.length})` : ''}
+                </Text>
+              </Pressable>
+            </View>
+
+            {tokenTab === 'custom' ? (
+              <ScrollView keyboardShouldPersistTaps="handled">
+                <Text style={styles.sheetLabel}>Token Name</Text>
+                <TextInput
+                  style={styles.sheetInput}
+                  value={tokenName}
+                  onChangeText={setTokenName}
+                  placeholder="e.g. Soldier, Dragon, Treasure"
+                  placeholderTextColor="#625b71"
+                  autoCapitalize="words"
+                />
+
+                <View style={styles.ptRow}>
+                  <View style={styles.ptField}>
+                    <Text style={styles.sheetLabel}>Power</Text>
+                    <TextInput
+                      style={styles.sheetInput}
+                      value={tokenPower}
+                      onChangeText={setTokenPower}
+                      keyboardType="number-pad"
+                      selectTextOnFocus
+                    />
+                  </View>
+                  <Text style={styles.ptSlash}>/</Text>
+                  <View style={styles.ptField}>
+                    <Text style={styles.sheetLabel}>Toughness</Text>
+                    <TextInput
+                      style={styles.sheetInput}
+                      value={tokenToughness}
+                      onChangeText={setTokenToughness}
+                      keyboardType="number-pad"
+                      selectTextOnFocus
+                    />
+                  </View>
+                </View>
+
+                <Text style={styles.sheetLabel}>Color</Text>
+                <View style={styles.colorRow}>
+                  {MTG_COLORS.map(c => (
+                    <Pressable
+                      key={c}
+                      style={[styles.colorBtn, tokenColors.includes(c) && styles.colorBtnActive]}
+                      onPress={() => toggleTokenColor(c)}
+                    >
+                      <Text style={styles.colorBtnText}>{COLOR_LABELS[c]}</Text>
+                      <Text style={[styles.colorBtnLabel, tokenColors.includes(c) && styles.colorBtnLabelActive]}>{c}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+                <View style={[styles.sheetActions, { marginTop: 16 }]}>
+                  <Pressable style={styles.cancelBtn} onPress={() => setTokenModalVisible(false)}>
+                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.confirmBtn, tokenCreating && styles.btnDisabled]}
+                    onPress={handleCreateToken}
+                    disabled={tokenCreating}
+                  >
+                    {tokenCreating
+                      ? <ActivityIndicator color="#D0BCFF" size="small" />
+                      : <Text style={styles.confirmBtnText}>Create</Text>
+                    }
+                  </Pressable>
+                </View>
+              </ScrollView>
+            ) : (
+              favorites.length === 0 ? (
+                <Text style={styles.emptyText}>
+                  No favorites yet. Add token templates in the deck view.
+                </Text>
+              ) : (
+                <FlatList
+                  data={favorites}
+                  keyExtractor={(t, i) => `${t.name}-${i}`}
+                  renderItem={({ item }) => (
+                    <Pressable
+                      style={[styles.favoriteRow, tokenCreating && styles.btnDisabled]}
+                      onPress={() => handleCreateFromTemplate(item)}
+                      disabled={tokenCreating}
+                    >
+                      <View style={styles.favoriteInfo}>
+                        <Text style={styles.favoriteName}>{item.name}</Text>
+                        <Text style={styles.favoriteMeta}>
+                          {item.power}/{item.toughness}
+                          {item.colors.length > 0 ? `  ${item.colors.map(c => COLOR_LABELS[c] ?? c).join('')}` : '  Colorless'}
+                        </Text>
+                      </View>
+                      {tokenCreating
+                        ? <ActivityIndicator color="#D0BCFF" size="small" />
+                        : <Text style={styles.favoriteCreate}>Create →</Text>
+                      }
+                    </Pressable>
+                  )}
+                />
+              )
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
     </View>
   );
 }
@@ -610,44 +900,47 @@ const styles = StyleSheet.create({
   sleeveStatus: { color: '#6ee7b7', fontSize: 11, marginTop: 4 },
   sleeveStatusNone: { color: '#f87171' },
 
-  zoneRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 10,
-    paddingVertical: 14,
-    gap: 6,
-  },
+  zoneGrid: { paddingHorizontal: 10, paddingTop: 12, paddingBottom: 4, gap: 8 },
+  zoneGridRow: { flexDirection: 'row', gap: 8 },
   zoneBtn: {
     flex: 1,
+    height: 75,
     borderWidth: 1.5,
     borderRadius: 8,
     paddingVertical: 10,
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.04)',
   },
-  zoneBtnLabel: { fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
-  zoneBtnCount: { fontSize: 16, fontWeight: '800', marginTop: 2 },
-  zoneBtnCommander: { fontSize: 8, fontWeight: '700', marginTop: 2, textAlign: 'center', paddingHorizontal: 2 },
+  zoneBtnLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
+  zoneBtnCount: { fontSize: 22, fontWeight: '800', marginTop: 4 },
+  zoneBtnCommander: { fontSize: 8, fontWeight: '700', marginTop: 4, textAlign: 'center', paddingHorizontal: 2 },
 
-  actions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingBottom: 14,
-  },
+  actionGrid: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 14, gap: 8 },
+  actionRow: { flexDirection: 'row', gap: 8 },
   actionBtn: {
     flex: 1,
-    minWidth: '45%',
+    backgroundColor: '#353A40',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#625b71',
+    gap: 4,
+  },
+  actionBtnSpacer: { flex: 1 },
+  actionIcon: { fontSize: 20 },
+  actionLabel: { color: '#D0BCFF', fontSize: 11, fontWeight: '700' },
+  beginGameBtn: {
     backgroundColor: '#6650a4',
     borderRadius: 8,
-    paddingVertical: 13,
+    paddingVertical: 15,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#D0BCFF',
   },
-  beginGameBtn: { backgroundColor: '#4a3080' },
+  beginGameText: { color: '#D0BCFF', fontSize: 16, fontWeight: '800' },
   btnDisabled: { opacity: 0.4 },
-  actionBtnText: { color: '#D0BCFF', fontSize: 14, fontWeight: '700' },
 
   busyOverlay: {
     position: 'absolute',
@@ -675,6 +968,7 @@ const styles = StyleSheet.create({
     paddingBottom: 36,
     maxHeight: '80%',
   },
+  tokenSheet: { maxHeight: '90%' },
   sheetHandle: {
     width: 36,
     height: 4,
@@ -684,7 +978,7 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   sheetTitle: { color: '#D0BCFF', fontSize: 18, fontWeight: '800', marginBottom: 14 },
-  sheetLabel: { color: '#CCC2DC', fontSize: 14, marginBottom: 8 },
+  sheetLabel: { color: '#CCC2DC', fontSize: 13, marginBottom: 6, marginTop: 10 },
   sheetInput: {
     backgroundColor: '#292E32',
     color: '#D4CDC1',
@@ -694,13 +988,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 16,
-    marginBottom: 14,
+    marginBottom: 4,
   },
-  sheetActions: { flexDirection: 'row', gap: 10 },
+  sheetActions: { flexDirection: 'row', gap: 10, marginTop: 14 },
   cancelBtn: { flex: 1, paddingVertical: 12, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#625b71' },
   cancelBtnText: { color: '#625b71', fontSize: 15 },
   confirmBtn: { flex: 1, backgroundColor: '#6650a4', paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
   confirmBtnText: { color: '#D0BCFF', fontSize: 15, fontWeight: '800' },
+
+  mulliganInfo: { color: '#CCC2DC', fontSize: 15, lineHeight: 22, marginBottom: 12 },
+  mulliganBottomedBox: {
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  mulliganBottomedLabel: { color: '#9ca3af', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', marginBottom: 6 },
+  mulliganBottomedCard: { color: '#D4CDC1', fontSize: 14, paddingVertical: 2 },
+  mulliganBusyRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
 
   zoneSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
   moveSelectedBtn: {
@@ -728,17 +1033,41 @@ const styles = StyleSheet.create({
   checkmark: { color: '#D0BCFF', fontSize: 13, fontWeight: '800' },
   cardName: { flex: 1, color: '#D4CDC1', fontSize: 15 },
 
-  zonePickerRow: {
-    paddingVertical: 16,
-    paddingHorizontal: 14,
-    borderLeftWidth: 3,
-    marginBottom: 8,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 6,
-  },
-  zonePickerText: { fontSize: 16, fontWeight: '700' },
+  tabRow: { flexDirection: 'row', marginBottom: 16, borderRadius: 8, backgroundColor: '#292E32', padding: 3 },
+  tab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 6 },
+  tabActive: { backgroundColor: '#6650a4' },
+  tabText: { color: '#625b71', fontSize: 14, fontWeight: '700' },
+  tabTextActive: { color: '#D0BCFF' },
 
-  millResultsSheet: { maxHeight: '70%' },
-  millResultsList: { marginBottom: 8 },
-  millResultCard: { color: '#D4CDC1', fontSize: 15, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#4a4f55' },
+  ptRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  ptField: { flex: 1 },
+  ptSlash: { color: '#625b71', fontSize: 24, fontWeight: '700', marginTop: 18 },
+
+  colorRow: { flexDirection: 'row', gap: 8, marginBottom: 4 },
+  colorBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#625b71',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    gap: 4,
+  },
+  colorBtnActive: { borderColor: '#D0BCFF', backgroundColor: 'rgba(208,188,255,0.12)' },
+  colorBtnText: { fontSize: 18 },
+  colorBtnLabel: { color: '#625b71', fontSize: 11, fontWeight: '800' },
+  colorBtnLabelActive: { color: '#D0BCFF' },
+
+  favoriteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: '#4a4f55',
+  },
+  favoriteInfo: { flex: 1 },
+  favoriteName: { color: '#D0BCFF', fontSize: 16, fontWeight: '700' },
+  favoriteMeta: { color: '#9ca3af', fontSize: 12, marginTop: 2 },
+  favoriteCreate: { color: '#6650a4', fontSize: 14, fontWeight: '700', paddingLeft: 12 },
 });

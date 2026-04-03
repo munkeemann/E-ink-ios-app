@@ -9,10 +9,18 @@ export interface CardInstance {
    * Deck position:
    *   "commander" → always sleeve 1
    *   "1", "2", … → library position; sleeve_id = parseInt(place) + 1
+   *   large timestamp string for tokens (not in Pi loop)
    */
   place: string;
   /** Zone: "LIB" | "HND" | "BTFLD" | "GRV" | "EXL" | "CMD" */
   zone: string;
+}
+
+export interface TokenTemplate {
+  name: string;
+  power: string;
+  toughness: string;
+  colors: string[];
 }
 
 export interface Deck {
@@ -23,4 +31,5 @@ export interface Deck {
   /** MTG color identity letters: "W" "U" "B" "R" "G" */
   colors: string[];
   cards: CardInstance[];
+  tokens?: TokenTemplate[];
 }
