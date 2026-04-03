@@ -12,9 +12,9 @@ import {
   View,
 } from 'react-native';
 import { router } from 'expo-router';
-import { fetchCards } from '../src/api/scryfall';
+import { fetchCards, fetchTokenImage } from '../src/api/scryfall';
 import { saveDeck } from '../src/storage/deckStorage';
-import { CardInstance, Deck } from '../src/types';
+import { CardInstance, Deck, TokenTemplate } from '../src/types';
 
 interface DeckEntry {
   name: string;
@@ -33,12 +33,21 @@ function parseDeckList(text: string): DeckEntry[] {
     });
 }
 
+function parseTokenList(text: string): string[] {
+  return text
+    .split(/\r\n|\r|\n/)
+    .map(l => l.trim())
+    .filter(Boolean);
+}
+
 export default function ImportDeckScreen() {
   const [deckName, setDeckName] = useState('');
   const [deckList, setDeckList] = useState('');
+  const [tokenList, setTokenList] = useState('');
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [downloadPercent, setDownloadPercent] = useState<number | null>(null);
+  const [tokenProgress, setTokenProgress] = useState<{ current: number; total: number } | null>(null);
 
   const handleImport = async () => {
     const trimmedName = deckName.trim();
@@ -65,6 +74,7 @@ export default function ImportDeckScreen() {
 
     setProgress({ current: 0, total: uniqueNames.length });
     setDownloadPercent(null);
+    setTokenProgress(null);
     setImporting(true);
 
     try {
@@ -123,12 +133,28 @@ export default function ImportDeckScreen() {
         for (const c of results[name]?.colorIdentity ?? []) allColors.add(c);
       }
 
+      // Pre-fetch and cache token art
+      const tokenNames = parseTokenList(tokenList);
+      const tokens: TokenTemplate[] = [];
+
+      if (tokenNames.length > 0) {
+        setTokenProgress({ current: 0, total: tokenNames.length });
+        for (let i = 0; i < tokenNames.length; i++) {
+          const name = tokenNames[i];
+          // fetchTokenImage caches the URL — we just call it to warm the cache
+          await fetchTokenImage(name, []);
+          tokens.push({ name, power: '', toughness: '', colors: [] });
+          setTokenProgress({ current: i + 1, total: tokenNames.length });
+        }
+      }
+
       const deck: Deck = {
         id: Date.now().toString(),
         name: trimmedName,
         commanderImagePath: results[commanderEntry.name]?.imagePath ?? '',
         colors: [...allColors].sort(),
         cards,
+        tokens: tokens.length > 0 ? tokens : undefined,
       };
 
       await saveDeck(deck);
@@ -145,7 +171,35 @@ export default function ImportDeckScreen() {
     } finally {
       setImporting(false);
       setDownloadPercent(null);
+      setTokenProgress(null);
     }
+  };
+
+  const progressLabel = () => {
+    if (downloadPercent !== null && downloadPercent < 100) {
+      return (
+        <Text style={styles.progressText}>
+          Downloading card database…{' '}
+          <Text style={styles.progressNum}>{downloadPercent}%</Text>
+        </Text>
+      );
+    }
+    if (tokenProgress !== null) {
+      return (
+        <Text style={styles.progressText}>
+          Fetching token art…{' '}
+          <Text style={styles.progressNum}>{tokenProgress.current} of {tokenProgress.total}</Text>
+        </Text>
+      );
+    }
+    return (
+      <Text style={styles.progressText}>
+        Looking up cards…{' '}
+        <Text style={styles.progressNum}>
+          {progress.current}/{progress.total}
+        </Text>
+      </Text>
+    );
   };
 
   return (
@@ -182,22 +236,26 @@ export default function ImportDeckScreen() {
           editable={!importing}
         />
 
+        <Text style={styles.label}>Tokens (optional)</Text>
+        <Text style={styles.hint}>
+          One per line — art will be pre-fetched and cached.
+        </Text>
+        <TextInput
+          style={[styles.input, styles.tokenArea]}
+          value={tokenList}
+          onChangeText={setTokenList}
+          placeholder={'Goblin\nTreasure\nSoldier\n...'}
+          placeholderTextColor="#625b71"
+          multiline
+          textAlignVertical="top"
+          editable={!importing}
+          autoCapitalize="words"
+        />
+
         {importing ? (
           <View style={styles.progressBox}>
             <ActivityIndicator size="large" color="#D0BCFF" />
-            {downloadPercent !== null && downloadPercent < 100 ? (
-              <Text style={styles.progressText}>
-                Downloading card database…{' '}
-                <Text style={styles.progressNum}>{downloadPercent}%</Text>
-              </Text>
-            ) : (
-              <Text style={styles.progressText}>
-                Looking up cards…{' '}
-                <Text style={styles.progressNum}>
-                  {progress.current}/{progress.total}
-                </Text>
-              </Text>
-            )}
+            {progressLabel()}
           </View>
         ) : (
           <Pressable style={styles.button} onPress={handleImport}>
@@ -233,6 +291,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   textArea: { height: 300, lineHeight: 22 },
+  tokenArea: { height: 120, lineHeight: 22 },
   progressBox: { marginTop: 24, alignItems: 'center', gap: 12 },
   progressText: { color: '#CCC2DC', fontSize: 15 },
   progressNum: { color: '#D0BCFF', fontWeight: '700' },

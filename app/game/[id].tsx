@@ -824,31 +824,50 @@ export default function InGameScreen() {
             ) : (
               favorites.length === 0 ? (
                 <Text style={styles.emptyText}>
-                  No favorites yet. Add token templates in the deck view.
+                  No favorites yet. Add tokens during import or in the deck view.
                 </Text>
               ) : (
                 <FlatList
                   data={favorites}
                   keyExtractor={(t, i) => `${t.name}-${i}`}
-                  renderItem={({ item }) => (
-                    <Pressable
-                      style={[styles.favoriteRow, tokenCreating && styles.btnDisabled]}
-                      onPress={() => handleCreateFromTemplate(item)}
-                      disabled={tokenCreating}
-                    >
-                      <View style={styles.favoriteInfo}>
-                        <Text style={styles.favoriteName}>{item.name}</Text>
-                        <Text style={styles.favoriteMeta}>
-                          {item.power}/{item.toughness}
-                          {item.colors.length > 0 ? `  ${item.colors.map(c => COLOR_LABELS[c] ?? c).join('')}` : '  Colorless'}
-                        </Text>
-                      </View>
-                      {tokenCreating
-                        ? <ActivityIndicator color="#D0BCFF" size="small" />
-                        : <Text style={styles.favoriteCreate}>Create →</Text>
-                      }
-                    </Pressable>
-                  )}
+                  renderItem={({ item }) => {
+                    const hasStats = item.power !== '' || item.toughness !== '' || item.colors.length > 0;
+                    return (
+                      <Pressable
+                        style={[styles.favoriteRow, tokenCreating && styles.btnDisabled]}
+                        onPress={() => {
+                          if (hasStats) {
+                            // Full template — create immediately
+                            handleCreateFromTemplate(item);
+                          } else {
+                            // Pre-imported name-only — pre-fill Custom tab
+                            setTokenName(item.name);
+                            setTokenPower('1');
+                            setTokenToughness('1');
+                            setTokenColors(item.colors);
+                            setTokenTab('custom');
+                          }
+                        }}
+                        disabled={tokenCreating}
+                      >
+                        <View style={styles.favoriteInfo}>
+                          <Text style={styles.favoriteName}>{item.name}</Text>
+                          {hasStats ? (
+                            <Text style={styles.favoriteMeta}>
+                              {item.power}/{item.toughness}
+                              {item.colors.length > 0 ? `  ${item.colors.map(c => COLOR_LABELS[c] ?? c).join('')}` : '  Colorless'}
+                            </Text>
+                          ) : (
+                            <Text style={styles.favoriteMetaHint}>Tap to fill in stats →</Text>
+                          )}
+                        </View>
+                        {tokenCreating
+                          ? <ActivityIndicator color="#D0BCFF" size="small" />
+                          : <Text style={styles.favoriteCreate}>{hasStats ? 'Create →' : 'Fill →'}</Text>
+                        }
+                      </Pressable>
+                    );
+                  }}
                 />
               )
             )}
@@ -1037,5 +1056,6 @@ const styles = StyleSheet.create({
   favoriteInfo: { flex: 1 },
   favoriteName: { color: '#D0BCFF', fontSize: 16, fontWeight: '700' },
   favoriteMeta: { color: '#9ca3af', fontSize: 12, marginTop: 2 },
+  favoriteMetaHint: { color: '#6650a4', fontSize: 12, marginTop: 2, fontStyle: 'italic' },
   favoriteCreate: { color: '#6650a4', fontSize: 14, fontWeight: '700', paddingLeft: 12 },
 });
