@@ -28,6 +28,20 @@ export async function getRegisteredSleeves(serverUrl: string = PI_SERVER): Promi
 }
 
 /**
+ * Notifies the Pi that a card has moved to the graveyard, clearing that sleeve's display.
+ */
+export async function sendToGraveyard(sleeveId: number, serverUrl: string = PI_SERVER): Promise<void> {
+  try {
+    await fetch(`${serverUrl}/clear?sleeve_id=${sleeveId}`, {
+      method: 'POST',
+      signal: AbortSignal.timeout(3000),
+    });
+  } catch {
+    // Pi may be offline — fail silently
+  }
+}
+
+/**
  * For each card whose sleeve ID is in registeredSleeves: download image from Scryfall URL,
  * POST bytes to Pi /display?sleeve_id=N.
  * Commander → sleeve 1, place "1" → sleeve 2, etc.
