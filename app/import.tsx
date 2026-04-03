@@ -23,13 +23,13 @@ interface DeckEntry {
 
 function parseDeckList(text: string): DeckEntry[] {
   return text
-    .split('\n')
+    .split(/\r\n|\r|\n/)
     .map(l => l.trim())
     .filter(Boolean)
-    .map(line => {
+    .flatMap(line => {
       const m = line.match(/^(\d+)\s+(.+)$/);
-      if (m) return { count: parseInt(m[1], 10), name: m[2].trim() };
-      return { count: 1, name: line };
+      if (m) return [{ count: parseInt(m[1], 10), name: m[2].trim() }];
+      return [];
     });
 }
 
