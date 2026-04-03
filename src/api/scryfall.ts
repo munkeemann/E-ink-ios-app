@@ -1,3 +1,5 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 const DELAY_MS = 110;
 
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
@@ -21,6 +23,12 @@ function extractImageUrl(data: Record<string, unknown>): string | null {
 }
 
 export async function fetchCard(cardName: string): Promise<FetchedCard> {
+  const cacheKey = `card_cache_${cardName}`;
+  const cached = await AsyncStorage.getItem(cacheKey);
+  if (cached) {
+    return JSON.parse(cached) as FetchedCard;
+  }
+
   const url = `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cardName)}`;
   console.log('[Scryfall] GET', url);
   const resp = await fetch(url, {
@@ -43,7 +51,9 @@ export async function fetchCard(cardName: string): Promise<FetchedCard> {
     ? colorArr.filter((x): x is string => typeof x === 'string')
     : [];
 
-  return { imagePath: imageUrl, colorIdentity };
+  const result: FetchedCard = { imagePath: imageUrl, colorIdentity };
+  await AsyncStorage.setItem(cacheKey, JSON.stringify(result));
+  return result;
 }
 
 export async function fetchCards(

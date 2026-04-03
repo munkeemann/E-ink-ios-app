@@ -12,11 +12,29 @@ function sleeveId(card: CardInstance): number {
 }
 
 /**
- * For each card: download image from Scryfall URL, POST bytes to Pi /display?sleeve_id=N.
+ * Returns the list of registered sleeve IDs from the Pi, or an empty array
+ * if the Pi is unreachable or returns no sleeves.
+ */
+export async function getRegisteredSleeves(serverUrl: string = PI_SERVER): Promise<number[]> {
+  try {
+    const resp = await fetch(`${serverUrl}/sleeves`, { signal: AbortSignal.timeout(3000) });
+    if (!resp.ok) return [];
+    const data = await resp.json() as unknown;
+    if (Array.isArray(data)) return data as number[];
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * For each card whose sleeve ID is in registeredSleeves: download image from Scryfall URL,
+ * POST bytes to Pi /display?sleeve_id=N.
  * Commander → sleeve 1, place "1" → sleeve 2, etc.
  */
 export async function beginGame(
   cards: CardInstance[],
+  registeredSleeves: number[],
   onProgress?: (sent: number, total: number) => void,
   serverUrl: string = PI_SERVER,
 ): Promise<void> {
@@ -26,7 +44,8 @@ export async function beginGame(
     return parseInt(a.place, 10) - parseInt(b.place, 10);
   });
 
-  const eligible = sorted.filter(c => c.imagePath);
+  const registeredSet = new Set(registeredSleeves);
+  const eligible = sorted.filter(c => c.imagePath && registeredSet.has(sleeveId(c)));
   console.log(`[Pi] Starting beginGame: ${eligible.length} cards → ${serverUrl}`);
   let sent = 0;
 

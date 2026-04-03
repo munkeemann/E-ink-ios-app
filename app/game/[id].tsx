@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { beginGame } from '../../src/api/piServer';
+import { beginGame, getRegisteredSleeves } from '../../src/api/piServer';
 import { getDeck, saveDeck } from '../../src/storage/deckStorage';
 import { CardInstance, Deck } from '../../src/types';
 
@@ -38,6 +38,8 @@ export default function InGameScreen() {
   const [busy, setBusy] = useState(false);
   const [busyLabel, setBusyLabel] = useState('');
 
+  const [connectedSleeves, setConnectedSleeves] = useState<number[] | null>(null);
+
   const [scryModalVisible, setScryModalVisible] = useState(false);
   const [scryCountText, setScryCountText] = useState('3');
 
@@ -47,6 +49,7 @@ export default function InGameScreen() {
   useFocusEffect(
     useCallback(() => {
       if (id) getDeck(id).then(setDeck);
+      getRegisteredSleeves().then(setConnectedSleeves);
     }, [id]),
   );
 
@@ -65,9 +68,15 @@ export default function InGameScreen() {
 
   const doBeginGame = async (cards: CardInstance[]) => {
     setBusy(true);
-    setBusyLabel('Sending sleeves…');
+    setBusyLabel('Checking sleeves…');
     try {
-      await beginGame(cards);
+      const sleeves = await getRegisteredSleeves();
+      setConnectedSleeves(sleeves);
+      if (sleeves.length === 0) {
+        return;
+      }
+      setBusyLabel('Sending sleeves…');
+      await beginGame(cards, sleeves);
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : String(e));
     } finally {
@@ -137,6 +146,13 @@ export default function InGameScreen() {
         {commander && (
           <Text style={styles.commanderName}>⚔ {commander.displayName}</Text>
         )}
+        <Text style={[styles.sleeveStatus, connectedSleeves !== null && connectedSleeves.length === 0 && styles.sleeveStatusNone]}>
+          {connectedSleeves === null
+            ? 'Checking sleeves…'
+            : connectedSleeves.length === 0
+            ? 'No sleeves connected'
+            : `${connectedSleeves.length} sleeve${connectedSleeves.length === 1 ? '' : 's'} connected`}
+        </Text>
       </View>
 
       <FlatList
@@ -268,6 +284,8 @@ const styles = StyleSheet.create({
   },
   deckName: { color: '#D0BCFF', fontSize: 18, fontWeight: '800' },
   commanderName: { color: '#CCC2DC', fontSize: 13, marginTop: 2 },
+  sleeveStatus: { color: '#6ee7b7', fontSize: 11, marginTop: 4 },
+  sleeveStatusNone: { color: '#f87171' },
   list: { flex: 1 },
   listContent: { paddingBottom: 8 },
   listHeader: {
