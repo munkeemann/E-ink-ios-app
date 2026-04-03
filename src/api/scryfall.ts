@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const BULK_DATA_KEY = 'scryfall_bulk_data';
 const BULK_TIMESTAMP_KEY = 'scryfall_bulk_last_fetched';
 const BULK_TTL_MS = 24 * 60 * 60 * 1000;
+const TOKEN_CACHE_PREFIX = 'token_cache_';
 
 export interface FetchedCard {
   imagePath: string;
@@ -93,6 +94,46 @@ async function ensureBulkData(
   await AsyncStorage.setItem(BULK_DATA_KEY, JSON.stringify(cards));
   await AsyncStorage.setItem(BULK_TIMESTAMP_KEY, String(Date.now()));
   return cards;
+}
+
+/**
+ * Fetches a token card image URL from Scryfall using exact name match.
+ * Result is cached in AsyncStorage under token_cache_${name}.
+ * If colors is non-empty, prefers a result whose colors match; falls back to first result.
+ */
+export async function fetchTokenImage(name: string, colors: string[]): Promise<string> {
+  const cacheKey = `${TOKEN_CACHE_PREFIX}${name.toLowerCase()}`;
+  const cached = await AsyncStorage.getItem(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const query = encodeURIComponent(`t:token !"${name}"`);
+    const resp = await fetch(`https://api.scryfall.com/cards/search?q=${query}`, {
+      headers: { 'User-Agent': 'ECardsApp/1.0', Accept: 'application/json' },
+    });
+    if (!resp.ok) return '';
+    const data = await resp.json() as { data?: Array<Record<string, unknown>> };
+    const results = data.data ?? [];
+
+    let match: Record<string, unknown> | undefined;
+    if (colors.length > 0) {
+      match = results.find(card => {
+        const cardColors = Array.isArray(card.colors) ? (card.colors as string[]) : [];
+        return colors.every(c => cardColors.includes(c));
+      }) ?? results[0];
+    } else {
+      match = results[0];
+    }
+
+    if (!match) return '';
+    const imageUrl = extractImageUrl(match);
+    if (!imageUrl) return '';
+
+    await AsyncStorage.setItem(cacheKey, imageUrl);
+    return imageUrl;
+  } catch {
+    return '';
+  }
 }
 
 export async function fetchCards(

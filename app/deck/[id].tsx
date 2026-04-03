@@ -63,7 +63,7 @@ export default function DeckPreviewScreen() {
         sleeves,
         (sent, total) => setSendProgress({ sent, total }),
       );
-      router.push(`/game/${deck.id}`);
+      router.push(`/game/${deck.id}?freshStart=true`);
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : String(e));
     } finally {
@@ -142,7 +142,7 @@ export default function DeckPreviewScreen() {
 
         {/* Manage Tokens section */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Token Favorites</Text>
+          <Text style={styles.sectionTitle}>Token Library</Text>
           <Pressable style={styles.addTokenBtn} onPress={() => setAddTokenVisible(true)}>
             <Text style={styles.addTokenBtnText}>+ Add</Text>
           </Pressable>
@@ -150,7 +150,7 @@ export default function DeckPreviewScreen() {
 
         {tokens.length === 0 ? (
           <Text style={styles.emptyText}>
-            No token templates saved. Add favorites to quickly create tokens during a game.
+            No tokens saved. Add tokens to quickly create them during a game.
           </Text>
         ) : (
           tokens.map((t, i) => (

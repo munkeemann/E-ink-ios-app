@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,10 +13,11 @@ import {
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { PI_SERVER, beginGame, getRegisteredSleeves, sendToGraveyard } from '../../src/api/piServer';
+import { fetchTokenImage } from '../../src/api/scryfall';
 import { getDeck, saveDeck } from '../../src/storage/deckStorage';
 import { CardInstance, Deck, TokenTemplate } from '../../src/types';
 
-type Zone = 'LIB' | 'HND' | 'BTFLD' | 'GRV' | 'EXL' | 'CMD';
+type Zone = 'LIB' | 'HND' | 'BTFLD' | 'GRV' | 'EXL' | 'CMD' | 'TKN';
 
 const ZONE_CONFIG: { id: Zone; label: string; color: string }[] = [
   { id: 'CMD',   label: 'Command',     color: '#f59e0b' },
@@ -63,7 +64,7 @@ function normalizeCommanderZone(cards: CardInstance[]): CardInstance[] {
 }
 
 export default function InGameScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, freshStart } = useLocalSearchParams<{ id: string; freshStart?: string }>();
   const [deck, setDeck] = useState<Deck | null>(null);
   const [busy, setBusy] = useState(false);
   const [busyLabel, setBusyLabel] = useState('');
@@ -81,11 +82,12 @@ export default function InGameScreen() {
   const [millModalVisible, setMillModalVisible] = useState(false);
   const [millCountText, setMillCountText] = useState('1');
 
-  // Mulligan bottom sheet (shown after Begin Game)
+  // Mulligan bottom sheet
   const [mulliganSheetVisible, setMulliganSheetVisible] = useState(false);
   const [mulliganCount, setMulliganCount] = useState(0);
   const [mulliganBottomed, setMulliganBottomed] = useState<string[]>([]);
   const [mulliganBusy, setMulliganBusy] = useState(false);
+  const shownFreshMulliganRef = useRef(false);
 
   // Create Token modal
   const [tokenModalVisible, setTokenModalVisible] = useState(false);
@@ -109,12 +111,26 @@ export default function InGameScreen() {
     }, [id]),
   );
 
+  // Auto-show mulligan sheet when navigated here with freshStart=true
+  useEffect(() => {
+    if (freshStart === 'true' && deck && !shownFreshMulliganRef.current) {
+      shownFreshMulliganRef.current = true;
+      setMulliganCount(0);
+      setMulliganBottomed([]);
+      setMulliganSheetVisible(true);
+    }
+  }, [freshStart, deck]);
+
   const cards = Array.isArray(deck?.cards) ? deck!.cards : [];
 
   const zoneCounts = useMemo(() => {
-    const counts: Record<Zone, number> = { LIB: 0, HND: 0, BTFLD: 0, GRV: 0, EXL: 0, CMD: 0 };
+    const counts: Record<string, number> = { LIB: 0, HND: 0, BTFLD: 0, GRV: 0, EXL: 0, CMD: 0 };
     for (const card of cards) {
-      if (card.zone in counts) counts[card.zone as Zone]++;
+      if (card.zone === 'TKN') {
+        counts['BTFLD']++;       // tokens count toward battlefield
+      } else if (card.zone in counts) {
+        counts[card.zone]++;
+      }
     }
     return counts;
   }, [cards]);
@@ -128,9 +144,14 @@ export default function InGameScreen() {
     [cards],
   );
 
-  const zoneCards = activeZone ? cards.filter(c => c.zone === activeZone) : [];
+  // BTFLD zone sheet also shows TKN cards
+  const zoneCards = useMemo(() => {
+    if (!activeZone) return [];
+    if (activeZone === 'BTFLD') return cards.filter(c => c.zone === 'BTFLD' || c.zone === 'TKN');
+    return cards.filter(c => c.zone === activeZone);
+  }, [activeZone, cards]);
 
-  // ─── Begin Game ───────────────────────────────────────────────────────────
+  // ─── Begin Game (called by Shuffle / Tutor, not by a button) ─────────────
   const doBeginGame = async (gameCards: CardInstance[]) => {
     setMulliganCount(0);
     setMulliganBottomed([]);
@@ -165,9 +186,8 @@ export default function InGameScreen() {
     await doBeginGame(newCards);
   };
 
-  // ─── Mulligan (from post-Begin-Game sheet) ────────────────────────────────
+  // ─── Mulligan (from bottom sheet) ─────────────────────────────────────────
   const handleMulliganFromSheet = async () => {
-    console.log('[Mulligan] Sheet tapped');
     if (!deck) return;
     setMulliganBusy(true);
     try {
@@ -257,14 +277,10 @@ export default function InGameScreen() {
     }
   };
 
-  // ─── Move card (single, used by CMD zone) ────────────────────────────────
+  // ─── Move card (single) ───────────────────────────────────────────────────
   const handleMoveCard = async (card: CardInstance, destZone: Zone) => {
     if (!deck) return;
-
-    if (destZone === 'GRV') {
-      sendToGraveyard(sleeveIdForCard(card)).catch(() => {});
-    }
-
+    if (destZone === 'GRV') sendToGraveyard(sleeveIdForCard(card)).catch(() => {});
     const deckCards = Array.isArray(deck.cards) ? deck.cards : [];
     const updated = deckCards.map(c => c === card ? { ...c, zone: destZone } : c);
     const commanderCards = updated.filter(c => c.place === 'commander');
@@ -280,22 +296,18 @@ export default function InGameScreen() {
   // ─── Move selected cards ──────────────────────────────────────────────────
   const handleMoveSelected = async (destZone: Zone) => {
     if (!deck || selectedCards.size === 0) return;
-
     const sourceZone = activeZone;
     setActiveZone(null);
     setSelectedCards(new Set());
-
     const keys = new Set(selectedCards);
     const deckCards = Array.isArray(deck.cards) ? deck.cards : [];
-
     const updated = deckCards.map(c => {
-      if (keys.has(cardKey(c)) && c.zone === sourceZone) {
+      if (keys.has(cardKey(c)) && (c.zone === sourceZone || (sourceZone === 'BTFLD' && c.zone === 'TKN'))) {
         if (destZone === 'GRV') sendToGraveyard(sleeveIdForCard(c)).catch(() => {});
         return { ...c, zone: destZone };
       }
       return c;
     });
-
     const commanderCards = updated.filter(c => c.place === 'commander');
     const libCards = updated
       .filter(c => c.zone === 'LIB' && c.place !== 'commander')
@@ -339,13 +351,10 @@ export default function InGameScreen() {
   const handleTutor = async () => {
     const q = tutorQuery.trim().toLowerCase();
     if (!q) return;
-
     const match = library.find(c => c.baseName.toLowerCase().includes(q));
     if (!match) { Alert.alert('Not found', `No library card matches "${tutorQuery}"`); return; }
-
     setTutorModalVisible(false);
     setTutorQuery('');
-
     const others = library.filter(c => c !== match);
     const reordered = [match, ...others].map((c, i) => ({ ...c, place: String(i + 1) }));
     const commanderCards = (Array.isArray(deck?.cards) ? deck!.cards : []).filter(c => c.place === 'commander');
@@ -361,17 +370,13 @@ export default function InGameScreen() {
     const n = parseInt(millCountText, 10);
     if (isNaN(n) || n < 1) { Alert.alert('Invalid', 'Enter a number ≥ 1'); return; }
     if (!deck) return;
-
     setMillModalVisible(false);
-
     const deckCards = Array.isArray(deck.cards) ? deck.cards : [];
     const sortedLib = deckCards
       .filter(c => c.zone === 'LIB')
       .sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10));
-
     const toMill = sortedLib.slice(0, n);
     if (toMill.length === 0) { Alert.alert('Library empty', 'No cards to mill.'); return; }
-
     const milledSet = new Set(toMill);
     const updated = deckCards.map(c => milledSet.has(c) ? { ...c, zone: 'GRV' as Zone } : c);
     const commanderCards = updated.filter(c => c.place === 'commander');
@@ -382,7 +387,6 @@ export default function InGameScreen() {
     const newDeck = { ...deck, cards: [...commanderCards, ...libCards, ...otherCards] };
     await saveDeck(newDeck);
     setDeck(newDeck);
-
     Alert.alert(
       `Milled ${toMill.length} card${toMill.length !== 1 ? 's' : ''}`,
       toMill.map(c => c.displayName).join('\n'),
@@ -399,53 +403,39 @@ export default function InGameScreen() {
     if (!name.trim()) { Alert.alert('Missing name', 'Enter a token name.'); return; }
     setTokenCreating(true);
     try {
-      let imagePath = '';
-      const colorStr = colors.length > 0 ? `+c:${colors.join('')}` : '';
-      const query = encodeURIComponent(`is:token t:${name.trim()}${colorStr}`);
-      try {
-        const resp = await fetch(`https://api.scryfall.com/cards/search?q=${query}`);
-        if (resp.ok) {
-          const data = await resp.json() as { data?: Array<Record<string, unknown>> };
-          const first = data.data?.[0];
-          if (first) {
-            const uris = first.image_uris as Record<string, string> | undefined;
-            if (uris?.large) {
-              imagePath = uris.large;
-            } else {
-              const faces = first.card_faces as Array<Record<string, unknown>> | undefined;
-              const faceUris = faces?.[0]?.image_uris as Record<string, string> | undefined;
-              if (faceUris?.large) imagePath = faceUris.large;
-            }
-          }
-        }
-      } catch {
-        // Scryfall unavailable — create token without image
-      }
+      const imagePath = await fetchTokenImage(name.trim(), colors);
 
       const tokenCard: CardInstance = {
         baseName: name.trim(),
         displayName: `${name.trim()} Token`,
         imagePath,
         place: String(Date.now()),
-        zone: 'BTFLD',
+        zone: 'TKN',
       };
 
-      const deckCards = Array.isArray(deck?.cards) ? deck!.cards : [];
-      const newCards = [...deckCards, tokenCard];
-      const updated = { ...deck!, cards: newCards };
+      // Save token template to deck.tokens if not already present
+      const currentDeck = deck!;
+      const existingTokens: TokenTemplate[] = Array.isArray(currentDeck.tokens) ? currentDeck.tokens : [];
+      const alreadySaved = existingTokens.some(t => t.name.toLowerCase() === name.trim().toLowerCase());
+      const newTokens: TokenTemplate[] = alreadySaved
+        ? existingTokens
+        : [...existingTokens, { name: name.trim(), power, toughness, colors }];
+
+      const deckCards = Array.isArray(currentDeck.cards) ? currentDeck.cards : [];
+      const updated: Deck = { ...currentDeck, cards: [...deckCards, tokenCard], tokens: newTokens };
       await saveDeck(updated);
       setDeck(updated);
 
-      // Push token image to first registered sleeve for display
+      // Push token image to top library sleeve (sleeve 2)
       if (imagePath) {
         const sleeves = connectedSleeves ?? await getRegisteredSleeves();
-        if (sleeves.length > 0) {
-          const targetSleeve = sleeves[0];
+        const topLibSleeve = sleeves.find(s => s === 2) ?? sleeves.find(s => s > 1);
+        if (topLibSleeve !== undefined) {
           try {
             const imageResp = await fetch(imagePath);
             if (imageResp.ok) {
               const buf = await imageResp.arrayBuffer();
-              await fetch(`${PI_SERVER}/display?sleeve_id=${targetSleeve}`, {
+              await fetch(`${PI_SERVER}/display?sleeve_id=${topLibSleeve}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'image/jpeg' },
                 body: buf,
@@ -542,7 +532,7 @@ export default function InGameScreen() {
         </View>
       </View>
 
-      {/* Action grid — 2 rows × 3 cols + full-width Begin Game */}
+      {/* Action grid — 3 cols × 2 rows */}
       <View style={styles.actionGrid}>
         <View style={styles.actionRow}>
           <Pressable style={[styles.actionBtn, busy && styles.btnDisabled]} onPress={handleShuffle} disabled={busy}>
@@ -569,9 +559,6 @@ export default function InGameScreen() {
           </Pressable>
           <View style={styles.actionBtnSpacer} />
         </View>
-        <Pressable style={[styles.beginGameBtn, busy && styles.btnDisabled]} onPress={() => doBeginGame(cards)} disabled={busy}>
-          <Text style={styles.beginGameText}>▶ Begin Game</Text>
-        </Pressable>
       </View>
 
       {busy && (
@@ -617,6 +604,7 @@ export default function InGameScreen() {
                 renderItem={({ item }) => {
                   const key = cardKey(item);
                   const isSelected = selectedCards.has(key);
+                  const isToken = item.zone === 'TKN';
                   return (
                     <View style={styles.cardRow}>
                       {activeZone !== 'CMD' && (
@@ -625,6 +613,7 @@ export default function InGameScreen() {
                         </Pressable>
                       )}
                       <Text style={styles.cardName}>{item.displayName}</Text>
+                      {isToken && <Text style={styles.tokenBadge}>Token</Text>}
                     </View>
                   );
                 }}
@@ -761,7 +750,6 @@ export default function InGameScreen() {
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>Create Token</Text>
 
-            {/* Tab switcher */}
             <View style={styles.tabRow}>
               <Pressable
                 style={[styles.tab, tokenTab === 'custom' && styles.tabActive]}
@@ -794,24 +782,12 @@ export default function InGameScreen() {
                 <View style={styles.ptRow}>
                   <View style={styles.ptField}>
                     <Text style={styles.sheetLabel}>Power</Text>
-                    <TextInput
-                      style={styles.sheetInput}
-                      value={tokenPower}
-                      onChangeText={setTokenPower}
-                      keyboardType="number-pad"
-                      selectTextOnFocus
-                    />
+                    <TextInput style={styles.sheetInput} value={tokenPower} onChangeText={setTokenPower} keyboardType="number-pad" selectTextOnFocus />
                   </View>
                   <Text style={styles.ptSlash}>/</Text>
                   <View style={styles.ptField}>
                     <Text style={styles.sheetLabel}>Toughness</Text>
-                    <TextInput
-                      style={styles.sheetInput}
-                      value={tokenToughness}
-                      onChangeText={setTokenToughness}
-                      keyboardType="number-pad"
-                      selectTextOnFocus
-                    />
+                    <TextInput style={styles.sheetInput} value={tokenToughness} onChangeText={setTokenToughness} keyboardType="number-pad" selectTextOnFocus />
                   </View>
                 </View>
 
@@ -931,15 +907,6 @@ const styles = StyleSheet.create({
   actionBtnSpacer: { flex: 1 },
   actionIcon: { fontSize: 20 },
   actionLabel: { color: '#D0BCFF', fontSize: 11, fontWeight: '700' },
-  beginGameBtn: {
-    backgroundColor: '#6650a4',
-    borderRadius: 8,
-    paddingVertical: 15,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#D0BCFF',
-  },
-  beginGameText: { color: '#D0BCFF', fontSize: 16, fontWeight: '800' },
   btnDisabled: { opacity: 0.4 },
 
   busyOverlay: {
@@ -1032,6 +999,7 @@ const styles = StyleSheet.create({
   checkboxChecked: { backgroundColor: '#6650a4', borderColor: '#D0BCFF' },
   checkmark: { color: '#D0BCFF', fontSize: 13, fontWeight: '800' },
   cardName: { flex: 1, color: '#D4CDC1', fontSize: 15 },
+  tokenBadge: { color: '#f59e0b', fontSize: 11, fontWeight: '700', marginLeft: 6 },
 
   tabRow: { flexDirection: 'row', marginBottom: 16, borderRadius: 8, backgroundColor: '#292E32', padding: 3 },
   tab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 6 },
