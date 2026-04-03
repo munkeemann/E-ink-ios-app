@@ -38,13 +38,16 @@ export async function beginGame(
   onProgress?: (sent: number, total: number) => void,
   serverUrl: string = PI_SERVER,
 ): Promise<void> {
-  const sorted = [...cards].sort((a, b) => {
+  const safeCards = Array.isArray(cards) ? cards : [];
+  const safeRegistered = Array.isArray(registeredSleeves) ? registeredSleeves : [];
+
+  const sorted = [...safeCards].sort((a, b) => {
     if (a.place === 'commander') return -1;
     if (b.place === 'commander') return 1;
     return parseInt(a.place, 10) - parseInt(b.place, 10);
   });
 
-  const registeredSet = new Set(registeredSleeves);
+  const registeredSet = new Set(safeRegistered);
   const eligible = sorted.filter(c => c.imagePath && registeredSet.has(sleeveId(c)));
   console.log(`[Pi] Starting beginGame: ${eligible.length} cards → ${serverUrl}`);
   let sent = 0;

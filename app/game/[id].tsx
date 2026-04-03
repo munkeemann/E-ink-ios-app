@@ -61,8 +61,9 @@ export default function InGameScreen() {
     );
   }
 
-  const commander = deck.cards.find(c => c.place === 'commander');
-  const library = deck.cards
+  const cards = Array.isArray(deck.cards) ? deck.cards : [];
+  const commander = cards.find(c => c.place === 'commander');
+  const library = cards
     .filter(c => c.zone === 'LIB')
     .sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10));
 
@@ -86,8 +87,9 @@ export default function InGameScreen() {
   };
 
   const handleShuffle = async () => {
-    const commander = deck.cards.filter(c => c.place === 'commander');
-    const lib = deck.cards.filter(c => c.zone === 'LIB');
+    const deckCards = Array.isArray(deck.cards) ? deck.cards : [];
+    const commander = deckCards.filter(c => c.place === 'commander');
+    const lib = deckCards.filter(c => c.zone === 'LIB');
     const shuffled = shuffle(lib);
     const newCards = reassignLibraryPlaces([...commander, ...shuffled]);
     const updated = { ...deck, cards: newCards };
@@ -124,7 +126,7 @@ export default function InGameScreen() {
       ...c,
       place: String(i + 1),
     }));
-    const commanderCards = deck.cards.filter(c => c.place === 'commander');
+    const commanderCards = (Array.isArray(deck.cards) ? deck.cards : []).filter(c => c.place === 'commander');
     const newCards = [...commanderCards, ...reordered];
     const updated = { ...deck, cards: newCards };
     await saveDeck(updated);

@@ -38,6 +38,7 @@ export default function ImportDeckScreen() {
   const [deckList, setDeckList] = useState('');
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [downloadPercent, setDownloadPercent] = useState<number | null>(null);
 
   const handleImport = async () => {
     const trimmedName = deckName.trim();
@@ -63,12 +64,14 @@ export default function ImportDeckScreen() {
     ];
 
     setProgress({ current: 0, total: uniqueNames.length });
+    setDownloadPercent(null);
     setImporting(true);
 
     try {
       const { results, errors } = await fetchCards(
         uniqueNames,
         (done, total) => setProgress({ current: done, total }),
+        (pct) => setDownloadPercent(pct),
       );
 
       if (errors.length > 0) {
@@ -141,6 +144,7 @@ export default function ImportDeckScreen() {
       Alert.alert('Error', e instanceof Error ? e.message : String(e));
     } finally {
       setImporting(false);
+      setDownloadPercent(null);
     }
   };
 
@@ -181,12 +185,19 @@ export default function ImportDeckScreen() {
         {importing ? (
           <View style={styles.progressBox}>
             <ActivityIndicator size="large" color="#D0BCFF" />
-            <Text style={styles.progressText}>
-              Fetching cards…{' '}
-              <Text style={styles.progressNum}>
-                {progress.current}/{progress.total}
+            {downloadPercent !== null && downloadPercent < 100 ? (
+              <Text style={styles.progressText}>
+                Downloading card database…{' '}
+                <Text style={styles.progressNum}>{downloadPercent}%</Text>
               </Text>
-            </Text>
+            ) : (
+              <Text style={styles.progressText}>
+                Looking up cards…{' '}
+                <Text style={styles.progressNum}>
+                  {progress.current}/{progress.total}
+                </Text>
+              </Text>
+            )}
           </View>
         ) : (
           <Pressable style={styles.button} onPress={handleImport}>
