@@ -11,7 +11,7 @@ export interface CardInstance {
    *   "1", "2", … → library position; sleeve_id = parseInt(place) + 1
    */
   place: string;
-  /** Zone: "LIB" | "HND" | "BTFLD" | "GRV" | "EXL" */
+  /** Zone: "LIB" | "HND" | "BTFLD" | "GRV" | "EXL" | "CMD" */
   zone: string;
 }
 
