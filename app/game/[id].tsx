@@ -100,9 +100,10 @@ export default function InGameScreen() {
   const [placeFrom, setPlaceFrom] = useState<'top' | 'bottom'>('top');
   const [placePositionText, setPlacePositionText] = useState('1');
 
-  // Sleeve selection (used by Place in Library)
+  // Sleeve selection (shared by Place in Library and Flip Card)
   const [sleeveSelectVisible, setSleeveSelectVisible] = useState(false);
   const [sleeveSelectCountdown, setSleeveSelectCountdown] = useState(30);
+  const [sleeveWaitMessage, setSleeveWaitMessage] = useState('');
   const sleeveSelectCancelledRef = useRef(false);
 
   useFocusEffect(
@@ -489,6 +490,7 @@ export default function InGameScreen() {
     setPlaceModalVisible(false);
 
     sleeveSelectCancelledRef.current = false;
+    setSleeveWaitMessage(`Press the button on the card to place it at position ${placePositionText} from the ${chosenFrom}.`);
     setSleeveSelectVisible(true);
     const sid = await waitForSleeveSelection(() => sleeveSelectCancelledRef.current);
     setSleeveSelectVisible(false);
@@ -518,6 +520,42 @@ export default function InGameScreen() {
     await saveDeck(updated);
     setDeck(updated);
     syncSleeves(newCards);
+  };
+
+  // ─── Flip Card ────────────────────────────────────────────────────────────
+  const handleFlipCard = async () => {
+    sleeveSelectCancelledRef.current = false;
+    setSleeveWaitMessage('Press the button on the card to flip.');
+    setSleeveSelectVisible(true);
+    const sid = await waitForSleeveSelection(() => sleeveSelectCancelledRef.current);
+    setSleeveSelectVisible(false);
+    if (sleeveSelectCancelledRef.current || sid === null) return;
+
+    const targetCard = cards.find(c => c.sleeveId === sid);
+    if (!targetCard) { Alert.alert('Unknown sleeve', `Sleeve ${sid} is not mapped to a card.`); return; }
+
+    if (!targetCard.backImagePath) {
+      Alert.alert('Not double-sided', `${targetCard.displayName} is not a double-sided card.`);
+      return;
+    }
+    if (targetCard.zone === 'LIB') {
+      Alert.alert('Cannot flip', 'Cards in the library cannot be flipped.');
+      return;
+    }
+
+    const newIsFlipped = !targetCard.isFlipped;
+    const updatedCard = { ...targetCard, isFlipped: newIsFlipped };
+    const deckCards = Array.isArray(deck?.cards) ? deck!.cards : [];
+    const newCards = deckCards.map(c => c === targetCard ? updatedCard : c);
+    const updated = { ...deck!, cards: newCards };
+    await saveDeck(updated);
+    setDeck(updated);
+
+    // Push the correct face to the sleeve
+    if (updatedCard.sleeveId !== null) {
+      const faceImage = newIsFlipped ? targetCard.backImagePath : targetCard.imagePath;
+      pushCardToSleeve({ ...updatedCard, imagePath: faceImage }).catch(() => {});
+    }
   };
 
   // ─── Mill ─────────────────────────────────────────────────────────────────
@@ -578,6 +616,8 @@ export default function InGameScreen() {
         baseName: name.trim(),
         displayName: `${name.trim()} Token`,
         imagePath,
+        backImagePath: '',
+        isFlipped: false,
         place: String(Date.now()),
         zone: 'TKN',
         isToken: true,
@@ -718,6 +758,10 @@ export default function InGameScreen() {
           <Pressable style={[styles.actionBtn, busy && styles.btnDisabled]} onPress={handleStartPlaceInLibrary} disabled={busy}>
             <Text style={styles.actionIcon}>📌</Text>
             <Text style={styles.actionLabel}>Place in Library</Text>
+          </Pressable>
+          <Pressable style={[styles.actionBtn, busy && styles.btnDisabled]} onPress={handleFlipCard} disabled={busy}>
+            <Text style={styles.actionIcon}>🔄</Text>
+            <Text style={styles.actionLabel}>Flip Card</Text>
           </Pressable>
         </View>
       </View>
@@ -1078,14 +1122,12 @@ export default function InGameScreen() {
         </Pressable>
       </Modal>
 
-      {/* Place in Library — step 2: sleeve waiting */}
+      {/* Sleeve waiting modal — shared by Place in Library and Flip Card */}
       <Modal visible={sleeveSelectVisible} transparent animationType="fade" onRequestClose={handleCancelSleeveSelect}>
         <View style={styles.sleeveWaitBackdrop}>
           <View style={styles.sleeveWaitCard}>
             <ActivityIndicator color="#D0BCFF" size="large" style={{ marginBottom: 16 }} />
-            <Text style={styles.sleeveWaitTitle}>
-              Press the button on the card to place it at position {placePositionText} from the {placeFrom}.
-            </Text>
+            <Text style={styles.sleeveWaitTitle}>{sleeveWaitMessage}</Text>
             <Text style={styles.sleeveWaitCountdown}>{sleeveSelectCountdown}s</Text>
             <Pressable style={styles.cancelBtn} onPress={handleCancelSleeveSelect}>
               <Text style={styles.cancelBtnText}>Cancel</Text>

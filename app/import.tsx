@@ -98,6 +98,8 @@ export default function ImportDeckScreen() {
               ? `${commanderEntry.name} ${i + 1}`
               : commanderEntry.name,
           imagePath: results[commanderEntry.name]?.imagePath ?? '',
+          backImagePath: results[commanderEntry.name]?.backImagePath ?? '',
+          isFlipped: false,
           place: 'commander',
           zone: 'BTFLD',
           sleeveId: null,
@@ -111,6 +113,8 @@ export default function ImportDeckScreen() {
           baseName: name,
           displayName: name,
           imagePath: results[name]?.imagePath ?? '',
+          backImagePath: results[name]?.backImagePath ?? '',
+          isFlipped: false,
           place: String(idx + 1),
           zone: 'LIB',
           sleeveId: null,

@@ -3,8 +3,12 @@ export interface CardInstance {
   baseName: string;
   /** Human-readable label — adds a counter for duplicates: "Lightning Bolt 2" */
   displayName: string;
-  /** Absolute local file path, e.g. .../cards/Lightning_Bolt.jpg */
+  /** Scryfall image URL for the front face */
   imagePath: string;
+  /** Scryfall image URL for the back face; empty string if card is single-faced */
+  backImagePath: string;
+  /** True when the card is showing its back face */
+  isFlipped: boolean;
   /**
    * Deck position:
    *   "commander" → always sleeve 1

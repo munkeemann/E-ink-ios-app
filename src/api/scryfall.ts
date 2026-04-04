@@ -7,12 +7,14 @@ const TOKEN_CACHE_PREFIX = 'token_cache_';
 
 export interface FetchedCard {
   imagePath: string;
+  backImagePath: string;
   colorIdentity: string[];
 }
 
 interface SlimCard {
   name: string;
   imagePath: string;
+  backImagePath: string;
   colorIdentity: string[];
 }
 
@@ -25,6 +27,15 @@ function extractImageUrl(card: Record<string, unknown>): string | null {
     if (faceUris?.large) return faceUris.large;
   }
   return null;
+}
+
+function extractBackImageUrl(card: Record<string, unknown>): string {
+  const faces = card.card_faces as Array<Record<string, unknown>> | undefined;
+  if (faces && faces.length > 1) {
+    const backUris = faces[1].image_uris as Record<string, string> | undefined;
+    if (backUris?.large) return backUris.large;
+  }
+  return '';
 }
 
 async function downloadBulkData(
@@ -76,6 +87,7 @@ async function downloadBulkData(
   return allCards.map(card => ({
     name: card.name as string,
     imagePath: extractImageUrl(card) ?? '',
+    backImagePath: extractBackImageUrl(card),
     colorIdentity: Array.isArray(card.color_identity)
       ? (card.color_identity as unknown[]).filter((x): x is string => typeof x === 'string')
       : [],
@@ -153,7 +165,11 @@ export async function fetchCards(
     const name = names[i];
     const card = index.get(name.toLowerCase());
     if (card && card.imagePath) {
-      results[name] = { imagePath: card.imagePath, colorIdentity: card.colorIdentity };
+      results[name] = {
+        imagePath: card.imagePath,
+        backImagePath: card.backImagePath ?? '',
+        colorIdentity: card.colorIdentity,
+      };
     } else {
       // Bulk index miss — try Scryfall fuzzy search as fallback
       try {
@@ -164,13 +180,14 @@ export async function fetchCards(
         if (!fuzzyResp.ok) throw new Error(`Fuzzy search failed (${fuzzyResp.status})`);
         const fuzzyCard = await fuzzyResp.json() as Record<string, unknown>;
         const imagePath = extractImageUrl(fuzzyCard) ?? '';
+        const backImagePath = extractBackImageUrl(fuzzyCard);
         const colorIdentity = Array.isArray(fuzzyCard.color_identity)
           ? (fuzzyCard.color_identity as unknown[]).filter((x): x is string => typeof x === 'string')
           : [];
-        results[name] = { imagePath, colorIdentity };
+        results[name] = { imagePath, backImagePath, colorIdentity };
       } catch {
         errors.push(`${name}: Card not found in local database`);
-        results[name] = { imagePath: '', colorIdentity: [] };
+        results[name] = { imagePath: '', backImagePath: '', colorIdentity: [] };
       }
     }
     onProgress?.(i + 1, names.length);
