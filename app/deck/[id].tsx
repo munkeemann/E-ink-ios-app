@@ -15,7 +15,7 @@ import {
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { assignSleeveIds, beginGame, getRegisteredSleeves } from '../../src/api/piServer';
 import { getDeck, loadSettings, saveDeck } from '../../src/storage/deckStorage';
-import { CardInstance, Deck, TokenTemplate } from '../../src/types';
+import { AppSettings, CardInstance, Deck, TokenTemplate } from '../../src/types';
 
 const MTG_COLORS = ['W', 'U', 'B', 'R', 'G'];
 const COLOR_LABELS: Record<string, string> = { W: '☀️', U: '💧', B: '💀', R: '🔥', G: '🌲' };
@@ -25,6 +25,12 @@ export default function DeckPreviewScreen() {
   const [deck, setDeck] = useState<Deck | null>(null);
   const [sending, setSending] = useState(false);
   const [sendProgress, setSendProgress] = useState({ sent: 0, total: 0 });
+  const [settings, setSettings] = useState<AppSettings>({
+    sleeveCount: 5,
+    physicalZones: ['LIB', 'HND', 'BTFLD'],
+    librarySleeveDepth: 1,
+    devMode: false,
+  });
 
   const [addTokenVisible, setAddTokenVisible] = useState(false);
   const [newTokenName, setNewTokenName] = useState('');
@@ -35,6 +41,7 @@ export default function DeckPreviewScreen() {
   useFocusEffect(
     useCallback(() => {
       if (id) getDeck(id).then(setDeck);
+      loadSettings().then(setSettings);
     }, [id]),
   );
 
@@ -47,9 +54,13 @@ export default function DeckPreviewScreen() {
   }
 
   const commander = deck.cards.find(c => c.place === 'commander');
-  const library = deck.cards
-    .filter(c => c.zone === 'LIB')
-    .sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10));
+  const library = settings.devMode
+    ? deck.cards
+        .filter(c => c.zone === 'LIB')
+        .sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10))
+    : deck.cards
+        .filter(c => c.zone === 'LIB')
+        .sort((a, b) => a.baseName.localeCompare(b.baseName));
 
   const tokens: TokenTemplate[] = Array.isArray(deck.tokens) ? deck.tokens : [];
 
@@ -138,10 +149,10 @@ export default function DeckPreviewScreen() {
     setDeck(updated);
   };
 
-  const renderCard = ({ item, index }: { item: CardInstance; index: number }) => (
+  const renderCard = ({ item }: { item: CardInstance }) => (
     <View style={styles.cardRow}>
       <Text style={styles.cardIndex}>
-        {item.place === 'commander' ? '⚔' : index}
+        {item.place === 'commander' ? '⚔' : settings.devMode ? item.place : '·'}
       </Text>
       <Text style={styles.cardName}>{item.displayName}</Text>
     </View>
@@ -165,6 +176,9 @@ export default function DeckPreviewScreen() {
             <Text style={styles.commanderName}>{commander.displayName}</Text>
           )}
           <Text style={styles.deckMeta}>{deck.cards.length} cards total</Text>
+          <Text style={[styles.devModeLabel, settings.devMode && styles.devModeLabelActive]}>
+            {settings.devMode ? 'Showing actual deck order' : 'Deck order hidden'}
+          </Text>
         </View>
       </View>
 
@@ -322,6 +336,8 @@ const styles = StyleSheet.create({
   deckTitle: { color: '#D0BCFF', fontSize: 20, fontWeight: '800' },
   commanderName: { color: '#CCC2DC', fontSize: 13 },
   deckMeta: { color: '#625b71', fontSize: 12 },
+  devModeLabel: { color: '#4a4f55', fontSize: 11, marginTop: 2 },
+  devModeLabelActive: { color: '#f59e0b' },
 
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: 16 },

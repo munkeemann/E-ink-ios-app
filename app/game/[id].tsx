@@ -65,7 +65,7 @@ export default function InGameScreen() {
   const [busy, setBusy] = useState(false);
   const [busyLabel, setBusyLabel] = useState('');
   const [connectedSleeves, setConnectedSleeves] = useState<number[] | null>(null);
-  const [settings, setSettings] = useState<AppSettings>({ sleeveCount: 5, physicalZones: ['LIB', 'HND', 'BTFLD'], librarySleeveDepth: 1 });
+  const [settings, setSettings] = useState<AppSettings>({ sleeveCount: 5, physicalZones: ['LIB', 'HND', 'BTFLD'], librarySleeveDepth: 1, devMode: false });
 
   const [activeZone, setActiveZone] = useState<Zone | null>(null);
   const [selectedCards, setSelectedCards] = useState<Set<string>>(new Set());
@@ -95,9 +95,8 @@ export default function InGameScreen() {
   const [tokenColors, setTokenColors] = useState<string[]>([]);
   const [tokenCreating, setTokenCreating] = useState(false);
 
-  // Place Card modal
+  // Place in Library — step 1: position picker
   const [placeModalVisible, setPlaceModalVisible] = useState(false);
-  const [placeQuery, setPlaceQuery] = useState('');
   const [placeFrom, setPlaceFrom] = useState<'top' | 'bottom'>('top');
   const [placePositionText, setPlacePositionText] = useState('1');
 
@@ -475,8 +474,20 @@ export default function InGameScreen() {
   };
 
   // ─── Place in Library ─────────────────────────────────────────────────────
-  // Step 1: tap "Place in Library" → show waiting modal, start sleeve detection
-  const handleStartPlaceInLibrary = async () => {
+  // Step 1: tap "Place in Library" → show position picker
+  const handleStartPlaceInLibrary = () => {
+    setPlaceFrom('top');
+    setPlacePositionText('1');
+    setPlaceModalVisible(true);
+  };
+
+  // Step 2: user taps "Next" in position picker → wait for sleeve press
+  const handlePlacePositionNext = async () => {
+    const pos = parseInt(placePositionText, 10);
+    if (isNaN(pos) || pos < 1) { Alert.alert('Invalid', 'Enter a position ≥ 1'); return; }
+    const chosenFrom = placeFrom;
+    setPlaceModalVisible(false);
+
     sleeveSelectCancelledRef.current = false;
     setSleeveSelectVisible(true);
     const sid = await waitForSleeveSelection(() => sleeveSelectCancelledRef.current);
@@ -484,42 +495,22 @@ export default function InGameScreen() {
     if (sleeveSelectCancelledRef.current || sid === null) return;
 
     // Map sleeve → card via permanent sleeveId
-    const card = cards.find(c => c.sleeveId === sid);
-    if (!card) { Alert.alert('Unknown sleeve', `Sleeve ${sid} is not mapped to a card.`); return; }
+    const targetCard = cards.find(c => c.sleeveId === sid);
+    if (!targetCard) { Alert.alert('Unknown sleeve', `Sleeve ${sid} is not mapped to a card.`); return; }
+    if (targetCard.zone !== 'LIB') { Alert.alert('Not in library', 'That card is not in your library.'); return; }
 
-    // Card must be in LIB
-    if (card.zone !== 'LIB') {
-      Alert.alert('Not in library', 'That card is not in your library.');
-      return;
-    }
-
-    // Open position picker with the identified card pre-set
-    setPlaceQuery(card.baseName);
-    setPlaceFrom('top');
-    setPlacePositionText('1');
-    setPlaceModalVisible(true);
-  };
-
-  // Step 2: confirm position in the picker modal
-  const handlePlaceCardConfirm = async () => {
-    const pos = parseInt(placePositionText, 10);
-    if (isNaN(pos) || pos < 1) { Alert.alert('Invalid', 'Enter a position ≥ 1'); return; }
+    // Execute placement
     const sortedLib = cards
       .filter(c => c.zone === 'LIB')
       .sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10));
-    const match = sortedLib.find(c => c.baseName === placeQuery);
-    if (!match) { Alert.alert('Not found', 'Card not found in library.'); return; }
-    setPlaceModalVisible(false);
-    setPlaceQuery('');
-    setPlacePositionText('1');
-    const withoutMatch = sortedLib.filter(c => c !== match);
-    const insertIdx = placeFrom === 'top'
-      ? Math.min(pos - 1, withoutMatch.length)
-      : Math.max(withoutMatch.length - pos + 1, 0);
+    const withoutCard = sortedLib.filter(c => c !== targetCard);
+    const insertIdx = chosenFrom === 'top'
+      ? Math.min(pos - 1, withoutCard.length)
+      : Math.max(withoutCard.length - pos + 1, 0);
     const newLib = [
-      ...withoutMatch.slice(0, insertIdx),
-      match,
-      ...withoutMatch.slice(insertIdx),
+      ...withoutCard.slice(0, insertIdx),
+      targetCard,
+      ...withoutCard.slice(insertIdx),
     ].map((c, i) => ({ ...c, place: String(i + 1) }));
     const nonLib = cards.filter(c => c.zone !== 'LIB');
     const newCards = [...nonLib, ...newLib];
@@ -1045,27 +1036,12 @@ export default function InGameScreen() {
         </Pressable>
       </Modal>
 
-      {/* Place in Library — waiting modal (step 1) */}
-      <Modal visible={sleeveSelectVisible} transparent animationType="fade" onRequestClose={handleCancelSleeveSelect}>
-        <View style={styles.sleeveWaitBackdrop}>
-          <View style={styles.sleeveWaitCard}>
-            <ActivityIndicator color="#D0BCFF" size="large" style={{ marginBottom: 16 }} />
-            <Text style={styles.sleeveWaitTitle}>Press the button on the card you want to place. Waiting…</Text>
-            <Text style={styles.sleeveWaitCountdown}>{sleeveSelectCountdown}s</Text>
-            <Pressable style={styles.cancelBtn} onPress={handleCancelSleeveSelect}>
-              <Text style={styles.cancelBtnText}>Cancel</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Place in Library — position picker (step 2) */}
+      {/* Place in Library — step 1: position picker */}
       <Modal visible={placeModalVisible} transparent animationType="slide" onRequestClose={() => setPlaceModalVisible(false)}>
         <Pressable style={styles.sheetBackdrop} onPress={() => setPlaceModalVisible(false)}>
           <Pressable style={styles.sheet} onPress={() => {}}>
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>Place in Library</Text>
-            <Text style={styles.placeCardName}>{placeQuery}</Text>
             <Text style={styles.sheetLabel}>Direction</Text>
             <View style={styles.segRow}>
               <Pressable
@@ -1091,15 +1067,31 @@ export default function InGameScreen() {
               autoFocus
             />
             <View style={styles.sheetActions}>
-              <Pressable style={styles.cancelBtn} onPress={() => { setPlaceModalVisible(false); setPlaceQuery(''); setPlacePositionText('1'); }}>
+              <Pressable style={styles.cancelBtn} onPress={() => { setPlaceModalVisible(false); setPlacePositionText('1'); }}>
                 <Text style={styles.cancelBtnText}>Cancel</Text>
               </Pressable>
-              <Pressable style={styles.confirmBtn} onPress={handlePlaceCardConfirm}>
-                <Text style={styles.confirmBtnText}>Place</Text>
+              <Pressable style={styles.confirmBtn} onPress={handlePlacePositionNext}>
+                <Text style={styles.confirmBtnText}>Next</Text>
               </Pressable>
             </View>
           </Pressable>
         </Pressable>
+      </Modal>
+
+      {/* Place in Library — step 2: sleeve waiting */}
+      <Modal visible={sleeveSelectVisible} transparent animationType="fade" onRequestClose={handleCancelSleeveSelect}>
+        <View style={styles.sleeveWaitBackdrop}>
+          <View style={styles.sleeveWaitCard}>
+            <ActivityIndicator color="#D0BCFF" size="large" style={{ marginBottom: 16 }} />
+            <Text style={styles.sleeveWaitTitle}>
+              Press the button on the card to place it at position {placePositionText} from the {placeFrom}.
+            </Text>
+            <Text style={styles.sleeveWaitCountdown}>{sleeveSelectCountdown}s</Text>
+            <Pressable style={styles.cancelBtn} onPress={handleCancelSleeveSelect}>
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
       </Modal>
 
     </View>

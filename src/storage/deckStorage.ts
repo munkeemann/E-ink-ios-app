@@ -8,6 +8,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   sleeveCount: 5,
   physicalZones: ['LIB', 'HND', 'BTFLD'],
   librarySleeveDepth: 1,
+  devMode: false,
 };
 
 export async function loadDecks(): Promise<Deck[]> {
@@ -44,6 +45,7 @@ export async function loadSettings(): Promise<AppSettings> {
     sleeveCount: parsed.sleeveCount ?? DEFAULT_SETTINGS.sleeveCount,
     physicalZones: parsed.physicalZones ?? DEFAULT_SETTINGS.physicalZones,
     librarySleeveDepth: parsed.librarySleeveDepth ?? DEFAULT_SETTINGS.librarySleeveDepth,
+    devMode: parsed.devMode ?? DEFAULT_SETTINGS.devMode,
   };
 }
 

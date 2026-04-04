@@ -25,6 +25,7 @@ export default function SettingsScreen() {
     sleeveCount: 5,
     physicalZones: ['LIB', 'HND', 'BTFLD'],
     librarySleeveDepth: 1,
+    devMode: false,
   });
 
   useFocusEffect(
@@ -142,6 +143,23 @@ export default function SettingsScreen() {
               />
             </View>
           ))}
+        </View>
+
+        {/* Dev Mode */}
+        <Text style={styles.sectionTitle}>Developer</Text>
+        <View style={styles.card}>
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleInfo}>
+              <Text style={styles.toggleLabel}>Dev Mode</Text>
+              <Text style={styles.toggleNote}>Reveals hidden game information</Text>
+            </View>
+            <Switch
+              value={settings.devMode}
+              onValueChange={v => setSettings(prev => ({ ...prev, devMode: v }))}
+              trackColor={{ false: '#4a4f55', true: '#6650a4' }}
+              thumbColor={settings.devMode ? '#D0BCFF' : '#9ca3af'}
+            />
+          </View>
         </View>
 
       </ScrollView>

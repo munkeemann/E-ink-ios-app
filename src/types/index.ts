@@ -49,4 +49,6 @@ export interface AppSettings {
   physicalZones: string[];
   /** How many top-of-library cards get a physical sleeve (default 1) */
   librarySleeveDepth: number;
+  /** Reveals actual deck order and position numbers in the deck preview (default false) */
+  devMode: boolean;
 }
