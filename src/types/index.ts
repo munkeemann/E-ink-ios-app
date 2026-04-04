@@ -14,6 +14,8 @@ export interface CardInstance {
   place: string;
   /** Zone: "LIB" | "HND" | "BTFLD" | "GRV" | "EXL" | "CMD" */
   zone: string;
+  /** True for token cards — tokens are deleted from the deck when they leave the battlefield */
+  isToken?: boolean;
 }
 
 export interface TokenTemplate {

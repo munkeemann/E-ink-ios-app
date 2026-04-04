@@ -176,14 +176,26 @@ export default function InGameScreen() {
   // ─── Shuffle ──────────────────────────────────────────────────────────────
   const handleShuffle = async () => {
     const deckCards = Array.isArray(deck?.cards) ? deck!.cards : [];
-    const commanderCards = deckCards.filter(c => c.place === 'commander');
     const lib = deckCards.filter(c => c.zone === 'LIB');
-    const shuffled = shuffle(lib);
-    const newCards = reassignLibraryPlaces([...commanderCards, ...shuffled]);
+    const shuffled = shuffle(lib).map((c, i) => ({ ...c, place: String(i + 1) }));
+    const nonLib = deckCards.filter(c => c.zone !== 'LIB');
+    const newCards = [...nonLib, ...shuffled];
     const updated = { ...deck!, cards: newCards };
     await saveDeck(updated);
     setDeck(updated);
-    await doBeginGame(newCards);
+    const sleeves = connectedSleeves ?? await getRegisteredSleeves();
+    if (sleeves.length > 0) {
+      setBusy(true);
+      setBusyLabel('Sending sleeves…');
+      try {
+        await beginGame(newCards, sleeves);
+      } catch (e) {
+        Alert.alert('Error', e instanceof Error ? e.message : String(e));
+      } finally {
+        setBusy(false);
+        setBusyLabel('');
+      }
+    }
   };
 
   // ─── Mulligan (from bottom sheet) ─────────────────────────────────────────
@@ -282,12 +294,15 @@ export default function InGameScreen() {
     if (!deck) return;
     if (destZone === 'GRV') sendToGraveyard(sleeveIdForCard(card)).catch(() => {});
     const deckCards = Array.isArray(deck.cards) ? deck.cards : [];
-    const updated = deckCards.map(c => c === card ? { ...c, zone: destZone } : c);
-    const commanderCards = updated.filter(c => c.place === 'commander');
-    const libCards = updated
+    // Tokens leaving the battlefield are removed entirely
+    const withMove = card.isToken && destZone !== 'BTFLD' && destZone !== 'TKN'
+      ? deckCards.filter(c => c !== card)
+      : deckCards.map(c => c === card ? { ...c, zone: destZone } : c);
+    const commanderCards = withMove.filter(c => c.place === 'commander');
+    const libCards = withMove
       .filter(c => c.zone === 'LIB' && c.place !== 'commander')
       .map((c, i) => ({ ...c, place: String(i + 1) }));
-    const otherCards = updated.filter(c => c.zone !== 'LIB' && c.place !== 'commander');
+    const otherCards = withMove.filter(c => c.zone !== 'LIB' && c.place !== 'commander');
     const newDeck = { ...deck, cards: [...commanderCards, ...libCards, ...otherCards] };
     await saveDeck(newDeck);
     setDeck(newDeck);
@@ -301,13 +316,16 @@ export default function InGameScreen() {
     setSelectedCards(new Set());
     const keys = new Set(selectedCards);
     const deckCards = Array.isArray(deck.cards) ? deck.cards : [];
-    const updated = deckCards.map(c => {
-      if (keys.has(cardKey(c)) && (c.zone === sourceZone || (sourceZone === 'BTFLD' && c.zone === 'TKN'))) {
-        if (destZone === 'GRV') sendToGraveyard(sleeveIdForCard(c)).catch(() => {});
-        return { ...c, zone: destZone };
-      }
-      return c;
-    });
+    const withMove = deckCards.reduce<CardInstance[]>((acc, c) => {
+      const isSelected = keys.has(cardKey(c)) && (c.zone === sourceZone || (sourceZone === 'BTFLD' && c.zone === 'TKN'));
+      if (!isSelected) { acc.push(c); return acc; }
+      if (destZone === 'GRV') sendToGraveyard(sleeveIdForCard(c)).catch(() => {});
+      // Tokens leaving the battlefield are removed entirely
+      if (c.isToken && destZone !== 'BTFLD' && destZone !== 'TKN') return acc;
+      acc.push({ ...c, zone: destZone });
+      return acc;
+    }, []);
+    const updated = withMove;
     const commanderCards = updated.filter(c => c.place === 'commander');
     const libCards = updated
       .filter(c => c.zone === 'LIB' && c.place !== 'commander')
@@ -411,6 +429,7 @@ export default function InGameScreen() {
         imagePath,
         place: String(Date.now()),
         zone: 'TKN',
+        isToken: true,
       };
 
       // Save token template to deck.tokens if not already present
