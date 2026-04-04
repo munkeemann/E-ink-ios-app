@@ -1,6 +1,6 @@
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 
 export default function RootLayout() {
   return (
@@ -13,11 +13,22 @@ export default function RootLayout() {
           contentStyle: { backgroundColor: '#292E32' },
         }}
       >
-        <Stack.Screen name="index" options={{ title: 'MTG Deck Manager' }} />
+        <Stack.Screen
+          name="index"
+          options={{
+            title: 'MTG Deck Manager',
+            headerRight: () => (
+              <Pressable onPress={() => router.push('/settings')} hitSlop={8} style={styles.gearBtn}>
+                <Text style={styles.gearIcon}>⚙️</Text>
+              </Pressable>
+            ),
+          }}
+        />
         <Stack.Screen name="import" options={{ title: 'Import Deck' }} />
         <Stack.Screen name="deck/[id]" options={{ title: 'Deck Preview' }} />
         <Stack.Screen name="game/[id]" options={{ title: 'In Game' }} />
         <Stack.Screen name="scry" options={{ title: 'Scry' }} />
+        <Stack.Screen name="settings" options={{ title: 'Settings' }} />
       </Stack>
     </GestureHandlerRootView>
   );
@@ -25,4 +36,6 @@ export default function RootLayout() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  gearBtn: { marginRight: 4 },
+  gearIcon: { fontSize: 20 },
 });

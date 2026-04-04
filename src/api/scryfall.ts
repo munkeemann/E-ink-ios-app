@@ -155,8 +155,23 @@ export async function fetchCards(
     if (card && card.imagePath) {
       results[name] = { imagePath: card.imagePath, colorIdentity: card.colorIdentity };
     } else {
-      errors.push(`${name}: Card not found in local database`);
-      results[name] = { imagePath: '', colorIdentity: [] };
+      // Bulk index miss — try Scryfall fuzzy search as fallback
+      try {
+        const fuzzyResp = await fetch(
+          `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(name)}`,
+          { headers: { 'User-Agent': 'ECardsApp/1.0', Accept: 'application/json' } },
+        );
+        if (!fuzzyResp.ok) throw new Error(`Fuzzy search failed (${fuzzyResp.status})`);
+        const fuzzyCard = await fuzzyResp.json() as Record<string, unknown>;
+        const imagePath = extractImageUrl(fuzzyCard) ?? '';
+        const colorIdentity = Array.isArray(fuzzyCard.color_identity)
+          ? (fuzzyCard.color_identity as unknown[]).filter((x): x is string => typeof x === 'string')
+          : [];
+        results[name] = { imagePath, colorIdentity };
+      } catch {
+        errors.push(`${name}: Card not found in local database`);
+        results[name] = { imagePath: '', colorIdentity: [] };
+      }
     }
     onProgress?.(i + 1, names.length);
   }

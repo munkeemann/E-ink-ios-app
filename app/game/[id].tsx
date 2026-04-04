@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
 import {
   ActivityIndicator,
   Alert,
@@ -12,10 +13,10 @@ import {
   View,
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { PI_SERVER, beginGame, getRegisteredSleeves, sendToGraveyard } from '../../src/api/piServer';
+import { beginGame, clearSleeve, getRegisteredSleeves, nextFreeSleeveId, pushCardToSleeve, waitForSleeveSelection } from '../../src/api/piServer';
 import { fetchTokenImage } from '../../src/api/scryfall';
-import { getDeck, saveDeck } from '../../src/storage/deckStorage';
-import { CardInstance, Deck, TokenTemplate } from '../../src/types';
+import { getDeck, loadSettings, saveDeck } from '../../src/storage/deckStorage';
+import { AppSettings, CardInstance, Deck, TokenTemplate } from '../../src/types';
 
 type Zone = 'LIB' | 'HND' | 'BTFLD' | 'GRV' | 'EXL' | 'CMD' | 'TKN';
 
@@ -35,11 +36,6 @@ const COLOR_LABELS: Record<string, string> = { W: '☀️', U: '💧', B: '💀'
 
 function cardKey(card: CardInstance): string {
   return `${card.baseName}__${card.place}`;
-}
-
-function sleeveIdForCard(card: CardInstance): number {
-  if (card.place === 'commander') return 1;
-  return parseInt(card.place, 10) + 1;
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -69,6 +65,7 @@ export default function InGameScreen() {
   const [busy, setBusy] = useState(false);
   const [busyLabel, setBusyLabel] = useState('');
   const [connectedSleeves, setConnectedSleeves] = useState<number[] | null>(null);
+  const [settings, setSettings] = useState<AppSettings>({ sleeveCount: 5, physicalZones: ['LIB', 'HND', 'BTFLD'], librarySleeveDepth: 1 });
 
   const [activeZone, setActiveZone] = useState<Zone | null>(null);
   const [selectedCards, setSelectedCards] = useState<Set<string>>(new Set());
@@ -98,6 +95,17 @@ export default function InGameScreen() {
   const [tokenColors, setTokenColors] = useState<string[]>([]);
   const [tokenCreating, setTokenCreating] = useState(false);
 
+  // Place Card modal
+  const [placeModalVisible, setPlaceModalVisible] = useState(false);
+  const [placeQuery, setPlaceQuery] = useState('');
+  const [placeFrom, setPlaceFrom] = useState<'top' | 'bottom'>('top');
+  const [placePositionText, setPlacePositionText] = useState('1');
+
+  // Sleeve selection (used by Place in Library)
+  const [sleeveSelectVisible, setSleeveSelectVisible] = useState(false);
+  const [sleeveSelectCountdown, setSleeveSelectCountdown] = useState(30);
+  const sleeveSelectCancelledRef = useRef(false);
+
   useFocusEffect(
     useCallback(() => {
       if (id) {
@@ -108,6 +116,7 @@ export default function InGameScreen() {
         });
       }
       getRegisteredSleeves().then(setConnectedSleeves);
+      loadSettings().then(setSettings);
     }, [id]),
   );
 
@@ -120,6 +129,19 @@ export default function InGameScreen() {
       setMulliganSheetVisible(true);
     }
   }, [freshStart, deck]);
+
+  // Sleeve selection countdown
+  useEffect(() => {
+    if (!sleeveSelectVisible) return;
+    setSleeveSelectCountdown(30);
+    const interval = setInterval(() => {
+      setSleeveSelectCountdown(prev => {
+        if (prev <= 1) { clearInterval(interval); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [sleeveSelectVisible]);
 
   const cards = Array.isArray(deck?.cards) ? deck!.cards : [];
 
@@ -162,7 +184,7 @@ export default function InGameScreen() {
       setConnectedSleeves(sleeves);
       if (sleeves.length > 0) {
         setBusyLabel('Sending sleeves…');
-        await beginGame(gameCards, sleeves);
+        await beginGame(gameCards, sleeves, undefined, undefined, settings);
       }
       setMulliganSheetVisible(true);
     } catch (e) {
@@ -171,6 +193,13 @@ export default function InGameScreen() {
       setBusy(false);
       setBusyLabel('');
     }
+  };
+
+  // ─── Sync sleeves (fire-and-forget after zone changes) ───────────────────
+  const syncSleeves = (updatedCards: CardInstance[]) => {
+    const sleeves = connectedSleeves;
+    if (!sleeves || sleeves.length === 0) return;
+    beginGame(updatedCards, sleeves, undefined, undefined, settings).catch(() => {});
   };
 
   // ─── Shuffle ──────────────────────────────────────────────────────────────
@@ -188,7 +217,7 @@ export default function InGameScreen() {
       setBusy(true);
       setBusyLabel('Sending sleeves…');
       try {
-        await beginGame(newCards, sleeves);
+        await beginGame(newCards, sleeves, undefined, undefined, settings);
       } catch (e) {
         Alert.alert('Error', e instanceof Error ? e.message : String(e));
       } finally {
@@ -231,13 +260,8 @@ export default function InGameScreen() {
       const newHandSource = sortedLib.slice(0, handCards.length);
       const remainingLib = sortedLib.slice(handCards.length);
 
-      const oldSleeveIds = handCards
-        .map(c => sleeveIdForCard(c))
-        .sort((a, b) => a - b);
-
-      const newHandCards: CardInstance[] = newHandSource.map((card, i) => ({
+      const newHandCards: CardInstance[] = newHandSource.map((card) => ({
         ...card,
-        place: String(oldSleeveIds[i] - 1),
         zone: 'HND' as Zone,
       }));
 
@@ -269,7 +293,7 @@ export default function InGameScreen() {
 
       const sleeves = connectedSleeves ?? await getRegisteredSleeves();
       if (sleeves.length > 0) {
-        await beginGame(newHandCards, sleeves);
+        await beginGame(finalCards, sleeves, undefined, undefined, settings);
       }
     } catch (e) {
       console.error('[Mulligan] Error:', e);
@@ -292,12 +316,40 @@ export default function InGameScreen() {
   // ─── Move card (single) ───────────────────────────────────────────────────
   const handleMoveCard = async (card: CardInstance, destZone: Zone) => {
     if (!deck) return;
-    if (destZone === 'GRV') sendToGraveyard(sleeveIdForCard(card)).catch(() => {});
     const deckCards = Array.isArray(deck.cards) ? deck.cards : [];
+    const isDestPhysical = destZone === 'TKN'
+      ? settings.physicalZones.includes('BTFLD')
+      : settings.physicalZones.includes(destZone);
+
     // Tokens leaving the battlefield are removed entirely
-    const withMove = card.isToken && destZone !== 'BTFLD' && destZone !== 'TKN'
-      ? deckCards.filter(c => c !== card)
-      : deckCards.map(c => c === card ? { ...c, zone: destZone } : c);
+    if (card.isToken && destZone !== 'BTFLD' && destZone !== 'TKN') {
+      if (card.sleeveId !== null) clearSleeve(card.sleeveId).catch(() => {});
+      const withMove = deckCards.filter(c => c !== card);
+      const commanderCards = withMove.filter(c => c.place === 'commander');
+      const libCards = withMove.filter(c => c.zone === 'LIB' && c.place !== 'commander').map((c, i) => ({ ...c, place: String(i + 1) }));
+      const otherCards = withMove.filter(c => c.zone !== 'LIB' && c.place !== 'commander');
+      const newDeck = { ...deck, cards: [...commanderCards, ...libCards, ...otherCards] };
+      await saveDeck(newDeck);
+      setDeck(newDeck);
+      syncSleeves(newDeck.cards);
+      return;
+    }
+
+    let movedCard: CardInstance = { ...card, zone: destZone };
+    if (card.sleeveId !== null && !isDestPhysical) {
+      // Moving to virtual zone: free the sleeve
+      clearSleeve(card.sleeveId).catch(() => {});
+      movedCard = { ...movedCard, sleeveId: null };
+    } else if (card.sleeveId === null && isDestPhysical) {
+      // Moving to physical zone: assign lowest free sleeve and push image
+      const freeId = nextFreeSleeveId(deckCards, settings.sleeveCount);
+      if (freeId !== null) {
+        movedCard = { ...movedCard, sleeveId: freeId };
+        pushCardToSleeve(movedCard).catch(() => {});
+      }
+    }
+
+    const withMove = deckCards.map(c => c === card ? movedCard : c);
     const commanderCards = withMove.filter(c => c.place === 'commander');
     const libCards = withMove
       .filter(c => c.zone === 'LIB' && c.place !== 'commander')
@@ -306,6 +358,7 @@ export default function InGameScreen() {
     const newDeck = { ...deck, cards: [...commanderCards, ...libCards, ...otherCards] };
     await saveDeck(newDeck);
     setDeck(newDeck);
+    syncSleeves(newDeck.cards);
   };
 
   // ─── Move selected cards ──────────────────────────────────────────────────
@@ -316,24 +369,62 @@ export default function InGameScreen() {
     setSelectedCards(new Set());
     const keys = new Set(selectedCards);
     const deckCards = Array.isArray(deck.cards) ? deck.cards : [];
+
+    const isDestPhysical = destZone === 'TKN'
+      ? settings.physicalZones.includes('BTFLD')
+      : settings.physicalZones.includes(destZone);
+
+    // Pre-compute which sleeves will remain in use after the move
+    // (non-selected cards keep their sleeveIds; we track newly assigned IDs too)
+    const nonSelectedSleeves = new Set(
+      deckCards
+        .filter(c => {
+          const isSel = keys.has(cardKey(c)) && (c.zone === sourceZone || (sourceZone === 'BTFLD' && c.zone === 'TKN'));
+          return !isSel && c.sleeveId !== null;
+        })
+        .map(c => c.sleeveId as number),
+    );
+    const assignedNewSleeves = new Set<number>();
+    const getFreeSleeveId = () => {
+      for (let i = 1; i <= settings.sleeveCount; i++) {
+        if (!nonSelectedSleeves.has(i) && !assignedNewSleeves.has(i)) return i;
+      }
+      return null;
+    };
+
     const withMove = deckCards.reduce<CardInstance[]>((acc, c) => {
       const isSelected = keys.has(cardKey(c)) && (c.zone === sourceZone || (sourceZone === 'BTFLD' && c.zone === 'TKN'));
       if (!isSelected) { acc.push(c); return acc; }
-      if (destZone === 'GRV') sendToGraveyard(sleeveIdForCard(c)).catch(() => {});
       // Tokens leaving the battlefield are removed entirely
-      if (c.isToken && destZone !== 'BTFLD' && destZone !== 'TKN') return acc;
-      acc.push({ ...c, zone: destZone });
+      if (c.isToken && destZone !== 'BTFLD' && destZone !== 'TKN') {
+        if (c.sleeveId !== null) clearSleeve(c.sleeveId).catch(() => {});
+        return acc;
+      }
+      let movedCard: CardInstance = { ...c, zone: destZone };
+      if (c.sleeveId !== null && !isDestPhysical) {
+        clearSleeve(c.sleeveId).catch(() => {});
+        movedCard = { ...movedCard, sleeveId: null };
+      } else if (c.sleeveId === null && isDestPhysical) {
+        const freeId = getFreeSleeveId();
+        if (freeId !== null) {
+          assignedNewSleeves.add(freeId);
+          movedCard = { ...movedCard, sleeveId: freeId };
+          pushCardToSleeve(movedCard).catch(() => {});
+        }
+      }
+      acc.push(movedCard);
       return acc;
     }, []);
-    const updated = withMove;
-    const commanderCards = updated.filter(c => c.place === 'commander');
-    const libCards = updated
+
+    const commanderCards = withMove.filter(c => c.place === 'commander');
+    const libCards = withMove
       .filter(c => c.zone === 'LIB' && c.place !== 'commander')
       .map((c, i) => ({ ...c, place: String(i + 1) }));
-    const otherCards = updated.filter(c => c.zone !== 'LIB' && c.place !== 'commander');
+    const otherCards = withMove.filter(c => c.zone !== 'LIB' && c.place !== 'commander');
     const newDeck = { ...deck, cards: [...commanderCards, ...libCards, ...otherCards] };
     await saveDeck(newDeck);
     setDeck(newDeck);
+    syncSleeves(newDeck.cards);
   };
 
   const openMoveSelectedPicker = () => {
@@ -383,6 +474,61 @@ export default function InGameScreen() {
     await doBeginGame(newCards);
   };
 
+  // ─── Place in Library ─────────────────────────────────────────────────────
+  // Step 1: tap "Place in Library" → show waiting modal, start sleeve detection
+  const handleStartPlaceInLibrary = async () => {
+    sleeveSelectCancelledRef.current = false;
+    setSleeveSelectVisible(true);
+    const sid = await waitForSleeveSelection(() => sleeveSelectCancelledRef.current);
+    setSleeveSelectVisible(false);
+    if (sleeveSelectCancelledRef.current || sid === null) return;
+
+    // Map sleeve → card via permanent sleeveId
+    const card = cards.find(c => c.sleeveId === sid);
+    if (!card) { Alert.alert('Unknown sleeve', `Sleeve ${sid} is not mapped to a card.`); return; }
+
+    // Card must be in LIB
+    if (card.zone !== 'LIB') {
+      Alert.alert('Not in library', 'That card is not in your library.');
+      return;
+    }
+
+    // Open position picker with the identified card pre-set
+    setPlaceQuery(card.baseName);
+    setPlaceFrom('top');
+    setPlacePositionText('1');
+    setPlaceModalVisible(true);
+  };
+
+  // Step 2: confirm position in the picker modal
+  const handlePlaceCardConfirm = async () => {
+    const pos = parseInt(placePositionText, 10);
+    if (isNaN(pos) || pos < 1) { Alert.alert('Invalid', 'Enter a position ≥ 1'); return; }
+    const sortedLib = cards
+      .filter(c => c.zone === 'LIB')
+      .sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10));
+    const match = sortedLib.find(c => c.baseName === placeQuery);
+    if (!match) { Alert.alert('Not found', 'Card not found in library.'); return; }
+    setPlaceModalVisible(false);
+    setPlaceQuery('');
+    setPlacePositionText('1');
+    const withoutMatch = sortedLib.filter(c => c !== match);
+    const insertIdx = placeFrom === 'top'
+      ? Math.min(pos - 1, withoutMatch.length)
+      : Math.max(withoutMatch.length - pos + 1, 0);
+    const newLib = [
+      ...withoutMatch.slice(0, insertIdx),
+      match,
+      ...withoutMatch.slice(insertIdx),
+    ].map((c, i) => ({ ...c, place: String(i + 1) }));
+    const nonLib = cards.filter(c => c.zone !== 'LIB');
+    const newCards = [...nonLib, ...newLib];
+    const updated = { ...deck!, cards: newCards };
+    await saveDeck(updated);
+    setDeck(updated);
+    syncSleeves(newCards);
+  };
+
   // ─── Mill ─────────────────────────────────────────────────────────────────
   const handleMillConfirm = async () => {
     const n = parseInt(millCountText, 10);
@@ -405,10 +551,16 @@ export default function InGameScreen() {
     const newDeck = { ...deck, cards: [...commanderCards, ...libCards, ...otherCards] };
     await saveDeck(newDeck);
     setDeck(newDeck);
+    syncSleeves(newDeck.cards);
     Alert.alert(
       `Milled ${toMill.length} card${toMill.length !== 1 ? 's' : ''}`,
       toMill.map(c => c.displayName).join('\n'),
     );
+  };
+
+  const handleCancelSleeveSelect = () => {
+    sleeveSelectCancelledRef.current = true;
+    setSleeveSelectVisible(false);
   };
 
   // ─── Create Token ─────────────────────────────────────────────────────────
@@ -423,6 +575,14 @@ export default function InGameScreen() {
     try {
       const imagePath = await fetchTokenImage(name.trim(), colors);
 
+      const currentDeck = deck!;
+      const deckCards = Array.isArray(currentDeck.cards) ? currentDeck.cards : [];
+
+      // Assign a free sleeveId if BTFLD is a physical zone
+      const tokenSleeveId: number | null = settings.physicalZones.includes('BTFLD')
+        ? (nextFreeSleeveId(deckCards, settings.sleeveCount) ?? null)
+        : null;
+
       const tokenCard: CardInstance = {
         baseName: name.trim(),
         displayName: `${name.trim()} Token`,
@@ -430,40 +590,23 @@ export default function InGameScreen() {
         place: String(Date.now()),
         zone: 'TKN',
         isToken: true,
+        sleeveId: tokenSleeveId,
       };
 
       // Save token template to deck.tokens if not already present
-      const currentDeck = deck!;
       const existingTokens: TokenTemplate[] = Array.isArray(currentDeck.tokens) ? currentDeck.tokens : [];
       const alreadySaved = existingTokens.some(t => t.name.toLowerCase() === name.trim().toLowerCase());
       const newTokens: TokenTemplate[] = alreadySaved
         ? existingTokens
         : [...existingTokens, { name: name.trim(), power, toughness, colors }];
 
-      const deckCards = Array.isArray(currentDeck.cards) ? currentDeck.cards : [];
       const updated: Deck = { ...currentDeck, cards: [...deckCards, tokenCard], tokens: newTokens };
       await saveDeck(updated);
       setDeck(updated);
 
-      // Push token image to top library sleeve (sleeve 2)
-      if (imagePath) {
-        const sleeves = connectedSleeves ?? await getRegisteredSleeves();
-        const topLibSleeve = sleeves.find(s => s === 2) ?? sleeves.find(s => s > 1);
-        if (topLibSleeve !== undefined) {
-          try {
-            const imageResp = await fetch(imagePath);
-            if (imageResp.ok) {
-              const buf = await imageResp.arrayBuffer();
-              await fetch(`${PI_SERVER}/display?sleeve_id=${topLibSleeve}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'image/jpeg' },
-                body: buf,
-              });
-            }
-          } catch {
-            // Pi offline — token still added to state
-          }
-        }
+      // Push token image to its assigned sleeve
+      if (tokenSleeveId !== null) {
+        pushCardToSleeve(tokenCard).catch(() => {});
       }
 
       setTokenModalVisible(false);
@@ -507,15 +650,20 @@ export default function InGameScreen() {
       {/* Deck info bar */}
       <View style={styles.header}>
         <Text style={styles.deckName}>{deck.name}</Text>
-        {commander && <Text style={styles.commanderName}>⚔ {commander.displayName}</Text>}
-        <Text style={[
-          styles.sleeveStatus,
-          connectedSleeves !== null && connectedSleeves.length === 0 && styles.sleeveStatusNone,
-        ]}>
-          {connectedSleeves === null ? 'Checking sleeves…'
-            : connectedSleeves.length === 0 ? 'No sleeves connected'
-            : `${connectedSleeves.length} sleeve${connectedSleeves.length === 1 ? '' : 's'} connected`}
-        </Text>
+        <Text style={styles.commanderName}>⚔ {commander?.displayName ?? '—'}</Text>
+        <View style={styles.headerMeta}>
+          <Text style={[
+            styles.sleeveStatus,
+            connectedSleeves !== null && connectedSleeves.length === 0 && styles.sleeveStatusNone,
+          ]}>
+            {connectedSleeves === null ? 'Checking sleeves…'
+              : connectedSleeves.length === 0 ? 'No sleeves connected'
+              : `${connectedSleeves.length} sleeve${connectedSleeves.length === 1 ? '' : 's'} connected`}
+          </Text>
+          <Text style={styles.settingsIndicator}>
+            {settings.sleeveCount} sleeves · {settings.physicalZones.join(' ')}
+          </Text>
+        </View>
       </View>
 
       {/* Zone grid — 2 rows × 3 cols */}
@@ -576,7 +724,10 @@ export default function InGameScreen() {
             <Text style={styles.actionIcon}>✨</Text>
             <Text style={styles.actionLabel}>Create Token</Text>
           </Pressable>
-          <View style={styles.actionBtnSpacer} />
+          <Pressable style={[styles.actionBtn, busy && styles.btnDisabled]} onPress={handleStartPlaceInLibrary} disabled={busy}>
+            <Text style={styles.actionIcon}>📌</Text>
+            <Text style={styles.actionLabel}>Place in Library</Text>
+          </Pressable>
         </View>
       </View>
 
@@ -894,6 +1045,63 @@ export default function InGameScreen() {
         </Pressable>
       </Modal>
 
+      {/* Place in Library — waiting modal (step 1) */}
+      <Modal visible={sleeveSelectVisible} transparent animationType="fade" onRequestClose={handleCancelSleeveSelect}>
+        <View style={styles.sleeveWaitBackdrop}>
+          <View style={styles.sleeveWaitCard}>
+            <ActivityIndicator color="#D0BCFF" size="large" style={{ marginBottom: 16 }} />
+            <Text style={styles.sleeveWaitTitle}>Press the button on the card you want to place. Waiting…</Text>
+            <Text style={styles.sleeveWaitCountdown}>{sleeveSelectCountdown}s</Text>
+            <Pressable style={styles.cancelBtn} onPress={handleCancelSleeveSelect}>
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Place in Library — position picker (step 2) */}
+      <Modal visible={placeModalVisible} transparent animationType="slide" onRequestClose={() => setPlaceModalVisible(false)}>
+        <Pressable style={styles.sheetBackdrop} onPress={() => setPlaceModalVisible(false)}>
+          <Pressable style={styles.sheet} onPress={() => {}}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Place in Library</Text>
+            <Text style={styles.placeCardName}>{placeQuery}</Text>
+            <Text style={styles.sheetLabel}>Direction</Text>
+            <View style={styles.segRow}>
+              <Pressable
+                style={[styles.segBtn, placeFrom === 'top' && styles.segBtnActive]}
+                onPress={() => setPlaceFrom('top')}
+              >
+                <Text style={[styles.segBtnText, placeFrom === 'top' && styles.segBtnTextActive]}>From Top</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.segBtn, placeFrom === 'bottom' && styles.segBtnActive]}
+                onPress={() => setPlaceFrom('bottom')}
+              >
+                <Text style={[styles.segBtnText, placeFrom === 'bottom' && styles.segBtnTextActive]}>From Bottom</Text>
+              </Pressable>
+            </View>
+            <Text style={styles.sheetLabel}>Position</Text>
+            <TextInput
+              style={styles.sheetInput}
+              value={placePositionText}
+              onChangeText={setPlacePositionText}
+              keyboardType="number-pad"
+              selectTextOnFocus
+              autoFocus
+            />
+            <View style={styles.sheetActions}>
+              <Pressable style={styles.cancelBtn} onPress={() => { setPlaceModalVisible(false); setPlaceQuery(''); setPlacePositionText('1'); }}>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.confirmBtn} onPress={handlePlaceCardConfirm}>
+                <Text style={styles.confirmBtnText}>Place</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
     </View>
   );
 }
@@ -911,8 +1119,10 @@ const styles = StyleSheet.create({
   },
   deckName: { color: '#D0BCFF', fontSize: 18, fontWeight: '800' },
   commanderName: { color: '#CCC2DC', fontSize: 13, marginTop: 2 },
-  sleeveStatus: { color: '#6ee7b7', fontSize: 11, marginTop: 4 },
+  headerMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
+  sleeveStatus: { color: '#6ee7b7', fontSize: 11 },
   sleeveStatusNone: { color: '#f87171' },
+  settingsIndicator: { color: '#625b71', fontSize: 11 },
 
   zoneGrid: { paddingHorizontal: 10, paddingTop: 12, paddingBottom: 4, gap: 8 },
   zoneGridRow: { flexDirection: 'row', gap: 8 },
@@ -1077,4 +1287,44 @@ const styles = StyleSheet.create({
   favoriteMeta: { color: '#9ca3af', fontSize: 12, marginTop: 2 },
   favoriteMetaHint: { color: '#6650a4', fontSize: 12, marginTop: 2, fontStyle: 'italic' },
   favoriteCreate: { color: '#6650a4', fontSize: 14, fontWeight: '700', paddingLeft: 12 },
+
+  segRow: { flexDirection: 'row', gap: 8, marginBottom: 4 },
+  segBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#625b71',
+    alignItems: 'center',
+  },
+  segBtnActive: { borderColor: '#D0BCFF', backgroundColor: 'rgba(208,188,255,0.12)' },
+  segBtnText: { color: '#625b71', fontSize: 14, fontWeight: '700' },
+  segBtnTextActive: { color: '#D0BCFF' },
+
+  placeCardName: {
+    color: '#D0BCFF',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+
+  sleeveWaitBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sleeveWaitCard: {
+    backgroundColor: '#353A40',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#625b71',
+    padding: 28,
+    width: 280,
+    alignItems: 'center',
+  },
+  sleeveWaitTitle: { color: '#D0BCFF', fontSize: 16, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
+  sleeveWaitCountdown: { color: '#9ca3af', fontSize: 36, fontWeight: '800', marginBottom: 20 },
+
 });

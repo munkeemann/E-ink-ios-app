@@ -100,6 +100,7 @@ export default function ImportDeckScreen() {
           imagePath: results[commanderEntry.name]?.imagePath ?? '',
           place: 'commander',
           zone: 'BTFLD',
+          sleeveId: null,
         });
       }
 
@@ -112,6 +113,7 @@ export default function ImportDeckScreen() {
           imagePath: results[name]?.imagePath ?? '',
           place: String(idx + 1),
           zone: 'LIB',
+          sleeveId: null,
         });
       });
 

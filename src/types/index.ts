@@ -16,6 +16,12 @@ export interface CardInstance {
   zone: string;
   /** True for token cards — tokens are deleted from the deck when they leave the battlefield */
   isToken?: boolean;
+  /**
+   * Permanent physical sleeve assignment.
+   * null = this card has no physical sleeve (virtual zone or unassigned).
+   * Set at game-start and transferred when the card moves zones.
+   */
+  sleeveId: number | null;
 }
 
 export interface TokenTemplate {
@@ -34,4 +40,13 @@ export interface Deck {
   colors: string[];
   cards: CardInstance[];
   tokens?: TokenTemplate[];
+}
+
+export interface AppSettings {
+  /** How many physical sleeves are available (default 5) */
+  sleeveCount: number;
+  /** Which zones get pushed to sleeves (default ['LIB', 'HND', 'BTFLD']) */
+  physicalZones: string[];
+  /** How many top-of-library cards get a physical sleeve (default 1) */
+  librarySleeveDepth: number;
 }

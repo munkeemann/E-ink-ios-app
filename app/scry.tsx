@@ -13,7 +13,7 @@ import DraggableFlatList, {
   RenderItemParams,
   ScaleDecorator,
 } from 'react-native-draggable-flatlist';
-import { beginGame } from '../src/api/piServer';
+import { beginGame, getRegisteredSleeves } from '../src/api/piServer';
 import { getDeck, saveDeck } from '../src/storage/deckStorage';
 import { CardInstance, Deck } from '../src/types';
 
@@ -79,7 +79,8 @@ export default function ScryScreen() {
       const newCards = [...commander, ...newLibrary];
       const updated = { ...deck, cards: newCards };
       await saveDeck(updated);
-      await beginGame(newCards);
+      const sleeves = await getRegisteredSleeves();
+      await beginGame(newCards, sleeves);
       router.back();
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : String(e));

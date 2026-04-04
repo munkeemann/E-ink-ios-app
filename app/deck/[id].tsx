@@ -13,8 +13,8 @@ import {
   View,
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { beginGame, getRegisteredSleeves } from '../../src/api/piServer';
-import { getDeck, saveDeck } from '../../src/storage/deckStorage';
+import { assignSleeveIds, beginGame, getRegisteredSleeves } from '../../src/api/piServer';
+import { getDeck, loadSettings, saveDeck } from '../../src/storage/deckStorage';
 import { CardInstance, Deck, TokenTemplate } from '../../src/types';
 
 const MTG_COLORS = ['W', 'U', 'B', 'R', 'G'];
@@ -53,21 +53,58 @@ export default function DeckPreviewScreen() {
 
   const tokens: TokenTemplate[] = Array.isArray(deck.tokens) ? deck.tokens : [];
 
-  const handleBeginGame = async () => {
+  // A game is in progress if any non-commander card is outside LIB
+  const gameInProgress = deck.cards.some(c => c.place !== 'commander' && c.zone !== 'LIB');
+
+  const doStartNewGame = async () => {
     setSending(true);
     setSendProgress({ sent: 0, total: 0 });
     try {
+      // Reset all cards: non-commanders back to LIB, commander back to BTFLD
+      // Tokens (isToken: true) are discarded entirely on reset
+      const resetCards = deck.cards
+        .filter(c => !c.isToken)
+        .map(c => c.place === 'commander'
+          ? { ...c, zone: 'BTFLD' as const }
+          : { ...c, zone: 'LIB' as const });
+
+      // Shuffle LIB cards and reassign places
+      const libCards = resetCards.filter(c => c.zone === 'LIB');
+      const nonLibCards = resetCards.filter(c => c.zone !== 'LIB');
+      const shuffled = [...libCards].sort(() => Math.random() - 0.5)
+        .map((c, i) => ({ ...c, place: String(i + 1) }));
+      const unsleevedCards = [...nonLibCards, ...shuffled];
+
+      // Assign permanent sleeveIds based on settings
+      const settings = await loadSettings();
+      const newCards = assignSleeveIds(unsleevedCards, settings);
+
+      const newDeck = { ...deck, cards: newCards };
+      await saveDeck(newDeck);
+      setDeck(newDeck);
+
       const sleeves = await getRegisteredSleeves();
-      await beginGame(
-        deck.cards,
-        sleeves,
-        (sent, total) => setSendProgress({ sent, total }),
-      );
+      await beginGame(newCards, sleeves, (sent, total) => setSendProgress({ sent, total }), undefined, settings);
       router.push(`/game/${deck.id}?freshStart=true`);
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : String(e));
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleBeginGame = () => {
+    if (gameInProgress) {
+      Alert.alert(
+        'Start New Game?',
+        'This will reset your current game state. Are you sure?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Confirm', style: 'destructive', onPress: doStartNewGame },
+        ],
+      );
+    } else {
+      doStartNewGame();
     }
   };
 
@@ -179,8 +216,17 @@ export default function DeckPreviewScreen() {
             Sending sleeves… {sendProgress.sent}/{sendProgress.total}
           </Text>
         </View>
+      ) : gameInProgress ? (
+        <View style={styles.bottomActions}>
+          <Pressable style={styles.resumeBtn} onPress={() => router.push(`/game/${deck.id}`)}>
+            <Text style={styles.resumeBtnText}>▶ Resume Game</Text>
+          </Pressable>
+          <Pressable style={styles.beginBtn} onPress={handleBeginGame}>
+            <Text style={styles.beginBtnText}>⚡ Begin New Game</Text>
+          </Pressable>
+        </View>
       ) : (
-        <Pressable style={styles.beginBtn} onPress={handleBeginGame}>
+        <Pressable style={[styles.beginBtn, styles.beginBtnFull]} onPress={handleBeginGame}>
           <Text style={styles.beginBtnText}>⚡ Begin Game</Text>
         </Pressable>
       )}
@@ -342,12 +388,30 @@ const styles = StyleSheet.create({
     borderColor: '#625b71',
   },
   sendingText: { color: '#CCC2DC', fontSize: 14 },
-  beginBtn: {
+  bottomActions: {
+    flexDirection: 'row',
+    gap: 10,
     margin: 16,
+  },
+  resumeBtn: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: '#6650a4',
+    borderRadius: 10,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  resumeBtnText: { color: '#9C6ADE', fontSize: 16, fontWeight: '700' },
+  beginBtn: {
+    flex: 1,
     backgroundColor: '#6650a4',
     borderRadius: 10,
     paddingVertical: 16,
     alignItems: 'center',
+  },
+  beginBtnFull: {
+    flex: 0,
+    margin: 16,
   },
   beginBtnText: { color: '#D0BCFF', fontSize: 18, fontWeight: '800' },
 
