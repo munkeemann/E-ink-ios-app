@@ -3,16 +3,13 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import DraggableFlatList, {
-  RenderItemParams,
-  ScaleDecorator,
-} from 'react-native-draggable-flatlist';
 import { beginGame, getRegisteredSleeves } from '../src/api/piServer';
 import { getDeck, saveDeck } from '../src/storage/deckStorage';
 import { CardInstance, Deck } from '../src/types';
@@ -62,6 +59,24 @@ export default function ScryScreen() {
     setTopCards(prev => [...prev, card]);
   };
 
+  const moveUp = (index: number) => {
+    if (index === 0) return;
+    setTopCards(prev => {
+      const next = [...prev];
+      [next[index - 1], next[index]] = [next[index], next[index - 1]];
+      return next;
+    });
+  };
+
+  const moveDown = (index: number) => {
+    setTopCards(prev => {
+      if (index === prev.length - 1) return prev;
+      const next = [...prev];
+      [next[index], next[index + 1]] = [next[index + 1], next[index]];
+      return next;
+    });
+  };
+
   const handleConfirm = async () => {
     if (!deck) return;
     setBusy(true);
@@ -89,66 +104,64 @@ export default function ScryScreen() {
     }
   };
 
-  const renderTopItem = ({
-    item,
-    drag,
-    isActive,
-  }: RenderItemParams<CardInstance>) => (
-    <ScaleDecorator>
-      <TouchableOpacity
-        style={[styles.cardRow, isActive && styles.cardRowActive]}
-        onLongPress={drag}
-        onPress={() => sendToBottom(item)}
-        activeOpacity={0.7}
-      >
-        <Text style={styles.dragHandle}>☰</Text>
-        <Text style={styles.cardName}>{item.displayName}</Text>
-        <Text style={styles.cardHint}>tap→bottom  long press→drag</Text>
-      </TouchableOpacity>
-    </ScaleDecorator>
-  );
-
   return (
     <View style={styles.container}>
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>
-          Keep on Top ({topCards.length})
-        </Text>
-        <Text style={styles.sectionHint}>Long press to drag · Tap to send bottom</Text>
-      </View>
+      <ScrollView>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>
+            Keep on Top ({topCards.length})
+          </Text>
+          <Text style={styles.sectionHint}>Use buttons to reorder · Tap name to send bottom</Text>
+        </View>
 
-      <DraggableFlatList
-        data={topCards}
-        onDragEnd={({ data }) => setTopCards(data)}
-        keyExtractor={(c, i) => `top-${c.baseName}-${c.place}-${i}`}
-        renderItem={renderTopItem}
-        style={styles.list}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
+        {topCards.length === 0 ? (
           <Text style={styles.emptyText}>All cards sent to bottom</Text>
-        }
-      />
+        ) : (
+          topCards.map((card, i) => (
+            <View key={`top-${card.baseName}-${card.place}-${i}`} style={styles.cardRow}>
+              <TouchableOpacity
+                style={styles.moveBtn}
+                onPress={() => moveUp(i)}
+                disabled={i === 0}
+              >
+                <Text style={[styles.moveBtnText, i === 0 && styles.moveBtnDisabled]}>▲</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.moveBtn}
+                onPress={() => moveDown(i)}
+                disabled={i === topCards.length - 1}
+              >
+                <Text style={[styles.moveBtnText, i === topCards.length - 1 && styles.moveBtnDisabled]}>▼</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.cardNameContainer} onPress={() => sendToBottom(card)}>
+                <Text style={styles.cardName}>{card.displayName}</Text>
+                <Text style={styles.cardHint}>tap→bottom</Text>
+              </TouchableOpacity>
+            </View>
+          ))
+        )}
 
-      {bottomCards.length > 0 && (
-        <>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>
-              Send to Bottom ({bottomCards.length})
-            </Text>
-            <Text style={styles.sectionHint}>Tap to move back to top</Text>
-          </View>
-          {bottomCards.map((c, i) => (
-            <TouchableOpacity
-              key={`bot-${c.baseName}-${i}`}
-              style={styles.bottomRow}
-              onPress={() => bringToTop(c)}
-            >
-              <Text style={styles.bottomName}>{c.displayName}</Text>
-              <Text style={styles.bottomHint}>↑ tap to restore</Text>
-            </TouchableOpacity>
-          ))}
-        </>
-      )}
+        {bottomCards.length > 0 && (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>
+                Send to Bottom ({bottomCards.length})
+              </Text>
+              <Text style={styles.sectionHint}>Tap to move back to top</Text>
+            </View>
+            {bottomCards.map((c, i) => (
+              <TouchableOpacity
+                key={`bot-${c.baseName}-${i}`}
+                style={styles.bottomRow}
+                onPress={() => bringToTop(c)}
+              >
+                <Text style={styles.bottomName}>{c.displayName}</Text>
+                <Text style={styles.bottomHint}>↑ tap to restore</Text>
+              </TouchableOpacity>
+            ))}
+          </>
+        )}
+      </ScrollView>
 
       <View style={styles.footer}>
         <Pressable
@@ -186,8 +199,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   sectionHint: { color: '#625b71', fontSize: 11, marginTop: 2 },
-  list: { flexGrow: 0, maxHeight: 340 },
-  listContent: { paddingVertical: 4 },
   emptyText: {
     color: '#625b71',
     textAlign: 'center',
@@ -204,8 +215,10 @@ const styles = StyleSheet.create({
     borderColor: '#625b71',
     gap: 10,
   },
-  cardRowActive: { backgroundColor: '#6650a4', elevation: 8 },
-  dragHandle: { color: '#CCC2DC', fontSize: 18 },
+  moveBtn: { paddingHorizontal: 6, paddingVertical: 4 },
+  moveBtnText: { color: '#CCC2DC', fontSize: 16 },
+  moveBtnDisabled: { color: '#444' },
+  cardNameContainer: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
   cardName: { color: '#D4CDC1', fontSize: 15, flex: 1 },
   cardHint: { color: '#625b71', fontSize: 10 },
   bottomRow: {
@@ -224,7 +237,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#353A40',
     borderTopWidth: 1,
     borderColor: '#625b71',
-    marginTop: 'auto',
   },
   confirmBtn: {
     backgroundColor: '#6650a4',
