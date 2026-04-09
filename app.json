@@ -4,7 +4,7 @@
     "slug": "e-cards",
     "scheme": "ecards",
     "version": "1.0.0",
-    "sdkVersion": "55.0.0",
+    "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "icon": "./assets/images/Logo.png",
@@ -28,6 +28,7 @@
         "ITSAppUsesNonExemptEncryption": false
       }
     },
+    "newArchEnabled": false,
     "extra": {
       "router": {},
       "eas": {
