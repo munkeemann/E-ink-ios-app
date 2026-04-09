@@ -15,6 +15,7 @@
     },
     "preview": {
       "distribution": "internal",
+      "newArchEnabled": false,
       "ios": {
         "simulator": false
       }
