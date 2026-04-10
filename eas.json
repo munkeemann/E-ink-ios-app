@@ -6,6 +6,7 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "install": "npm install --legacy-peer-deps",
       "ios": {
         "simulator": false
       },
@@ -15,8 +16,8 @@
     },
     "preview": {
       "distribution": "internal",
+      "install": "npm install --legacy-peer-deps",
       "ios": {
-        "newArchEnabled": false
       }
     },
     "production": {
