@@ -6,7 +6,6 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "install": "npm install --legacy-peer-deps",
       "ios": {
         "simulator": false
       },
@@ -16,8 +15,10 @@
     },
     "preview": {
       "distribution": "internal",
-      "install": "npm install --legacy-peer-deps",
       "ios": {
+      },
+      "env": {
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true"
       }
     },
     "production": {
