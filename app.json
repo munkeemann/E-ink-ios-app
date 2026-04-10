@@ -25,7 +25,10 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.e-cards",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
       }
     },
     "newArchEnabled": false,
