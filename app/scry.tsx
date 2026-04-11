@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { beginGame, getRegisteredSleeves } from '../src/api/piServer';
+import { assignSleeveIds, beginGame, getRegisteredSleeves } from '../src/api/piServer';
 import { getDeck, loadSettings, saveDeck } from '../src/storage/deckStorage';
 import { CardInstance, Deck } from '../src/types';
 
@@ -91,10 +91,20 @@ export default function ScryScreen() {
         (c, i) => ({ ...c, place: String(i + 1) }),
       );
 
-      const newCards = [...commander, ...newLibrary];
+      const [sleeves, settings] = await Promise.all([getRegisteredSleeves(), loadSettings()]);
+
+      // Reassign sleeve IDs based on new scry order before pushing to sleeves.
+      const reordered = [...commander, ...newLibrary];
+      const newCards = assignSleeveIds(reordered, settings);
+
+      const top5 = newCards
+        .filter(c => c.zone === 'LIB')
+        .sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10))
+        .slice(0, 5);
+      console.log('[Scry] top 5 after sleeveId reassign:', top5.map(c => `"${c.displayName}" place=${c.place} sleeve=${c.sleeveId ?? 'null'}`).join(' | '));
+
       const updated = { ...deck, cards: newCards };
       await saveDeck(updated);
-      const [sleeves, settings] = await Promise.all([getRegisteredSleeves(), loadSettings()]);
       await beginGame(newCards, sleeves, undefined, undefined, settings);
       router.back();
     } catch (e) {

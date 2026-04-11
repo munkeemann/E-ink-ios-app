@@ -15,7 +15,7 @@ import {
   View,
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { beginGame, clearSleeve, getRegisteredSleeves, nextFreeSleeveId, pushCardToSleeve, waitForSleeveSelection } from '../../src/api/piServer';
+import { assignSleeveIds, beginGame, clearSleeve, getRegisteredSleeves, nextFreeSleeveId, pushCardToSleeve, waitForSleeveSelection } from '../../src/api/piServer';
 import { fetchTokenImage } from '../../src/api/scryfall';
 import { getDeck, loadSettings, saveDeck } from '../../src/storage/deckStorage';
 import { AppSettings, CardInstance, Deck, TokenTemplate } from '../../src/types';
@@ -206,7 +206,20 @@ export default function InGameScreen() {
     const lib = deckCards.filter(c => c.zone === 'LIB');
     const shuffled = shuffle(lib).map((c, i) => ({ ...c, place: String(i + 1) }));
     const nonLib = deckCards.filter(c => c.zone !== 'LIB');
-    const newCards = [...nonLib, ...shuffled];
+
+    // Reassign sleeve IDs based on new positions. Without this, sleeveId stays
+    // tied to the pre-shuffle card (e.g. Lightning Bolt keeps sleeveId=2 even
+    // though it's no longer at position 1), so beginGame pushes the wrong images.
+    const newCards = assignSleeveIds([...nonLib, ...shuffled], settings);
+
+    const top5 = newCards
+      .filter(c => c.zone === 'LIB')
+      .sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10))
+      .slice(0, 5);
+    const debugMsg = top5.map(c => `${c.displayName}  place=${c.place}  sleeve=${c.sleeveId ?? 'null'}`).join('\n');
+    console.log('[Shuffle] top 5 after sleeveId reassign:\n' + debugMsg);
+    if (settings.devMode) Alert.alert('Shuffle — top 5 (new order)', debugMsg);
+
     const updated = { ...deck!, cards: newCards };
     await saveDeck(updated);
     setDeck(updated);
@@ -465,7 +478,20 @@ export default function InGameScreen() {
     const others = library.filter(c => c !== match);
     const reordered = [match, ...others].map((c, i) => ({ ...c, place: String(i + 1) }));
     const commanderCards = (Array.isArray(deck?.cards) ? deck!.cards : []).filter(c => c.place === 'commander');
-    const newCards = [...commanderCards, ...reordered];
+    const deckCards = (Array.isArray(deck?.cards) ? deck!.cards : []).filter(c => c.zone !== 'LIB' && c.place !== 'commander');
+
+    // Reassign sleeve IDs so the tutored card (now at place=1) gets sleeve 2,
+    // not whichever sleeve it held before being tutored.
+    const newCards = assignSleeveIds([...commanderCards, ...deckCards, ...reordered], settings);
+
+    const top5 = newCards
+      .filter(c => c.zone === 'LIB')
+      .sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10))
+      .slice(0, 5);
+    const debugMsg = top5.map(c => `${c.displayName}  place=${c.place}  sleeve=${c.sleeveId ?? 'null'}`).join('\n');
+    console.log('[Tutor] top 5 after sleeveId reassign:\n' + debugMsg);
+    if (settings.devMode) Alert.alert('Tutor — top 5 (new order)', debugMsg);
+
     const updated = { ...deck!, cards: newCards };
     await saveDeck(updated);
     setDeck(updated);
