@@ -4,7 +4,9 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -471,7 +473,7 @@ export default function InGameScreen() {
     const updated = { ...deck!, cards: newCards };
     await saveDeck(updated);
     setDeck(updated);
-    await doBeginGame(newCards);
+    syncSleeves(newCards);
   };
 
   // ─── Place in Library ─────────────────────────────────────────────────────
@@ -870,11 +872,11 @@ export default function InGameScreen() {
 
             <View style={styles.sheetActions}>
               <Pressable
-                style={[styles.cancelBtn, mulliganBusy && styles.btnDisabled]}
+                style={[styles.confirmBtn, mulliganBusy && styles.btnDisabled]}
                 onPress={handleKeepHand}
                 disabled={mulliganBusy}
               >
-                <Text style={styles.cancelBtnText}>Keep Hand</Text>
+                <Text style={styles.confirmBtnText}>Keep Hand</Text>
               </Pressable>
               <Pressable
                 style={[styles.confirmBtn, mulliganBusy && styles.btnDisabled]}
@@ -890,66 +892,73 @@ export default function InGameScreen() {
 
       {/* Scry — bottom sheet */}
       <Modal visible={scryModalVisible} transparent animationType="slide" onRequestClose={() => setScryModalVisible(false)}>
-        <Pressable style={styles.sheetBackdrop} onPress={() => setScryModalVisible(false)}>
-          <Pressable style={styles.sheet} onPress={() => {}}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Scry</Text>
-            <Text style={styles.sheetLabel}>How many cards?</Text>
-            <TextInput style={styles.sheetInput} value={scryCountText} onChangeText={setScryCountText} keyboardType="number-pad" selectTextOnFocus autoFocus />
-            <View style={styles.sheetActions}>
-              <Pressable style={styles.cancelBtn} onPress={() => setScryModalVisible(false)}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </Pressable>
-              <Pressable style={styles.confirmBtn} onPress={handleScryConfirm}>
-                <Text style={styles.confirmBtnText}>Scry</Text>
-              </Pressable>
-            </View>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <Pressable style={styles.sheetBackdrop} onPress={() => setScryModalVisible(false)}>
+            <Pressable style={styles.sheet} onPress={() => {}}>
+              <View style={styles.sheetHandle} />
+              <Text style={styles.sheetTitle}>Scry</Text>
+              <Text style={styles.sheetLabel}>How many cards?</Text>
+              <TextInput style={styles.sheetInput} value={scryCountText} onChangeText={setScryCountText} keyboardType="number-pad" selectTextOnFocus autoFocus />
+              <View style={styles.sheetActions}>
+                <Pressable style={styles.cancelBtn} onPress={() => setScryModalVisible(false)}>
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </Pressable>
+                <Pressable style={styles.confirmBtn} onPress={handleScryConfirm}>
+                  <Text style={styles.confirmBtnText}>Scry</Text>
+                </Pressable>
+              </View>
+            </Pressable>
           </Pressable>
-        </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Tutor — bottom sheet */}
       <Modal visible={tutorModalVisible} transparent animationType="slide" onRequestClose={() => setTutorModalVisible(false)}>
-        <Pressable style={styles.sheetBackdrop} onPress={() => setTutorModalVisible(false)}>
-          <Pressable style={styles.sheet} onPress={() => {}}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Tutor</Text>
-            <Text style={styles.sheetLabel}>Card name (partial match ok)</Text>
-            <TextInput style={styles.sheetInput} value={tutorQuery} onChangeText={setTutorQuery} placeholder="Lightning Bolt" placeholderTextColor="#625b71" autoFocus autoCapitalize="words" />
-            <View style={styles.sheetActions}>
-              <Pressable style={styles.cancelBtn} onPress={() => { setTutorModalVisible(false); setTutorQuery(''); }}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </Pressable>
-              <Pressable style={styles.confirmBtn} onPress={handleTutor}>
-                <Text style={styles.confirmBtnText}>Tutor</Text>
-              </Pressable>
-            </View>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <Pressable style={styles.sheetBackdrop} onPress={() => setTutorModalVisible(false)}>
+            <Pressable style={styles.sheet} onPress={() => {}}>
+              <View style={styles.sheetHandle} />
+              <Text style={styles.sheetTitle}>Tutor</Text>
+              <Text style={styles.sheetLabel}>Card name (partial match ok)</Text>
+              <TextInput style={styles.sheetInput} value={tutorQuery} onChangeText={setTutorQuery} placeholder="Lightning Bolt" placeholderTextColor="#625b71" autoFocus autoCapitalize="words" />
+              <View style={styles.sheetActions}>
+                <Pressable style={styles.cancelBtn} onPress={() => { setTutorModalVisible(false); setTutorQuery(''); }}>
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </Pressable>
+                <Pressable style={styles.confirmBtn} onPress={handleTutor}>
+                  <Text style={styles.confirmBtnText}>Tutor</Text>
+                </Pressable>
+              </View>
+            </Pressable>
           </Pressable>
-        </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Mill — bottom sheet */}
       <Modal visible={millModalVisible} transparent animationType="slide" onRequestClose={() => setMillModalVisible(false)}>
-        <Pressable style={styles.sheetBackdrop} onPress={() => setMillModalVisible(false)}>
-          <Pressable style={styles.sheet} onPress={() => {}}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Mill</Text>
-            <Text style={styles.sheetLabel}>How many cards to mill?</Text>
-            <TextInput style={styles.sheetInput} value={millCountText} onChangeText={setMillCountText} keyboardType="number-pad" selectTextOnFocus autoFocus />
-            <View style={styles.sheetActions}>
-              <Pressable style={styles.cancelBtn} onPress={() => setMillModalVisible(false)}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </Pressable>
-              <Pressable style={styles.confirmBtn} onPress={handleMillConfirm}>
-                <Text style={styles.confirmBtnText}>Confirm Mill</Text>
-              </Pressable>
-            </View>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <Pressable style={styles.sheetBackdrop} onPress={() => setMillModalVisible(false)}>
+            <Pressable style={styles.sheet} onPress={() => {}}>
+              <View style={styles.sheetHandle} />
+              <Text style={styles.sheetTitle}>Mill</Text>
+              <Text style={styles.sheetLabel}>How many cards to mill?</Text>
+              <TextInput style={styles.sheetInput} value={millCountText} onChangeText={setMillCountText} keyboardType="number-pad" selectTextOnFocus autoFocus />
+              <View style={styles.sheetActions}>
+                <Pressable style={styles.cancelBtn} onPress={() => setMillModalVisible(false)}>
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </Pressable>
+                <Pressable style={styles.confirmBtn} onPress={handleMillConfirm}>
+                  <Text style={styles.confirmBtnText}>Confirm Mill</Text>
+                </Pressable>
+              </View>
+            </Pressable>
           </Pressable>
-        </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Create Token — bottom sheet */}
       <Modal visible={tokenModalVisible} transparent animationType="slide" onRequestClose={() => setTokenModalVisible(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <Pressable style={styles.sheetBackdrop} onPress={() => setTokenModalVisible(false)}>
           <Pressable style={[styles.sheet, styles.tokenSheet]} onPress={() => {}}>
             <View style={styles.sheetHandle} />
@@ -1078,48 +1087,51 @@ export default function InGameScreen() {
             )}
           </Pressable>
         </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Place in Library — step 1: position picker */}
       <Modal visible={placeModalVisible} transparent animationType="slide" onRequestClose={() => setPlaceModalVisible(false)}>
-        <Pressable style={styles.sheetBackdrop} onPress={() => setPlaceModalVisible(false)}>
-          <Pressable style={styles.sheet} onPress={() => {}}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Place in Library</Text>
-            <Text style={styles.sheetLabel}>Direction</Text>
-            <View style={styles.segRow}>
-              <Pressable
-                style={[styles.segBtn, placeFrom === 'top' && styles.segBtnActive]}
-                onPress={() => setPlaceFrom('top')}
-              >
-                <Text style={[styles.segBtnText, placeFrom === 'top' && styles.segBtnTextActive]}>From Top</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.segBtn, placeFrom === 'bottom' && styles.segBtnActive]}
-                onPress={() => setPlaceFrom('bottom')}
-              >
-                <Text style={[styles.segBtnText, placeFrom === 'bottom' && styles.segBtnTextActive]}>From Bottom</Text>
-              </Pressable>
-            </View>
-            <Text style={styles.sheetLabel}>Position</Text>
-            <TextInput
-              style={styles.sheetInput}
-              value={placePositionText}
-              onChangeText={setPlacePositionText}
-              keyboardType="number-pad"
-              selectTextOnFocus
-              autoFocus
-            />
-            <View style={styles.sheetActions}>
-              <Pressable style={styles.cancelBtn} onPress={() => { setPlaceModalVisible(false); setPlacePositionText('1'); }}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </Pressable>
-              <Pressable style={styles.confirmBtn} onPress={handlePlacePositionNext}>
-                <Text style={styles.confirmBtnText}>Next</Text>
-              </Pressable>
-            </View>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <Pressable style={styles.sheetBackdrop} onPress={() => setPlaceModalVisible(false)}>
+            <Pressable style={styles.sheet} onPress={() => {}}>
+              <View style={styles.sheetHandle} />
+              <Text style={styles.sheetTitle}>Place in Library</Text>
+              <Text style={styles.sheetLabel}>Direction</Text>
+              <View style={styles.segRow}>
+                <Pressable
+                  style={[styles.segBtn, placeFrom === 'top' && styles.segBtnActive]}
+                  onPress={() => setPlaceFrom('top')}
+                >
+                  <Text style={[styles.segBtnText, placeFrom === 'top' && styles.segBtnTextActive]}>From Top</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.segBtn, placeFrom === 'bottom' && styles.segBtnActive]}
+                  onPress={() => setPlaceFrom('bottom')}
+                >
+                  <Text style={[styles.segBtnText, placeFrom === 'bottom' && styles.segBtnTextActive]}>From Bottom</Text>
+                </Pressable>
+              </View>
+              <Text style={styles.sheetLabel}>Position</Text>
+              <TextInput
+                style={styles.sheetInput}
+                value={placePositionText}
+                onChangeText={setPlacePositionText}
+                keyboardType="number-pad"
+                selectTextOnFocus
+                autoFocus
+              />
+              <View style={styles.sheetActions}>
+                <Pressable style={styles.cancelBtn} onPress={() => { setPlaceModalVisible(false); setPlacePositionText('1'); }}>
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </Pressable>
+                <Pressable style={styles.confirmBtn} onPress={handlePlacePositionNext}>
+                  <Text style={styles.confirmBtnText}>Next</Text>
+                </Pressable>
+              </View>
+            </Pressable>
           </Pressable>
-        </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Sleeve waiting modal — shared by Place in Library and Flip Card */}

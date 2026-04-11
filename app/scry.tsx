@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { beginGame, getRegisteredSleeves } from '../src/api/piServer';
-import { getDeck, saveDeck } from '../src/storage/deckStorage';
+import { getDeck, loadSettings, saveDeck } from '../src/storage/deckStorage';
 import { CardInstance, Deck } from '../src/types';
 
 export default function ScryScreen() {
@@ -94,8 +94,8 @@ export default function ScryScreen() {
       const newCards = [...commander, ...newLibrary];
       const updated = { ...deck, cards: newCards };
       await saveDeck(updated);
-      const sleeves = await getRegisteredSleeves();
-      await beginGame(newCards, sleeves);
+      const [sleeves, settings] = await Promise.all([getRegisteredSleeves(), loadSettings()]);
+      await beginGame(newCards, sleeves, undefined, undefined, settings);
       router.back();
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : String(e));
