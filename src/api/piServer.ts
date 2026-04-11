@@ -1,6 +1,13 @@
+import { Alert } from 'react-native';
 import { AppSettings, CardInstance } from '../types';
 
 export const PI_SERVER = 'http://192.168.86.193:5050';
+
+/** Blocking alert — must be dismissed before the caller continues. */
+const alertWait = (title: string, message: string) =>
+  new Promise<void>(resolve =>
+    Alert.alert(title, message, [{ text: 'OK', onPress: resolve }]),
+  );
 
 const INTER_CARD_DELAY_MS = 500;
 
@@ -11,13 +18,30 @@ const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
  * if the Pi is unreachable or returns no sleeves.
  */
 export async function getRegisteredSleeves(serverUrl: string = PI_SERVER): Promise<number[]> {
+  const url = `${serverUrl}/sleeves`;
+  await alertWait('getRegisteredSleeves', `Fetching: ${url}`);
   try {
-    const resp = await fetch(`${serverUrl}/sleeves`, { signal: AbortSignal.timeout(3000) });
+    const resp = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    await alertWait('getRegisteredSleeves: HTTP', `Status: ${resp.status} ${resp.statusText}`);
     if (!resp.ok) return [];
-    const data = await resp.json() as unknown;
+    const raw = await resp.text();
+    await alertWait('getRegisteredSleeves: raw body', raw);
+    const data = JSON.parse(raw) as unknown;
     if (Array.isArray(data)) return data as number[];
+    // Pi returns {"sleeves": {"4": "192.168.4.19", ...}}
+    if (data && typeof data === 'object' && 'sleeves' in data) {
+      const sleevesMap = (data as { sleeves: Record<string, unknown> }).sleeves;
+      if (sleevesMap && typeof sleevesMap === 'object') {
+        const ids = Object.keys(sleevesMap).map(Number).filter(n => !isNaN(n));
+        await alertWait('getRegisteredSleeves: parsed', `Sleeve IDs: [${ids.join(', ')}]`);
+        return ids;
+      }
+    }
+    await alertWait('getRegisteredSleeves: WARN', `Unrecognised format: ${JSON.stringify(data)}`);
     return [];
-  } catch {
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    await alertWait('getRegisteredSleeves: ERROR', msg);
     return [];
   }
 }
@@ -180,52 +204,80 @@ export async function beginGame(
   serverUrl: string = PI_SERVER,
   settings?: AppSettings,
 ): Promise<void> {
-  const safeCards = Array.isArray(cards) ? cards : [];
-  const safeRegistered = Array.isArray(registeredSleeves) ? registeredSleeves : [];
-  const registeredSet = new Set(safeRegistered);
-  const physZones = settings ? new Set(settings.physicalZones) : null;
+  try {
+    await alertWait('beginGame: START', `cards=${cards?.length ?? 'null'}, registeredSleeves=[${registeredSleeves?.join(', ')}], url=${serverUrl}`);
 
-  const eligible = safeCards.filter(c => {
-    if (c.sleeveId === null || c.sleeveId === undefined || !c.imagePath) return false;
-    if (!registeredSet.has(c.sleeveId)) return false;
-    // Commander is always eligible; others must be in a physical zone
-    if (c.place === 'commander') return true;
-    if (physZones && !physZones.has(c.zone)) return false;
-    return true;
-  }).sort((a, b) => (a.sleeveId ?? 0) - (b.sleeveId ?? 0));
+    const safeCards = Array.isArray(cards) ? cards : [];
+    const safeRegistered = Array.isArray(registeredSleeves) ? registeredSleeves : [];
+    const registeredSet = new Set(safeRegistered);
+    const physZones = settings ? new Set(settings.physicalZones) : null;
 
-  console.log(`[Pi] Starting beginGame: ${eligible.length} cards → ${serverUrl}`);
-  let sent = 0;
-
-  for (const card of eligible) {
-    const sid = card.sleeveId!;
-    try {
-      console.log(`[Pi] Fetching image for sleeve ${sid}: ${card.imagePath}`);
-      const imageResp = await fetch(card.imagePath);
-      if (!imageResp.ok) throw new Error(`Scryfall fetch failed: HTTP ${imageResp.status}`);
-
-      const arrayBuffer = await imageResp.arrayBuffer();
-      console.log(`[Pi] Posting ${arrayBuffer.byteLength} bytes to sleeve ${sid}`);
-
-      const uploadResp = await fetch(`${serverUrl}/display?sleeve_id=${sid}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'image/jpeg' },
-        body: arrayBuffer,
-      });
-
-      if (uploadResp.ok) {
-        console.log(`[Pi] Sleeve ${sid} OK`);
-      } else {
-        console.warn(`[Pi] Sleeve ${sid} rejected: HTTP ${uploadResp.status}`);
-      }
-    } catch (e) {
-      console.error(`[Pi] Sleeve ${sid} failed:`, e instanceof Error ? e.message : String(e));
+    // Dump first card to confirm field names
+    if (safeCards.length > 0) {
+      await alertWait('beginGame: first card', JSON.stringify(safeCards[0], null, 2));
+    } else {
+      await alertWait('beginGame: WARN', 'safeCards is empty — no cards passed in');
     }
 
-    sent++;
-    onProgress?.(sent, eligible.length);
-    if (sent < eligible.length) await sleep(INTER_CARD_DELAY_MS);
-  }
+    const eligible = safeCards.filter(c => {
+      if (c.sleeveId === null || c.sleeveId === undefined || !c.imagePath) return false;
+      if (!registeredSet.has(c.sleeveId)) return false;
+      if (c.place === 'commander') return true;
+      if (physZones && !physZones.has(c.zone)) return false;
+      return true;
+    }).sort((a, b) => (a.sleeveId ?? 0) - (b.sleeveId ?? 0));
 
-  console.log(`[Pi] beginGame complete: ${sent}/${eligible.length} cards processed`);
+    // Show why each of the first 5 cards was included/excluded
+    const reasons = safeCards.slice(0, 5).map(c => {
+      const r: string[] = [];
+      if (c.sleeveId === null || c.sleeveId === undefined) r.push('sleeveId null');
+      if (!c.imagePath) r.push('no imagePath');
+      if (c.sleeveId != null && !registeredSet.has(c.sleeveId))
+        r.push(`sleeveId ${c.sleeveId} not registered [${[...registeredSet].join(',')}]`);
+      if (c.place !== 'commander' && physZones && !physZones.has(c.zone))
+        r.push(`zone ${c.zone} not in physZones [${[...physZones].join(',')}]`);
+      return `${c.displayName ?? c.baseName}: ${r.length ? r.join(', ') : 'ELIGIBLE ✓'}`;
+    }).join('\n');
+    await alertWait(`beginGame: eligibility (first 5 of ${safeCards.length})`, reasons || '(no cards)');
+    await alertWait('beginGame: eligible count', `${eligible.length} cards will be sent`);
+
+    let sent = 0;
+    for (const card of eligible) {
+      const sid = card.sleeveId!;
+      try {
+        await alertWait(`beginGame: sleeve ${sid}`, `Fetching image:\n${card.imagePath}`);
+        const imageResp = await fetch(card.imagePath);
+        if (!imageResp.ok) throw new Error(`Scryfall fetch failed: HTTP ${imageResp.status}`);
+        const arrayBuffer = await imageResp.arrayBuffer();
+
+        await alertWait(`beginGame: sleeve ${sid}`, `Image fetched (${arrayBuffer.byteLength} bytes). POSTing to Pi…`);
+        const uploadResp = await fetch(`${serverUrl}/display?sleeve_id=${sid}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'image/jpeg' },
+          body: arrayBuffer,
+        });
+
+        if (uploadResp.ok) {
+          await alertWait(`beginGame: sleeve ${sid} ✓`, `HTTP ${uploadResp.status}`);
+        } else {
+          await alertWait(`beginGame: sleeve ${sid} REJECTED`, `HTTP ${uploadResp.status}`);
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error(`[Pi] Sleeve ${sid} failed:`, msg);
+        await alertWait(`beginGame: sleeve ${sid} ERROR`, msg);
+      }
+
+      sent++;
+      onProgress?.(sent, eligible.length);
+      if (sent < eligible.length) await sleep(INTER_CARD_DELAY_MS);
+    }
+
+    await alertWait('beginGame: DONE', `${sent}/${eligible.length} cards processed`);
+    console.log(`[Pi] beginGame complete: ${sent}/${eligible.length} cards processed`);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[Pi] beginGame outer catch:', msg);
+    await alertWait('beginGame: OUTER ERROR', msg);
+  }
 }
