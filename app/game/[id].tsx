@@ -67,7 +67,7 @@ export default function InGameScreen() {
   const [busy, setBusy] = useState(false);
   const [busyLabel, setBusyLabel] = useState('');
   const [connectedSleeves, setConnectedSleeves] = useState<number[] | null>(null);
-  const [settings, setSettings] = useState<AppSettings>({ sleeveCount: 5, physicalZones: ['LIB', 'HND', 'BTFLD'], librarySleeveDepth: 1, devMode: false });
+  const [settings, setSettings] = useState<AppSettings>({ sleeveCount: 5, physicalZones: ['LIB', 'HND', 'BTFLD'], librarySleeveDepth: 1, devMode: false, piDebugAlerts: false });
 
   const [activeZone, setActiveZone] = useState<Zone | null>(null);
   const [selectedCards, setSelectedCards] = useState<Set<string>>(new Set());
@@ -115,22 +115,21 @@ export default function InGameScreen() {
           if (!d) return;
           const normalized = normalizeCommanderZone(Array.isArray(d.cards) ? d.cards : []);
           setDeck({ ...d, cards: normalized });
+          // Show mulligan sheet exactly once — only on the initial freshStart navigation.
+          // Done here (inside the deck-load callback) so it never fires from setDeck()
+          // calls made by shuffle, tutor, or any other in-game action.
+          if (freshStart === 'true' && !shownFreshMulliganRef.current) {
+            shownFreshMulliganRef.current = true;
+            setMulliganCount(0);
+            setMulliganBottomed([]);
+            setMulliganSheetVisible(true);
+          }
         });
       }
       getRegisteredSleeves().then(setConnectedSleeves);
       loadSettings().then(setSettings);
-    }, [id]),
+    }, [id, freshStart]),
   );
-
-  // Auto-show mulligan sheet when navigated here with freshStart=true
-  useEffect(() => {
-    if (freshStart === 'true' && deck && !shownFreshMulliganRef.current) {
-      shownFreshMulliganRef.current = true;
-      setMulliganCount(0);
-      setMulliganBottomed([]);
-      setMulliganSheetVisible(true);
-    }
-  }, [freshStart, deck]);
 
   // Sleeve selection countdown
   useEffect(() => {
@@ -175,10 +174,8 @@ export default function InGameScreen() {
     return cards.filter(c => c.zone === activeZone);
   }, [activeZone, cards]);
 
-  // ─── Begin Game (called by Shuffle / Tutor, not by a button) ─────────────
+  // ─── Push sleeves after a reorder (shuffle, tutor, scry) ────────────────
   const doBeginGame = async (gameCards: CardInstance[]) => {
-    setMulliganCount(0);
-    setMulliganBottomed([]);
     setBusy(true);
     setBusyLabel('Checking sleeves…');
     try {
@@ -188,7 +185,6 @@ export default function InGameScreen() {
         setBusyLabel('Sending sleeves…');
         await beginGame(gameCards, sleeves, undefined, undefined, settings);
       }
-      setMulliganSheetVisible(true);
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : String(e));
     } finally {
