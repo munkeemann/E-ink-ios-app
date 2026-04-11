@@ -227,9 +227,10 @@ export async function beginGame(
       await alertWait('beginGame: WARN', 'safeCards is empty — no cards passed in');
     }
 
-    const eligible = safeCards.filter(c => {
+    // Cards that have a sleeveId and imagePath, regardless of whether registered.
+    // Unregistered sleeves are skipped gracefully inside the loop.
+    const candidates = safeCards.filter(c => {
       if (c.sleeveId === null || c.sleeveId === undefined || !c.imagePath) return false;
-      if (!registeredSet.has(c.sleeveId)) return false;
       if (c.place === 'commander') return true;
       if (physZones && !physZones.has(c.zone)) return false;
       return true;
@@ -240,18 +241,23 @@ export async function beginGame(
       const r: string[] = [];
       if (c.sleeveId === null || c.sleeveId === undefined) r.push('sleeveId null');
       if (!c.imagePath) r.push('no imagePath');
-      if (c.sleeveId != null && !registeredSet.has(c.sleeveId))
-        r.push(`sleeveId ${c.sleeveId} not registered [${[...registeredSet].join(',')}]`);
       if (c.place !== 'commander' && physZones && !physZones.has(c.zone))
         r.push(`zone ${c.zone} not in physZones [${[...physZones].join(',')}]`);
-      return `${c.displayName ?? c.baseName}: ${r.length ? r.join(', ') : 'ELIGIBLE ✓'}`;
+      const registered = c.sleeveId != null && registeredSet.has(c.sleeveId);
+      return `${c.displayName ?? c.baseName}: ${r.length ? r.join(', ') : registered ? 'SEND ✓' : 'skip (not registered)'}`;
     }).join('\n');
-    await alertWait(`beginGame: eligibility (first 5 of ${safeCards.length})`, reasons || '(no cards)');
-    await alertWait('beginGame: eligible count', `${eligible.length} cards will be sent`);
+    await alertWait(`beginGame: plan (first 5 of ${safeCards.length})`, reasons || '(no cards)');
+    await alertWait('beginGame: candidates', `${candidates.length} cards have sleeveId; registered=[${[...registeredSet].join(',')}]`);
 
     let sent = 0;
-    for (const card of eligible) {
+    let total = 0;
+    for (const card of candidates) {
       const sid = card.sleeveId!;
+      if (!registeredSet.has(sid)) {
+        console.log(`[Pi] Sleeve ${sid} not registered — skipping`);
+        continue;
+      }
+      total++;
       try {
         await alertWait(`beginGame: sleeve ${sid}`, `Fetching image:\n${card.imagePath}`);
         const imageResp = await fetch(card.imagePath);
@@ -277,12 +283,12 @@ export async function beginGame(
       }
 
       sent++;
-      onProgress?.(sent, eligible.length);
-      if (sent < eligible.length) await sleep(INTER_CARD_DELAY_MS);
+      onProgress?.(sent, candidates.length);
+      await sleep(INTER_CARD_DELAY_MS);
     }
 
-    await alertWait('beginGame: DONE', `${sent}/${eligible.length} cards processed`);
-    console.log(`[Pi] beginGame complete: ${sent}/${eligible.length} cards processed`);
+    await alertWait('beginGame: DONE', `${sent}/${total} registered sleeves pushed`);
+    console.log(`[Pi] beginGame complete: ${sent}/${total} registered sleeves pushed`);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error('[Pi] beginGame outer catch:', msg);
