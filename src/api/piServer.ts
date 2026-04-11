@@ -21,7 +21,9 @@ export async function getRegisteredSleeves(serverUrl: string = PI_SERVER): Promi
   const url = `${serverUrl}/sleeves`;
   await alertWait('getRegisteredSleeves', `Fetching: ${url}`);
   try {
-    const resp = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const resp = await fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timer));
     await alertWait('getRegisteredSleeves: HTTP', `Status: ${resp.status} ${resp.statusText}`);
     if (!resp.ok) return [];
     const raw = await resp.text();
@@ -51,10 +53,12 @@ export async function getRegisteredSleeves(serverUrl: string = PI_SERVER): Promi
  */
 export async function clearSleeve(sid: number, serverUrl: string = PI_SERVER): Promise<void> {
   try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3000);
     await fetch(`${serverUrl}/clear?sleeve_id=${sid}`, {
       method: 'POST',
-      signal: AbortSignal.timeout(3000),
-    });
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timer));
   } catch {
     // Pi may be offline — fail silently
   }
@@ -163,7 +167,9 @@ export async function waitForSleeveSelection(
   // Snapshot current zone state
   const snapshot: Record<number, string> = {};
   try {
-    const resp = await fetch(`${serverUrl}/zones`, { signal: AbortSignal.timeout(3000) });
+    const c1 = new AbortController();
+    const t1 = setTimeout(() => c1.abort(), 3000);
+    const resp = await fetch(`${serverUrl}/zones`, { signal: c1.signal }).finally(() => clearTimeout(t1));
     if (resp.ok) {
       const data = await resp.json() as Array<{ sleeve_id: number; zone_name: string }>;
       for (const item of data) snapshot[item.sleeve_id] = item.zone_name;
@@ -178,7 +184,9 @@ export async function waitForSleeveSelection(
     await sleep(500);
     if (isCancelled()) return null;
     try {
-      const resp = await fetch(`${serverUrl}/zones`, { signal: AbortSignal.timeout(3000) });
+      const c2 = new AbortController();
+      const t2 = setTimeout(() => c2.abort(), 3000);
+      const resp = await fetch(`${serverUrl}/zones`, { signal: c2.signal }).finally(() => clearTimeout(t2));
       if (!resp.ok) continue;
       const data = await resp.json() as Array<{ sleeve_id: number; zone_name: string }>;
       for (const item of data) {
