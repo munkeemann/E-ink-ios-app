@@ -3,11 +3,27 @@ import { AppSettings, CardInstance } from '../types';
 
 export const PI_SERVER = 'http://192.168.86.193:5050';
 
-/** Blocking alert — must be dismissed before the caller continues. */
-const alertWait = (title: string, message: string) =>
-  new Promise<void>(resolve =>
+/** Set to true via configurePiDebug() to show blocking step-by-step alerts. */
+let _piDebugAlerts = false;
+
+/** Called from app startup (and settings save) to sync the debug-alert flag. */
+export function configurePiDebug(enabled: boolean): void {
+  _piDebugAlerts = enabled;
+}
+
+/**
+ * Blocking alert — must be dismissed before the caller continues.
+ * No-ops (console.log only) when piDebugAlerts is disabled.
+ */
+const alertWait = (title: string, message: string): Promise<void> => {
+  if (!_piDebugAlerts) {
+    console.log(`[Pi][debug] ${title}: ${message}`);
+    return Promise.resolve();
+  }
+  return new Promise<void>(resolve =>
     Alert.alert(title, message, [{ text: 'OK', onPress: resolve }]),
   );
+};
 
 const INTER_CARD_DELAY_MS = 500;
 

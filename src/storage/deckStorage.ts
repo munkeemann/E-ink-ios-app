@@ -9,6 +9,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   physicalZones: ['LIB', 'HND', 'BTFLD'],
   librarySleeveDepth: 1,
   devMode: false,
+  piDebugAlerts: false,
 };
 
 export async function loadDecks(): Promise<Deck[]> {
@@ -46,6 +47,7 @@ export async function loadSettings(): Promise<AppSettings> {
     physicalZones: parsed.physicalZones ?? DEFAULT_SETTINGS.physicalZones,
     librarySleeveDepth: parsed.librarySleeveDepth ?? DEFAULT_SETTINGS.librarySleeveDepth,
     devMode: parsed.devMode ?? DEFAULT_SETTINGS.devMode,
+    piDebugAlerts: parsed.piDebugAlerts ?? DEFAULT_SETTINGS.piDebugAlerts,
   };
 }
 

@@ -1,8 +1,15 @@
+import { useEffect } from 'react';
 import { Stack, router } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Pressable, StyleSheet, Text } from 'react-native';
+import { loadSettings } from '../src/storage/deckStorage';
+import { configurePiDebug } from '../src/api/piServer';
 
 export default function RootLayout() {
+  useEffect(() => {
+    loadSettings().then(s => configurePiDebug(s.devMode && s.piDebugAlerts));
+  }, []);
+
   return (
     <GestureHandlerRootView style={styles.root}>
       <Stack

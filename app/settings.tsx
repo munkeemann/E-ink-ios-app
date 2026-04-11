@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { loadSettings, saveSettings } from '../src/storage/deckStorage';
+import { configurePiDebug } from '../src/api/piServer';
 import { AppSettings } from '../src/types';
 
 const ZONE_OPTIONS: { id: string; label: string; note?: string }[] = [
@@ -26,6 +27,7 @@ export default function SettingsScreen() {
     physicalZones: ['LIB', 'HND', 'BTFLD'],
     librarySleeveDepth: 1,
     devMode: false,
+    piDebugAlerts: false,
   });
 
   useFocusEffect(
@@ -62,6 +64,7 @@ export default function SettingsScreen() {
 
   const handleSave = async () => {
     await saveSettings(settings);
+    configurePiDebug(settings.devMode && settings.piDebugAlerts);
     router.back();
   };
 
@@ -155,11 +158,29 @@ export default function SettingsScreen() {
             </View>
             <Switch
               value={settings.devMode}
-              onValueChange={v => setSettings(prev => ({ ...prev, devMode: v }))}
+              onValueChange={v => setSettings(prev => ({
+                ...prev,
+                devMode: v,
+                piDebugAlerts: v ? prev.piDebugAlerts : false,
+              }))}
               trackColor={{ false: '#4a4f55', true: '#6650a4' }}
               thumbColor={settings.devMode ? '#D0BCFF' : '#9ca3af'}
             />
           </View>
+          {settings.devMode && (
+            <View style={[styles.toggleRow, styles.toggleRowBorder, styles.subToggleRow]}>
+              <View style={styles.toggleInfo}>
+                <Text style={styles.toggleLabel}>Pi Debug Alerts</Text>
+                <Text style={styles.toggleNote}>Show blocking step-by-step alerts for all Pi network calls</Text>
+              </View>
+              <Switch
+                value={settings.piDebugAlerts}
+                onValueChange={v => setSettings(prev => ({ ...prev, piDebugAlerts: v }))}
+                trackColor={{ false: '#4a4f55', true: '#6650a4' }}
+                thumbColor={settings.piDebugAlerts ? '#D0BCFF' : '#9ca3af'}
+              />
+            </View>
+          )}
         </View>
 
       </ScrollView>
@@ -249,6 +270,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#4a4f55',
   },
+  subToggleRow: { backgroundColor: '#2e333a' },
   toggleInfo: { flex: 1 },
   toggleLabel: { color: '#D4CDC1', fontSize: 15 },
   toggleNote: { color: '#625b71', fontSize: 12, marginTop: 2 },

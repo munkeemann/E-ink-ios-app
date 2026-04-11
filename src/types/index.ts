@@ -55,4 +55,6 @@ export interface AppSettings {
   librarySleeveDepth: number;
   /** Reveals actual deck order and position numbers in the deck preview (default false) */
   devMode: boolean;
+  /** Show blocking debug alerts from Pi network calls (only active when devMode is true) */
+  piDebugAlerts: boolean;
 }
