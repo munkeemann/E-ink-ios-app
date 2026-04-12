@@ -15,7 +15,7 @@ import {
   View,
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { assignSleeveIds, beginGame, clearSleeve, getRegisteredSleeves, nextFreeSleeveId, pushCardToSleeve, waitForSleeveSelection } from '../../src/api/piServer';
+import { assignSleeveIds, beginGame, clearSleeve, getRegisteredSleeves, getSleeveIpMap, pushCardToSleeve, pushZoneUpdate, waitForSleeveSelection } from '../../src/api/piServer';
 import { fetchTokenImage } from '../../src/api/scryfall';
 import { getDeck, loadSettings, saveDeck } from '../../src/storage/deckStorage';
 import { AppSettings, CardInstance, Deck, TokenTemplate } from '../../src/types';
@@ -68,6 +68,7 @@ export default function InGameScreen() {
   const [busyLabel, setBusyLabel] = useState('');
   const [connectedSleeves, setConnectedSleeves] = useState<number[] | null>(null);
   const [settings, setSettings] = useState<AppSettings>({ sleeveCount: 5, physicalZones: ['LIB', 'HND', 'BTFLD'], librarySleeveDepth: 1, devMode: false, piDebugAlerts: false });
+  const [sleeveIpMap, setSleeveIpMap] = useState<Record<number, string>>({});
 
   const [activeZone, setActiveZone] = useState<Zone | null>(null);
   const [selectedCards, setSelectedCards] = useState<Set<string>>(new Set());
@@ -131,6 +132,7 @@ export default function InGameScreen() {
       }
       getRegisteredSleeves().then(setConnectedSleeves);
       loadSettings().then(setSettings);
+      getSleeveIpMap().then(setSleeveIpMap);
     }, [id, freshStart]),
   );
 
@@ -367,41 +369,53 @@ export default function InGameScreen() {
     // Tokens leaving the battlefield are removed entirely
     if (card.isToken && destZone !== 'BTFLD' && destZone !== 'TKN') {
       if (card.sleeveId !== null) clearSleeve(card.sleeveId).catch(() => {});
-      const withMove = deckCards.filter(c => c !== card);
-      const commanderCards = withMove.filter(c => c.place === 'commander');
-      const libCards = withMove.filter(c => c.zone === 'LIB' && c.place !== 'commander').map((c, i) => ({ ...c, place: String(i + 1) }));
-      const otherCards = withMove.filter(c => c.zone !== 'LIB' && c.place !== 'commander');
-      const newDeck = { ...deck, cards: [...commanderCards, ...libCards, ...otherCards] };
+      const without = deckCards.filter(c => c !== card);
+      const commanderCards = without.filter(c => c.place === 'commander');
+      const libCards = without
+        .filter(c => c.zone === 'LIB' && c.place !== 'commander')
+        .map((c, i) => ({ ...c, place: String(i + 1) }));
+      const otherCards = without.filter(c => c.zone !== 'LIB' && c.place !== 'commander');
+      // Reassign so the freed sleeve cascades back to the new top-of-library card
+      const newCards = assignSleeveIds([...commanderCards, ...libCards, ...otherCards], settings);
+      for (const c of newCards) {
+        if (c.sleeveId !== null) pushZoneUpdate(c.sleeveId, c.zone, sleeveIpMap).catch(() => {});
+      }
+      const newDeck = { ...deck, cards: newCards };
       await saveDeck(newDeck);
       setDeck(newDeck);
-      syncSleeves(newDeck.cards);
+      syncSleeves(newCards);
       return;
     }
 
-    let movedCard: CardInstance = { ...card, zone: destZone };
+    // If leaving a physical zone for GRV/EXL/CMD, blank the sleeve now.
+    // (The sleeve slot will be filled by the cascade after assignSleeveIds.)
     if (card.sleeveId !== null && !isDestPhysical) {
-      // Moving to virtual zone: free the sleeve
       clearSleeve(card.sleeveId).catch(() => {});
-      movedCard = { ...movedCard, sleeveId: null };
-    } else if (card.sleeveId === null && isDestPhysical) {
-      // Moving to physical zone: assign lowest free sleeve and push image
-      const freeId = nextFreeSleeveId(deckCards, settings.sleeveCount);
-      if (freeId !== null) {
-        movedCard = { ...movedCard, sleeveId: freeId };
-        pushCardToSleeve(movedCard).catch(() => {});
-      }
     }
 
-    const withMove = deckCards.map(c => c === card ? movedCard : c);
+    // Build updated card array with card in its new zone.
+    // sleeveIds are intentionally left stale here — assignSleeveIds recalculates everything.
+    const withMove = deckCards.map(c => c === card ? { ...c, zone: destZone } : c);
     const commanderCards = withMove.filter(c => c.place === 'commander');
     const libCards = withMove
       .filter(c => c.zone === 'LIB' && c.place !== 'commander')
       .map((c, i) => ({ ...c, place: String(i + 1) }));
     const otherCards = withMove.filter(c => c.zone !== 'LIB' && c.place !== 'commander');
-    const newDeck = { ...deck, cards: [...commanderCards, ...libCards, ...otherCards] };
+
+    // Reassign ALL sleeve IDs from scratch.
+    // This cascades the library correctly: if a lib card left, the next one fills its sleeve.
+    // If a lib card entered HND/BTFLD, it gets a new sleeve and the new top-of-lib takes its old one.
+    const newCards = assignSleeveIds([...commanderCards, ...libCards, ...otherCards], settings);
+
+    // Push zone-display updates for every card that now has a sleeve
+    for (const c of newCards) {
+      if (c.sleeveId !== null) pushZoneUpdate(c.sleeveId, c.zone, sleeveIpMap).catch(() => {});
+    }
+
+    const newDeck = { ...deck, cards: newCards };
     await saveDeck(newDeck);
     setDeck(newDeck);
-    syncSleeves(newDeck.cards);
+    syncSleeves(newCards);  // pushes images for all sleeved cards via beginGame
   };
 
   // ─── Move selected cards ──────────────────────────────────────────────────
@@ -417,45 +431,24 @@ export default function InGameScreen() {
       ? settings.physicalZones.includes('BTFLD')
       : settings.physicalZones.includes(destZone);
 
-    // Pre-compute which sleeves will remain in use after the move
-    // (non-selected cards keep their sleeveIds; we track newly assigned IDs too)
-    const nonSelectedSleeves = new Set(
-      deckCards
-        .filter(c => {
-          const isSel = keys.has(cardKey(c)) && (c.zone === sourceZone || (sourceZone === 'BTFLD' && c.zone === 'TKN'));
-          return !isSel && c.sleeveId !== null;
-        })
-        .map(c => c.sleeveId as number),
-    );
-    const assignedNewSleeves = new Set<number>();
-    const getFreeSleeveId = () => {
-      for (let i = 1; i <= settings.sleeveCount; i++) {
-        if (!nonSelectedSleeves.has(i) && !assignedNewSleeves.has(i)) return i;
+    // Blank sleeves for cards leaving a physical zone for GRV/EXL
+    if (!isDestPhysical) {
+      for (const c of deckCards) {
+        const isSelected = keys.has(cardKey(c)) && (c.zone === sourceZone || (sourceZone === 'BTFLD' && c.zone === 'TKN'));
+        if (isSelected && c.sleeveId !== null) clearSleeve(c.sleeveId).catch(() => {});
       }
-      return null;
-    };
+    }
 
+    // Build updated card array: move selected cards, remove tokens leaving battlefield
     const withMove = deckCards.reduce<CardInstance[]>((acc, c) => {
       const isSelected = keys.has(cardKey(c)) && (c.zone === sourceZone || (sourceZone === 'BTFLD' && c.zone === 'TKN'));
       if (!isSelected) { acc.push(c); return acc; }
-      // Tokens leaving the battlefield are removed entirely
+      // Tokens leaving the battlefield are deleted, not moved
       if (c.isToken && destZone !== 'BTFLD' && destZone !== 'TKN') {
-        if (c.sleeveId !== null) clearSleeve(c.sleeveId).catch(() => {});
+        // clearSleeve already handled above
         return acc;
       }
-      let movedCard: CardInstance = { ...c, zone: destZone };
-      if (c.sleeveId !== null && !isDestPhysical) {
-        clearSleeve(c.sleeveId).catch(() => {});
-        movedCard = { ...movedCard, sleeveId: null };
-      } else if (c.sleeveId === null && isDestPhysical) {
-        const freeId = getFreeSleeveId();
-        if (freeId !== null) {
-          assignedNewSleeves.add(freeId);
-          movedCard = { ...movedCard, sleeveId: freeId };
-          pushCardToSleeve(movedCard).catch(() => {});
-        }
-      }
-      acc.push(movedCard);
+      acc.push({ ...c, zone: destZone });
       return acc;
     }, []);
 
@@ -464,10 +457,19 @@ export default function InGameScreen() {
       .filter(c => c.zone === 'LIB' && c.place !== 'commander')
       .map((c, i) => ({ ...c, place: String(i + 1) }));
     const otherCards = withMove.filter(c => c.zone !== 'LIB' && c.place !== 'commander');
-    const newDeck = { ...deck, cards: [...commanderCards, ...libCards, ...otherCards] };
+
+    // Reassign ALL sleeve IDs from scratch so library cascades fill any gaps
+    const newCards = assignSleeveIds([...commanderCards, ...libCards, ...otherCards], settings);
+
+    // Push zone-display updates for every card that now has a sleeve
+    for (const c of newCards) {
+      if (c.sleeveId !== null) pushZoneUpdate(c.sleeveId, c.zone, sleeveIpMap).catch(() => {});
+    }
+
+    const newDeck = { ...deck, cards: newCards };
     await saveDeck(newDeck);
     setDeck(newDeck);
-    syncSleeves(newDeck.cards);
+    syncSleeves(newCards);
   };
 
   const openMoveSelectedPicker = () => {
@@ -668,10 +670,12 @@ export default function InGameScreen() {
       const topLibCard = sortedLib[0] ?? null;
       const tokenSleeveId: number | null = topLibCard?.sleeveId ?? null;
 
+      // Cascade sleeve IDs: each lib card's new sleeveId = the one the next card had.
+      // This correctly handles librarySleeveDepth > 1 (e.g. top 2 cards sleeved).
       const updatedLibCards = sortedLib.map((c, i) => ({
         ...c,
-        place: String(i + 2),                        // 1→2, 2→3, …
-        sleeveId: c === topLibCard ? null : c.sleeveId, // top card loses its sleeve
+        place: String(i + 2),                           // 1→2, 2→3, …
+        sleeveId: sortedLib[i + 1]?.sleeveId ?? null,   // cascade: inherit next card's sleeve
       }));
 
       const tokenCard: CardInstance = {
@@ -700,9 +704,23 @@ export default function InGameScreen() {
       await saveDeck(updated);
       setDeck(updated);
 
-      // Push the token image to the stolen sleeve
+      // Push token image + zone update to the stolen sleeve
       if (tokenSleeveId !== null) {
-        pushCardToSleeve(tokenCard).catch(() => {});
+        console.log(`[Token] Pushing token "${tokenCard.displayName}" → sleeve ${tokenSleeveId}`);
+        pushCardToSleeve(tokenCard)
+          .then(() => console.log(`[Token] sleeve ${tokenSleeveId} image OK`))
+          .catch(e => console.error(`[Token] sleeve ${tokenSleeveId} image ERR:`, e));
+        pushZoneUpdate(tokenSleeveId, 'TKN', sleeveIpMap).catch(() => {});
+      }
+      // Push any library cards that inherited a sleeve from the cascade (depth > 1)
+      for (const libCard of updatedLibCards) {
+        if (libCard.sleeveId !== null) {
+          console.log(`[Token] Pushing lib "${libCard.displayName}" (place ${libCard.place}) → sleeve ${libCard.sleeveId}`);
+          pushCardToSleeve(libCard)
+            .then(() => console.log(`[Token] sleeve ${libCard.sleeveId} image OK`))
+            .catch(e => console.error(`[Token] sleeve ${libCard.sleeveId} image ERR:`, e));
+          pushZoneUpdate(libCard.sleeveId, 'LIB', sleeveIpMap).catch(() => {});
+        }
       }
 
       setTokenModalVisible(false);
@@ -882,17 +900,25 @@ export default function InGameScreen() {
               <Text style={styles.sheetTitle}>
                 {ZONE_CONFIG.find(z => z.id === activeZone)?.label} ({zoneCards.length})
               </Text>
-              {activeZone !== 'CMD' && (
+              <View style={styles.zoneSheetHeaderBtns}>
+                {activeZone !== 'CMD' && (
+                  <Pressable
+                    style={[styles.moveSelectedBtn, selectedCards.size === 0 && styles.moveSelectedBtnDisabled]}
+                    disabled={selectedCards.size === 0}
+                    onPress={openMoveSelectedPicker}
+                  >
+                    <Text style={styles.moveSelectedBtnText}>
+                      Move {selectedCards.size > 0 ? `(${selectedCards.size})` : 'selected'} to…
+                    </Text>
+                  </Pressable>
+                )}
                 <Pressable
-                  style={[styles.moveSelectedBtn, selectedCards.size === 0 && styles.moveSelectedBtnDisabled]}
-                  disabled={selectedCards.size === 0}
-                  onPress={openMoveSelectedPicker}
+                  style={styles.zoneClosBtn}
+                  onPress={() => { setActiveZone(null); setSelectedCards(new Set()); }}
                 >
-                  <Text style={styles.moveSelectedBtnText}>
-                    Move {selectedCards.size > 0 ? `(${selectedCards.size})` : 'selected'} to…
-                  </Text>
+                  <Text style={styles.zoneClsBtnText}>Done</Text>
                 </Pressable>
-              )}
+              </View>
             </View>
 
             {zoneCards.length === 0 ? (
@@ -1397,6 +1423,15 @@ const styles = StyleSheet.create({
   mulliganBusyRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
 
   zoneSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  zoneSheetHeaderBtns: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  zoneClosBtn: {
+    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#625b71',
+  },
+  zoneClsBtnText: { color: '#CCC2DC', fontSize: 12, fontWeight: '700' },
   moveSelectedBtn: {
     backgroundColor: '#6650a4',
     borderRadius: 6,

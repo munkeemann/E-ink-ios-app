@@ -83,6 +83,65 @@ export async function clearSleeve(sid: number, serverUrl: string = PI_SERVER): P
 /** @deprecated Use clearSleeve instead */
 export const sendToGraveyard = clearSleeve;
 
+const ZONE_INDEX: Record<string, number> = {
+  LIB: 4, HND: 3, BTFLD: 2, TKN: 2, GRV: 1, EXL: 0, CMD: 2,
+};
+
+/**
+ * Returns a map of sleeveId → IP address from the Pi.
+ * Returns an empty object if the Pi is unreachable or returns no sleeves.
+ */
+export async function getSleeveIpMap(serverUrl: string = PI_SERVER): Promise<Record<number, string>> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const resp = await fetch(`${serverUrl}/sleeves`, { signal: controller.signal }).finally(() => clearTimeout(timer));
+    if (!resp.ok) return {};
+    const data = JSON.parse(await resp.text()) as unknown;
+    if (data && typeof data === 'object' && 'sleeves' in data) {
+      const sleevesMap = (data as { sleeves: Record<string, unknown> }).sleeves;
+      if (sleevesMap && typeof sleevesMap === 'object') {
+        const result: Record<number, string> = {};
+        for (const [idStr, ip] of Object.entries(sleevesMap)) {
+          const id = Number(idStr);
+          if (!isNaN(id) && typeof ip === 'string') result[id] = ip;
+        }
+        return result;
+      }
+    }
+    return {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * POSTs a zone-index update to the sleeve's own HTTP server.
+ * Zone index mapping: LIB=4, HND=3, BTFLD/TKN/CMD=2, GRV=1, EXL=0.
+ * No-ops silently if the sleeve IP is not in ipMap or the sleeve is offline.
+ */
+export async function pushZoneUpdate(
+  sleeveId: number,
+  zone: string,
+  ipMap: Record<number, string>,
+): Promise<void> {
+  const ip = ipMap[sleeveId];
+  if (!ip) return;
+  const zoneIndex = ZONE_INDEX[zone] ?? 0;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3000);
+    await fetch(`http://${ip}/zone`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ zone: zoneIndex }),
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timer));
+  } catch {
+    // Sleeve offline — fail silently
+  }
+}
+
 /**
  * Assigns permanent sleeveIds to cards at game-start based on settings.
  * Commander always gets sleeveId 1.
