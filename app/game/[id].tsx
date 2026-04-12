@@ -102,7 +102,10 @@ export default function InGameScreen() {
   const [placeFrom, setPlaceFrom] = useState<'top' | 'bottom'>('top');
   const [placePositionText, setPlacePositionText] = useState('1');
 
-  // Sleeve selection (shared by Place in Library and Flip Card)
+  // Flip Card picker
+  const [flipModalVisible, setFlipModalVisible] = useState(false);
+
+  // Sleeve selection (used by Place in Library)
   const [sleeveSelectVisible, setSleeveSelectVisible] = useState(false);
   const [sleeveSelectCountdown, setSleeveSelectCountdown] = useState(30);
   const [sleeveWaitMessage, setSleeveWaitMessage] = useState('');
@@ -164,6 +167,12 @@ export default function InGameScreen() {
     cards
       .filter(c => c.zone === 'LIB')
       .sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10)),
+    [cards],
+  );
+
+  // Cards eligible for flipping: hand and battlefield (including tokens on battlefield)
+  const flipCards = useMemo(() =>
+    cards.filter(c => c.zone === 'HND' || c.zone === 'BTFLD' || c.zone === 'TKN'),
     [cards],
   );
 
@@ -559,26 +568,12 @@ export default function InGameScreen() {
   };
 
   // ─── Flip Card ────────────────────────────────────────────────────────────
-  const handleFlipCard = async () => {
-    sleeveSelectCancelledRef.current = false;
-    setSleeveWaitMessage('Press the button on the card to flip.');
-    setSleeveSelectVisible(true);
-    const sid = await waitForSleeveSelection(() => sleeveSelectCancelledRef.current);
-    setSleeveSelectVisible(false);
-    if (sleeveSelectCancelledRef.current || sid === null) return;
+  const handleFlipCard = () => {
+    setFlipModalVisible(true);
+  };
 
-    const targetCard = cards.find(c => c.sleeveId === sid);
-    if (!targetCard) { Alert.alert('Unknown sleeve', `Sleeve ${sid} is not mapped to a card.`); return; }
-
-    if (!targetCard.backImagePath) {
-      Alert.alert('Not double-sided', `${targetCard.displayName} is not a double-sided card.`);
-      return;
-    }
-    if (targetCard.zone === 'LIB') {
-      Alert.alert('Cannot flip', 'Cards in the library cannot be flipped.');
-      return;
-    }
-
+  const handleFlipToggle = async (targetCard: CardInstance) => {
+    if (!targetCard.backImagePath) return; // single-faced — no-op
     const newIsFlipped = !targetCard.isFlipped;
     const updatedCard = { ...targetCard, isFlipped: newIsFlipped };
     const deckCards = Array.isArray(deck?.cards) ? deck!.cards : [];
@@ -586,8 +581,7 @@ export default function InGameScreen() {
     const updated = { ...deck!, cards: newCards };
     await saveDeck(updated);
     setDeck(updated);
-
-    // Push the correct face to the sleeve
+    // Push the correct face to the assigned sleeve
     if (updatedCard.sleeveId !== null) {
       const faceImage = newIsFlipped ? targetCard.backImagePath : targetCard.imagePath;
       pushCardToSleeve({ ...updatedCard, imagePath: faceImage }).catch(() => {});
@@ -1168,7 +1162,48 @@ export default function InGameScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Sleeve waiting modal — shared by Place in Library and Flip Card */}
+      {/* Flip Card — bottom sheet */}
+      <Modal visible={flipModalVisible} transparent animationType="slide" onRequestClose={() => setFlipModalVisible(false)}>
+        <Pressable style={styles.sheetBackdrop} onPress={() => setFlipModalVisible(false)}>
+          <Pressable style={styles.sheet} onPress={() => {}}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Flip Card</Text>
+            {flipCards.length === 0 ? (
+              <Text style={styles.emptyText}>No cards in hand or battlefield</Text>
+            ) : (
+              <FlatList
+                data={flipCards}
+                keyExtractor={(c, i) => `flip-${c.baseName}-${c.place}-${i}`}
+                renderItem={({ item }) => {
+                  const isSingleFaced = !item.backImagePath;
+                  const zoneBadge = item.zone === 'HND' ? 'Hand' : 'Battlefield';
+                  return (
+                    <Pressable
+                      style={[styles.flipRow, isSingleFaced && styles.flipRowDisabled]}
+                      onPress={() => handleFlipToggle(item)}
+                    >
+                      <Text style={styles.cardName}>{item.displayName}</Text>
+                      <Text style={styles.flipZoneBadge}>{zoneBadge}</Text>
+                      {isSingleFaced ? (
+                        <Text style={styles.flipSingleFaced}>single-faced</Text>
+                      ) : (
+                        <Text style={[styles.flipFaceBadge, item.isFlipped && styles.flipFaceBadgeBack]}>
+                          {item.isFlipped ? 'Back' : 'Front'}
+                        </Text>
+                      )}
+                    </Pressable>
+                  );
+                }}
+              />
+            )}
+            <Pressable style={[styles.cancelBtn, { marginTop: 14 }]} onPress={() => setFlipModalVisible(false)}>
+              <Text style={styles.cancelBtnText}>Close</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Sleeve waiting modal — used by Place in Library */}
       <Modal visible={sleeveSelectVisible} transparent animationType="fade" onRequestClose={handleCancelSleeveSelect}>
         <View style={styles.sleeveWaitBackdrop}>
           <View style={styles.sleeveWaitCard}>
@@ -1388,6 +1423,20 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     paddingHorizontal: 4,
   },
+
+  flipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: '#4a4f55',
+    gap: 8,
+  },
+  flipRowDisabled: { opacity: 0.4 },
+  flipZoneBadge: { color: '#9ca3af', fontSize: 11, fontWeight: '700' },
+  flipFaceBadge: { color: '#6ee7b7', fontSize: 12, fontWeight: '700', minWidth: 36, textAlign: 'right' },
+  flipFaceBadgeBack: { color: '#f59e0b' },
+  flipSingleFaced: { color: '#625b71', fontSize: 11, fontStyle: 'italic' },
 
   sleeveWaitBackdrop: {
     flex: 1,
