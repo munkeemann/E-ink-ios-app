@@ -495,7 +495,19 @@ export default function InGameScreen() {
     const updated = { ...deck!, cards: newCards };
     await saveDeck(updated);
     setDeck(updated);
-    syncSleeves(newCards);
+    const sleeves = connectedSleeves ?? await getRegisteredSleeves();
+    if (sleeves.length > 0) {
+      setBusy(true);
+      setBusyLabel('Sending sleeves…');
+      try {
+        await beginGame(newCards, sleeves, undefined, undefined, settings);
+      } catch (e) {
+        Alert.alert('Error', e instanceof Error ? e.message : String(e));
+      } finally {
+        setBusy(false);
+        setBusyLabel('');
+      }
+    }
   };
 
   // ─── Place in Library ─────────────────────────────────────────────────────

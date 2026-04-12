@@ -93,8 +93,12 @@ export default function ScryScreen() {
 
       const [sleeves, settings] = await Promise.all([getRegisteredSleeves(), loadSettings()]);
 
+      // Preserve non-LIB, non-commander cards (hand, battlefield, graveyard, exile)
+      // so they are not dropped when the deck is saved back to disk.
+      const nonLibNonCommander = deck.cards.filter(c => c.zone !== 'LIB' && c.place !== 'commander');
+
       // Reassign sleeve IDs based on new scry order before pushing to sleeves.
-      const reordered = [...commander, ...newLibrary];
+      const reordered = [...commander, ...nonLibNonCommander, ...newLibrary];
       const newCards = assignSleeveIds(reordered, settings);
 
       const top5 = newCards
