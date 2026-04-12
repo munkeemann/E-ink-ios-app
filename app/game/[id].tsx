@@ -721,9 +721,34 @@ export default function InGameScreen() {
               : connectedSleeves.length === 0 ? 'No sleeves connected'
               : `${connectedSleeves.length} sleeve${connectedSleeves.length === 1 ? '' : 's'} connected`}
           </Text>
-          <Text style={styles.settingsIndicator}>
-            {settings.sleeveCount} sleeves · {settings.physicalZones.join(' ')}
-          </Text>
+          <View style={styles.headerMetaRight}>
+            <Text style={styles.settingsIndicator}>
+              {settings.sleeveCount} sleeves · {settings.physicalZones.join(' ')}
+            </Text>
+            <Pressable
+              onPress={() =>
+                Alert.alert(
+                  'End Game',
+                  'End this game session and return to the deck preview?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'End Game',
+                      style: 'destructive',
+                      onPress: async () => {
+                        if (!deck) return;
+                        const updated = { ...deck, gameInProgress: false };
+                        await saveDeck(updated);
+                        router.back();
+                      },
+                    },
+                  ],
+                )
+              }
+            >
+              <Text style={styles.endGameBtn}>End Game</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
 
@@ -1225,9 +1250,11 @@ const styles = StyleSheet.create({
   deckName: { color: '#D0BCFF', fontSize: 18, fontWeight: '800' },
   commanderName: { color: '#CCC2DC', fontSize: 13, marginTop: 2 },
   headerMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
+  headerMetaRight: { alignItems: 'flex-end', gap: 4 },
   sleeveStatus: { color: '#6ee7b7', fontSize: 11 },
   sleeveStatusNone: { color: '#f87171' },
   settingsIndicator: { color: '#625b71', fontSize: 11 },
+  endGameBtn: { color: '#f87171', fontSize: 11, fontWeight: '700' },
 
   zoneGrid: { paddingHorizontal: 10, paddingTop: 12, paddingBottom: 4, gap: 8 },
   zoneGridRow: { flexDirection: 'row', gap: 8 },

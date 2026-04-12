@@ -30,6 +30,7 @@ export default function DeckPreviewScreen() {
     physicalZones: ['LIB', 'HND', 'BTFLD'],
     librarySleeveDepth: 1,
     devMode: false,
+    piDebugAlerts: false,
   });
 
   const [addTokenVisible, setAddTokenVisible] = useState(false);
@@ -64,8 +65,7 @@ export default function DeckPreviewScreen() {
 
   const tokens: TokenTemplate[] = Array.isArray(deck.tokens) ? deck.tokens : [];
 
-  // A game is in progress if any non-commander card is outside LIB
-  const gameInProgress = deck.cards.some(c => c.place !== 'commander' && c.zone !== 'LIB');
+  const gameInProgress = !!deck.gameInProgress;
 
   const doStartNewGame = async () => {
     setSending(true);
@@ -90,7 +90,7 @@ export default function DeckPreviewScreen() {
       const settings = await loadSettings();
       const newCards = assignSleeveIds(unsleevedCards, settings);
 
-      const newDeck = { ...deck, cards: newCards };
+      const newDeck = { ...deck, cards: newCards, gameInProgress: true };
       await saveDeck(newDeck);
       setDeck(newDeck);
 

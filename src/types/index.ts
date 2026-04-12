@@ -44,6 +44,8 @@ export interface Deck {
   colors: string[];
   cards: CardInstance[];
   tokens?: TokenTemplate[];
+  /** True while a game session is active for this deck */
+  gameInProgress?: boolean;
 }
 
 export interface AppSettings {
