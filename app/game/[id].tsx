@@ -660,10 +660,19 @@ export default function InGameScreen() {
       const currentDeck = deck!;
       const deckCards = Array.isArray(currentDeck.cards) ? currentDeck.cards : [];
 
-      // Assign a free sleeveId if BTFLD is a physical zone
-      const tokenSleeveId: number | null = settings.physicalZones.includes('BTFLD')
-        ? (nextFreeSleeveId(deckCards, settings.sleeveCount) ?? null)
-        : null;
+      // The token steals the sleeve of the current top-of-library card.
+      // All library places shift by +1 so the displaced card lands at position 2.
+      const sortedLib = deckCards
+        .filter(c => c.zone === 'LIB')
+        .sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10));
+      const topLibCard = sortedLib[0] ?? null;
+      const tokenSleeveId: number | null = topLibCard?.sleeveId ?? null;
+
+      const updatedLibCards = sortedLib.map((c, i) => ({
+        ...c,
+        place: String(i + 2),                        // 1→2, 2→3, …
+        sleeveId: c === topLibCard ? null : c.sleeveId, // top card loses its sleeve
+      }));
 
       const tokenCard: CardInstance = {
         baseName: name.trim(),
@@ -678,17 +687,20 @@ export default function InGameScreen() {
       };
 
       // Save token template to deck.tokens if not already present
+      const commanderCards = deckCards.filter(c => c.place === 'commander');
+      const nonLibNonCommander = deckCards.filter(c => c.zone !== 'LIB' && c.place !== 'commander');
       const existingTokens: TokenTemplate[] = Array.isArray(currentDeck.tokens) ? currentDeck.tokens : [];
       const alreadySaved = existingTokens.some(t => t.name.toLowerCase() === name.trim().toLowerCase());
       const newTokens: TokenTemplate[] = alreadySaved
         ? existingTokens
         : [...existingTokens, { name: name.trim(), power, toughness, colors }];
 
-      const updated: Deck = { ...currentDeck, cards: [...deckCards, tokenCard], tokens: newTokens };
+      const finalCards = [...commanderCards, ...updatedLibCards, ...nonLibNonCommander, tokenCard];
+      const updated: Deck = { ...currentDeck, cards: finalCards, tokens: newTokens };
       await saveDeck(updated);
       setDeck(updated);
 
-      // Push token image to its assigned sleeve
+      // Push the token image to the stolen sleeve
       if (tokenSleeveId !== null) {
         pushCardToSleeve(tokenCard).catch(() => {});
       }
