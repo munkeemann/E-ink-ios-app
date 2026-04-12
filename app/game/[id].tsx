@@ -323,9 +323,32 @@ export default function InGameScreen() {
     }
   };
 
-  const handleKeepHand = () => {
+  const handleKeepHand = async () => {
     setMulliganSheetVisible(false);
-    if (mulliganCount > 0) {
+
+    if (mulliganCount === 0) {
+      // No mulligan taken — the opening hand is still in LIB. Move top 7 to HND.
+      if (!deck) return;
+      const deckCards = Array.isArray(deck.cards) ? deck.cards : [];
+      const sortedLib = deckCards
+        .filter(c => c.zone === 'LIB')
+        .sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10));
+      const handCards = sortedLib.slice(0, 7);
+      if (handCards.length === 0) return;
+
+      const handSet = new Set(handCards);
+      const remainingLib = sortedLib.slice(7).map((c, i) => ({ ...c, place: String(i + 1) }));
+      const commanderCards = deckCards.filter(c => c.place === 'commander');
+      const otherCards = deckCards.filter(c => c.zone !== 'LIB' && c.place !== 'commander');
+      const newHandCards = handCards.map(c => ({ ...c, zone: 'HND' as Zone }));
+      const finalCards = [...commanderCards, ...remainingLib, ...newHandCards, ...otherCards];
+
+      const updated = { ...deck, cards: finalCards };
+      await saveDeck(updated);
+      setDeck(updated);
+      syncSleeves(finalCards);
+    } else {
+      // After a mulligan the new hand is already in HND; remind about bottoming.
       Alert.alert(
         'London Mulligan',
         `Put ${mulliganCount} card${mulliganCount > 1 ? 's' : ''} from your hand to the bottom of your library.\n\nUse the zone move buttons in the Hand zone.`,
