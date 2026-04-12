@@ -835,8 +835,13 @@ export default function InGameScreen() {
         animationType="slide"
         onRequestClose={() => { setActiveZone(null); setSelectedCards(new Set()); }}
       >
-        <Pressable style={styles.sheetBackdrop} onPress={() => { setActiveZone(null); setSelectedCards(new Set()); }}>
-          <Pressable style={[styles.sheet, styles.zoneSheet]} onPress={() => {}}>
+        {/* Plain View backdrop — Pressable here would intercept FlatList scroll gestures */}
+        <View style={styles.sheetBackdrop}>
+          <Pressable
+            style={styles.sheetBackdropTouchable}
+            onPress={() => { setActiveZone(null); setSelectedCards(new Set()); }}
+          />
+          <View style={[styles.sheet, styles.zoneSheet]}>
             <View style={styles.sheetHandle} />
             <View style={styles.zoneSheetHeader}>
               <Text style={styles.sheetTitle}>
@@ -880,8 +885,8 @@ export default function InGameScreen() {
                 }}
               />
             )}
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* Mulligan bottom sheet */}
@@ -1304,6 +1309,7 @@ const styles = StyleSheet.create({
   busyText: { color: '#CCC2DC', fontSize: 13 },
 
   sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  sheetBackdropTouchable: { ...StyleSheet.absoluteFillObject },
   sheet: {
     backgroundColor: '#353A40',
     borderTopLeftRadius: 18,
