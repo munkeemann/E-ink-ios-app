@@ -811,7 +811,7 @@ export default function InGameScreen() {
         onRequestClose={() => { setActiveZone(null); setSelectedCards(new Set()); }}
       >
         <Pressable style={styles.sheetBackdrop} onPress={() => { setActiveZone(null); setSelectedCards(new Set()); }}>
-          <Pressable style={styles.sheet} onPress={() => {}}>
+          <Pressable style={[styles.sheet, styles.zoneSheet]} onPress={() => {}}>
             <View style={styles.sheetHandle} />
             <View style={styles.zoneSheetHeader}>
               <Text style={styles.sheetTitle}>
@@ -834,6 +834,7 @@ export default function InGameScreen() {
               <Text style={styles.emptyText}>No cards in this zone</Text>
             ) : (
               <FlatList
+                style={{ flexShrink: 1 }}
                 data={zoneCards}
                 keyExtractor={(c, i) => `${c.baseName}-${i}`}
                 renderItem={({ item }) => {
@@ -1287,6 +1288,7 @@ const styles = StyleSheet.create({
     paddingBottom: 36,
     maxHeight: '80%',
   },
+  zoneSheet: { maxHeight: '92%' },
   tokenSheet: { maxHeight: '90%' },
   sheetHandle: {
     width: 36,
