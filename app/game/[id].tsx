@@ -170,9 +170,9 @@ export default function InGameScreen() {
     [cards],
   );
 
-  // Cards eligible for flipping: hand and battlefield (including tokens on battlefield)
+  // Double-faced cards in hand or battlefield — single-faced cards are excluded
   const flipCards = useMemo(() =>
-    cards.filter(c => c.zone === 'HND' || c.zone === 'BTFLD' || c.zone === 'TKN'),
+    cards.filter(c => (c.zone === 'HND' || c.zone === 'BTFLD' || c.zone === 'TKN') && !!c.backImagePath),
     [cards],
   );
 
@@ -1169,31 +1169,20 @@ export default function InGameScreen() {
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>Flip Card</Text>
             {flipCards.length === 0 ? (
-              <Text style={styles.emptyText}>No cards in hand or battlefield</Text>
+              <Text style={styles.emptyText}>No double-faced cards in hand or battlefield</Text>
             ) : (
               <FlatList
                 data={flipCards}
                 keyExtractor={(c, i) => `flip-${c.baseName}-${c.place}-${i}`}
-                renderItem={({ item }) => {
-                  const isSingleFaced = !item.backImagePath;
-                  const zoneBadge = item.zone === 'HND' ? 'Hand' : 'Battlefield';
-                  return (
-                    <Pressable
-                      style={[styles.flipRow, isSingleFaced && styles.flipRowDisabled]}
-                      onPress={() => handleFlipToggle(item)}
-                    >
-                      <Text style={styles.cardName}>{item.displayName}</Text>
-                      <Text style={styles.flipZoneBadge}>{zoneBadge}</Text>
-                      {isSingleFaced ? (
-                        <Text style={styles.flipSingleFaced}>single-faced</Text>
-                      ) : (
-                        <Text style={[styles.flipFaceBadge, item.isFlipped && styles.flipFaceBadgeBack]}>
-                          {item.isFlipped ? 'Back' : 'Front'}
-                        </Text>
-                      )}
-                    </Pressable>
-                  );
-                }}
+                renderItem={({ item }) => (
+                  <Pressable style={styles.flipRow} onPress={() => handleFlipToggle(item)}>
+                    <Text style={styles.cardName}>{item.displayName}</Text>
+                    <Text style={styles.flipZoneBadge}>{item.zone === 'HND' ? 'Hand' : 'Battlefield'}</Text>
+                    <Text style={[styles.flipFaceBadge, item.isFlipped && styles.flipFaceBadgeBack]}>
+                      {item.isFlipped ? 'Back' : 'Front'}
+                    </Text>
+                  </Pressable>
+                )}
               />
             )}
             <Pressable style={[styles.cancelBtn, { marginTop: 14 }]} onPress={() => setFlipModalVisible(false)}>
@@ -1432,11 +1421,9 @@ const styles = StyleSheet.create({
     borderColor: '#4a4f55',
     gap: 8,
   },
-  flipRowDisabled: { opacity: 0.4 },
   flipZoneBadge: { color: '#9ca3af', fontSize: 11, fontWeight: '700' },
   flipFaceBadge: { color: '#6ee7b7', fontSize: 12, fontWeight: '700', minWidth: 36, textAlign: 'right' },
   flipFaceBadgeBack: { color: '#f59e0b' },
-  flipSingleFaced: { color: '#625b71', fontSize: 11, fontStyle: 'italic' },
 
   sleeveWaitBackdrop: {
     flex: 1,
