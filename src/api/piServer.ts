@@ -143,6 +143,32 @@ export async function pushZoneUpdate(
 }
 
 /**
+ * Routes a zone-index update through the Pi server (POST /zone_update_sleeve).
+ * The Pi looks up the sleeve IP from its registry and forwards the request,
+ * so the app does not need to maintain an IP map.
+ * Zone index mapping: LIB=4, HND=3, BTFLD/TKN/CMD=2, GRV=1, EXL=0.
+ */
+export async function pushZoneUpdateViaPi(
+  sleeveId: number,
+  zone: string,
+  serverUrl: string = PI_SERVER,
+): Promise<void> {
+  const zoneIndex = ZONE_INDEX[zone] ?? 0;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3000);
+    await fetch(`${serverUrl}/zone_update_sleeve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sleeve_id: sleeveId, zone_index: zoneIndex }),
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timer));
+  } catch {
+    // Pi offline — fail silently
+  }
+}
+
+/**
  * Assigns permanent sleeveIds to cards at game-start based on settings.
  * Commander always gets sleeveId 1.
  * Remaining slots (up to sleeveCount) filled from physicalZones in order:

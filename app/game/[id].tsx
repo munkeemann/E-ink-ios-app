@@ -15,7 +15,7 @@ import {
   View,
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { assignSleeveIds, beginGame, clearSleeve, getRegisteredSleeves, getSleeveIpMap, pushCardToSleeve, pushZoneUpdate, waitForSleeveSelection } from '../../src/api/piServer';
+import { PI_SERVER, assignSleeveIds, beginGame, clearSleeve, getRegisteredSleeves, pushCardToSleeve, pushZoneUpdateViaPi, waitForSleeveSelection } from '../../src/api/piServer';
 import { fetchTokenImage } from '../../src/api/scryfall';
 import { getDeck, loadSettings, saveDeck } from '../../src/storage/deckStorage';
 import { AppSettings, CardInstance, Deck, TokenTemplate } from '../../src/types';
@@ -68,7 +68,6 @@ export default function InGameScreen() {
   const [busyLabel, setBusyLabel] = useState('');
   const [connectedSleeves, setConnectedSleeves] = useState<number[] | null>(null);
   const [settings, setSettings] = useState<AppSettings>({ sleeveCount: 5, physicalZones: ['LIB', 'HND', 'BTFLD'], librarySleeveDepth: 1, devMode: false, piDebugAlerts: false });
-  const [sleeveIpMap, setSleeveIpMap] = useState<Record<number, string>>({});
 
   const [activeZone, setActiveZone] = useState<Zone | null>(null);
   const [selectedCards, setSelectedCards] = useState<Set<string>>(new Set());
@@ -132,7 +131,6 @@ export default function InGameScreen() {
       }
       getRegisteredSleeves().then(setConnectedSleeves);
       loadSettings().then(setSettings);
-      getSleeveIpMap().then(setSleeveIpMap);
     }, [id, freshStart]),
   );
 
@@ -148,6 +146,58 @@ export default function InGameScreen() {
     }, 1000);
     return () => clearInterval(interval);
   }, [sleeveSelectVisible]);
+
+  // Keep a stable ref to deck so the polling interval always sees current state
+  const deckRef = useRef(deck);
+  useEffect(() => { deckRef.current = deck; }, [deck]);
+
+  // Track the last-seen zone_name per sleeve so we can detect Pi-initiated changes
+  const zonesSnapshotRef = useRef<Record<number, string>>({});
+
+  // Poll /zones every 5 s; when a sleeve's zone_name changes, move the card in app state
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 3000);
+        const resp = await fetch(`${PI_SERVER}/zones`, { signal: controller.signal }).finally(() => clearTimeout(timer));
+        if (!resp.ok) return;
+        const data = await resp.json() as Array<{ sleeve_id: number; zone_name: string }>;
+
+        const currentDeck = deckRef.current;
+        if (!currentDeck) return;
+
+        let changed = false;
+        const updatedCards = [...(Array.isArray(currentDeck.cards) ? currentDeck.cards : [])];
+
+        for (const item of data) {
+          const prevZone = zonesSnapshotRef.current[item.sleeve_id];
+          zonesSnapshotRef.current[item.sleeve_id] = item.zone_name;
+          // Only act on changes we didn't already know about
+          if (prevZone === undefined || prevZone === item.zone_name) continue;
+          // Map Pi zone name to app Zone type
+          const destZone = item.zone_name as Zone;
+          if (!['LIB', 'HND', 'BTFLD', 'GRV', 'EXL', 'CMD'].includes(destZone)) continue;
+          const idx = updatedCards.findIndex(c => c.sleeveId === item.sleeve_id);
+          if (idx === -1) continue;
+          const card = updatedCards[idx];
+          if (card.zone === destZone) continue; // already in sync
+          updatedCards[idx] = { ...card, zone: destZone };
+          changed = true;
+        }
+
+        if (changed) {
+          const newDeck = { ...currentDeck, cards: updatedCards };
+          deckRef.current = newDeck;
+          setDeck(newDeck);
+          saveDeck(newDeck).catch(() => {});
+        }
+      } catch {
+        // Pi offline — ignore
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []); // intentionally empty — uses deckRef to avoid recreating interval on each deck change
 
   const cards = Array.isArray(deck?.cards) ? deck!.cards : [];
 
@@ -378,7 +428,7 @@ export default function InGameScreen() {
       // Reassign so the freed sleeve cascades back to the new top-of-library card
       const newCards = assignSleeveIds([...commanderCards, ...libCards, ...otherCards], settings);
       for (const c of newCards) {
-        if (c.sleeveId !== null) pushZoneUpdate(c.sleeveId, c.zone, sleeveIpMap).catch(() => {});
+        if (c.sleeveId !== null) pushZoneUpdateViaPi(c.sleeveId, c.zone).catch(() => {});
       }
       const newDeck = { ...deck, cards: newCards };
       await saveDeck(newDeck);
@@ -409,7 +459,7 @@ export default function InGameScreen() {
 
     // Push zone-display updates for every card that now has a sleeve
     for (const c of newCards) {
-      if (c.sleeveId !== null) pushZoneUpdate(c.sleeveId, c.zone, sleeveIpMap).catch(() => {});
+      if (c.sleeveId !== null) pushZoneUpdateViaPi(c.sleeveId, c.zone).catch(() => {});
     }
 
     const newDeck = { ...deck, cards: newCards };
@@ -463,7 +513,7 @@ export default function InGameScreen() {
 
     // Push zone-display updates for every card that now has a sleeve
     for (const c of newCards) {
-      if (c.sleeveId !== null) pushZoneUpdate(c.sleeveId, c.zone, sleeveIpMap).catch(() => {});
+      if (c.sleeveId !== null) pushZoneUpdateViaPi(c.sleeveId, c.zone).catch(() => {});
     }
 
     const newDeck = { ...deck, cards: newCards };
@@ -710,7 +760,7 @@ export default function InGameScreen() {
         pushCardToSleeve(tokenCard)
           .then(() => console.log(`[Token] sleeve ${tokenSleeveId} image OK`))
           .catch(e => console.error(`[Token] sleeve ${tokenSleeveId} image ERR:`, e));
-        pushZoneUpdate(tokenSleeveId, 'TKN', sleeveIpMap).catch(() => {});
+        pushZoneUpdateViaPi(tokenSleeveId, 'TKN').catch(() => {});
       }
       // Push any library cards that inherited a sleeve from the cascade (depth > 1)
       for (const libCard of updatedLibCards) {
@@ -719,7 +769,7 @@ export default function InGameScreen() {
           pushCardToSleeve(libCard)
             .then(() => console.log(`[Token] sleeve ${libCard.sleeveId} image OK`))
             .catch(e => console.error(`[Token] sleeve ${libCard.sleeveId} image ERR:`, e));
-          pushZoneUpdate(libCard.sleeveId, 'LIB', sleeveIpMap).catch(() => {});
+          pushZoneUpdateViaPi(libCard.sleeveId, 'LIB').catch(() => {});
         }
       }
 

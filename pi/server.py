@@ -1,0 +1,157 @@
+"""
+E-Cards Pi Server
+=================
+Flask server running on the Raspberry Pi (port 5050).
+
+Sleeve registry: dict mapping sleeve_id (int) -> IP address (str).
+Updated when sleeves check in at startup.
+
+Endpoints
+---------
+GET  /sleeves               — return {"sleeves": {id: ip, ...}}
+POST /display?sleeve_id=N   — forward JPEG body to sleeve /display
+POST /clear?sleeve_id=N     — tell sleeve to blank its display
+POST /zone_update_sleeve    — forward a zone-index update to a sleeve's /zone endpoint
+GET  /zones                 — return per-sleeve zone state as seen by the Pi
+"""
+
+import threading
+import requests
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)
+
+# sleeve_id (int) -> IP address (str)
+sleeves: dict[int, str] = {}
+sleeves_lock = threading.Lock()
+
+# sleeve_id (int) -> zone_name (str) — last zone reported or set
+sleeve_zones: dict[int, str] = {}
+zones_lock = threading.Lock()
+
+ZONE_INDEX_TO_NAME: dict[int, str] = {4: "LIB", 3: "HND", 2: "BTFLD", 1: "GRV", 0: "EXL"}
+
+
+# ── Registry ────────────────────────────────────────────────────────────────
+
+@app.route("/sleeves", methods=["GET"])
+def get_sleeves():
+    with sleeves_lock:
+        return jsonify({"sleeves": {str(k): v for k, v in sleeves.items()}})
+
+
+@app.route("/register", methods=["POST"])
+def register_sleeve():
+    data = request.get_json(force=True)
+    sleeve_id = int(data["sleeve_id"])
+    ip = data["ip"]
+    with sleeves_lock:
+        sleeves[sleeve_id] = ip
+    return jsonify({"ok": True})
+
+
+# ── Display / Clear ─────────────────────────────────────────────────────────
+
+@app.route("/display", methods=["POST"])
+def display():
+    sleeve_id = int(request.args.get("sleeve_id", 0))
+    with sleeves_lock:
+        ip = sleeves.get(sleeve_id)
+    if not ip:
+        return jsonify({"error": "unknown sleeve"}), 404
+    try:
+        r = requests.post(
+            f"http://{ip}/display",
+            data=request.data,
+            headers={"Content-Type": "image/jpeg"},
+            timeout=10,
+        )
+        return (r.content, r.status_code, {"Content-Type": r.headers.get("Content-Type", "application/json")})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+
+
+@app.route("/clear", methods=["POST"])
+def clear():
+    sleeve_id = int(request.args.get("sleeve_id", 0))
+    with sleeves_lock:
+        ip = sleeves.get(sleeve_id)
+    if not ip:
+        return jsonify({"error": "unknown sleeve"}), 404
+    try:
+        r = requests.post(f"http://{ip}/clear", timeout=5)
+        return (r.content, r.status_code)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+
+
+# ── Zone update (app → Pi → sleeve) ─────────────────────────────────────────
+
+@app.route("/zone_update_sleeve", methods=["POST"])
+def zone_update_sleeve():
+    """
+    Body: {"sleeve_id": <int>, "zone_index": <int 0-4>}
+    Looks up the sleeve IP from the registry and POSTs {"zone": zone_index}
+    to the sleeve's /zone endpoint.
+    Zone index mapping: LIB=4, HND=3, BTFLD/TKN/CMD=2, GRV=1, EXL=0
+    """
+    data = request.get_json(force=True)
+    sleeve_id = int(data["sleeve_id"])
+    zone_index = int(data["zone_index"])
+
+    with sleeves_lock:
+        ip = sleeves.get(sleeve_id)
+    if not ip:
+        return jsonify({"error": "unknown sleeve"}), 404
+
+    zone_name = ZONE_INDEX_TO_NAME.get(zone_index, "EXL")
+    with zones_lock:
+        sleeve_zones[sleeve_id] = zone_name
+
+    try:
+        requests.post(
+            f"http://{ip}/zone",
+            json={"zone": zone_index},
+            timeout=3,
+        )
+    except Exception:
+        pass  # sleeve offline — not fatal
+
+    return jsonify({"ok": True})
+
+
+# ── Zone state (sleeve → Pi → app) ──────────────────────────────────────────
+
+@app.route("/zone_report", methods=["POST"])
+def zone_report():
+    """
+    Called by a sleeve when its physical zone sensor changes.
+    Body: {"sleeve_id": <int>, "zone_name": <str>}
+    Updates the Pi's in-memory zone state so /zones reflects the change.
+    """
+    data = request.get_json(force=True)
+    sleeve_id = int(data["sleeve_id"])
+    zone_name = str(data["zone_name"])
+    with zones_lock:
+        sleeve_zones[sleeve_id] = zone_name
+    return jsonify({"ok": True})
+
+
+@app.route("/zones", methods=["GET"])
+def get_zones():
+    """
+    Returns the last-known zone for every registered sleeve.
+    Response: [{"sleeve_id": <int>, "zone_name": <str>}, ...]
+    """
+    with sleeves_lock:
+        registered = set(sleeves.keys())
+    with zones_lock:
+        result = [
+            {"sleeve_id": sid, "zone_name": sleeve_zones.get(sid, "LIB")}
+            for sid in registered
+        ]
+    return jsonify(result)
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5050)
