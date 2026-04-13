@@ -683,6 +683,10 @@ export default function InGameScreen() {
     for (const c of newCards) {
       if (c.sleeveId !== null) pushZoneUpdateViaPi(c.sleeveId, c.zone).catch(() => {});
     }
+    // Explicitly update sleeve 1 (commander) — the generic loop relies on object-identity
+    // matching inside assignSleeveIds which can miss the commander in spread-copy scenarios.
+    const commanderAfter = newCards.find(c => c.place === 'commander');
+    if (commanderAfter) pushZoneUpdateViaPi(1, commanderAfter.zone).catch(() => {});
 
     setPlacePositionVisible(false);
     setPlaceCard(null);
