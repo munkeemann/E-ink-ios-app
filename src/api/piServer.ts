@@ -144,8 +144,7 @@ export async function pushZoneUpdate(
 
 /**
  * Routes a zone-index update through the Pi server (POST /set_zone).
- * The Pi looks up the sleeve IP from its registry and forwards the request,
- * so the app does not need to maintain an IP map.
+ * Parameters are sent as URL query params: /set_zone?sleeve_id=N&zone=N
  * Zone index mapping: LIB=4, HND=3, BTFLD/TKN/CMD=2, GRV=1, EXL=0.
  */
 export async function pushZoneUpdateViaPi(
@@ -157,10 +156,8 @@ export async function pushZoneUpdateViaPi(
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 3000);
-    await fetch(`${serverUrl}/set_zone`, {
+    await fetch(`${serverUrl}/set_zone?sleeve_id=${sleeveId}&zone=${zoneIndex}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sleeve_id: sleeveId, zone_index: zoneIndex }),
       signal: controller.signal,
     }).finally(() => clearTimeout(timer));
   } catch {

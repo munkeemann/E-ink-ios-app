@@ -90,14 +90,13 @@ def clear():
 @app.route("/set_zone", methods=["POST"])
 def set_zone():
     """
-    Body: {"sleeve_id": <int>, "zone_index": <int 0-4>}
+    Query params: sleeve_id=<int>&zone=<int 0-4>
     Looks up the sleeve IP from the registry and POSTs {"zone": zone_index}
     to the sleeve's /zone endpoint.
     Zone index mapping: LIB=4, HND=3, BTFLD/TKN/CMD=2, GRV=1, EXL=0
     """
-    data = request.get_json(force=True)
-    sleeve_id = int(data["sleeve_id"])
-    zone_index = int(data["zone_index"])
+    sleeve_id = int(request.args["sleeve_id"])
+    zone_index = int(request.args["zone"])
 
     with sleeves_lock:
         ip = sleeves.get(sleeve_id)

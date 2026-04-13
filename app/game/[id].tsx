@@ -272,6 +272,8 @@ export default function InGameScreen() {
   // Use this instead of syncSleeves for single-card zone moves to avoid the
   // clear+display race condition. Only sleeves that now carry a *different*
   // card (or a card that is newly sleeved) get a fresh image push.
+  // After pushing the image, /set_zone resets the zone strip to LIB (index 4)
+  // since the incoming card is always the new top of library.
   const pushNewlySleevedImages = (oldCards: CardInstance[], newCards: CardInstance[]) => {
     if (!connectedSleeves || connectedSleeves.length === 0) return;
     const oldSleeveToName = new Map<number, string>();
@@ -283,6 +285,7 @@ export default function InGameScreen() {
       if (c.sleeveId === null || !registered.has(c.sleeveId)) continue;
       if (oldSleeveToName.get(c.sleeveId) !== c.displayName) {
         pushCardToSleeve(c).catch(() => {});
+        pushZoneUpdateViaPi(c.sleeveId, c.zone).catch(() => {});
       }
     }
   };
