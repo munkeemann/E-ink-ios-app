@@ -15,7 +15,7 @@ import {
   View,
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { fetchZones, assignSleeveIds, beginGame, getRegisteredSleeves, pushCardToSleeve, pushZoneUpdateViaPi, waitForSleeveSelection } from '../../src/api/piServer';
+import { fetchZones, assignSleeveIds, beginGame, getRegisteredSleeves, pushCardToSleeve, pushZoneUpdateViaPi } from '../../src/api/piServer';
 import { fetchTokenImage } from '../../src/api/scryfall';
 import { getDeck, loadSettings, saveDeck } from '../../src/storage/deckStorage';
 import { AppSettings, CardInstance, Deck, TokenTemplate } from '../../src/types';
@@ -97,19 +97,16 @@ export default function InGameScreen() {
   const [tokenColors, setTokenColors] = useState<string[]>([]);
   const [tokenCreating, setTokenCreating] = useState(false);
 
-  // Place in Library — step 1: position picker
-  const [placeModalVisible, setPlaceModalVisible] = useState(false);
-  const [placeFrom, setPlaceFrom] = useState<'top' | 'bottom'>('top');
+  // Place in Library
+  const [waitingForSleeve, setWaitingForSleeve] = useState(false);   // step 1: waiting for physical button press
+  const waitingForSleeveRef = useRef(false);                          // stable ref for poll closure
+  const [placeCard, setPlaceCard] = useState<CardInstance | null>(null); // card chosen via sleeve press
+  const [placePositionVisible, setPlacePositionVisible] = useState(false); // step 2: position picker
+  const [placeFrom, setPlaceFrom] = useState<'top' | 'bottom' | 'position'>('top');
   const [placePositionText, setPlacePositionText] = useState('1');
 
   // Flip Card picker
   const [flipModalVisible, setFlipModalVisible] = useState(false);
-
-  // Sleeve selection (used by Place in Library)
-  const [sleeveSelectVisible, setSleeveSelectVisible] = useState(false);
-  const [sleeveSelectCountdown, setSleeveSelectCountdown] = useState(30);
-  const [sleeveWaitMessage, setSleeveWaitMessage] = useState('');
-  const sleeveSelectCancelledRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -134,18 +131,8 @@ export default function InGameScreen() {
     }, [id, freshStart]),
   );
 
-  // Sleeve selection countdown
-  useEffect(() => {
-    if (!sleeveSelectVisible) return;
-    setSleeveSelectCountdown(30);
-    const interval = setInterval(() => {
-      setSleeveSelectCountdown(prev => {
-        if (prev <= 1) { clearInterval(interval); return 0; }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [sleeveSelectVisible]);
+  // Keep waitingForSleeveRef in sync so the poll closure can read it without stale captures
+  useEffect(() => { waitingForSleeveRef.current = waitingForSleeve; }, [waitingForSleeve]);
 
   // Keep a stable ref to deck so the polling interval always sees current state
   const deckRef = useRef(deck);
@@ -154,15 +141,42 @@ export default function InGameScreen() {
   // Track the last-seen zone_name per sleeve so we can detect Pi-initiated changes
   const zonesSnapshotRef = useRef<Record<number, string>>({});
 
-  // Poll /zones every 5 s; when a sleeve's zone_name changes, move the card in app state
+  // Poll /zones every 5 s.
+  // While waitingForSleeve is true the first incoming zone change is treated as a
+  // card selection (Place in Library). In normal mode, zone changes move cards in state.
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
         const zoneMap = await fetchZones(); // {"2": "EXL", "3": "LIB", ...}
-
         const currentDeck = deckRef.current;
         if (!currentDeck) return;
 
+        // ── Sleeve-selection intercept (Place in Library step 1) ──────────────
+        if (waitingForSleeveRef.current) {
+          for (const [idStr, zoneName] of Object.entries(zoneMap)) {
+            const sleeveId = Number(idStr);
+            const prevZone = zonesSnapshotRef.current[sleeveId];
+            if (prevZone === undefined || prevZone === zoneName) continue;
+            // A sleeve button was pressed — identify the card
+            const card = currentDeck.cards.find(c => c.sleeveId === sleeveId) ?? null;
+            console.log(`[PlaceInLib] sleeve ${sleeveId} pressed; card: ${card?.displayName ?? 'none'}`);
+            // Immediately restore the sleeve's zone strip to what it was before the press
+            pushZoneUpdateViaPi(sleeveId, prevZone).catch(() => {});
+            zonesSnapshotRef.current[sleeveId] = prevZone; // keep snapshot stable
+            if (card) {
+              waitingForSleeveRef.current = false;
+              setWaitingForSleeve(false);
+              setPlaceCard(card);
+              setPlaceFrom('top');
+              setPlacePositionText('1');
+              setPlacePositionVisible(true);
+            }
+            return; // stop — don't process further changes this tick
+          }
+          return; // still waiting — suppress normal zone-move processing
+        }
+
+        // ── Normal zone-change processing ─────────────────────────────────────
         let changed = false;
         const updatedCards = [...(Array.isArray(currentDeck.cards) ? currentDeck.cards : [])];
 
@@ -170,9 +184,7 @@ export default function InGameScreen() {
           const sleeveId = Number(idStr);
           const prevZone = zonesSnapshotRef.current[sleeveId];
           zonesSnapshotRef.current[sleeveId] = zoneName;
-          // Only act on changes we didn't already know about
           if (prevZone === undefined || prevZone === zoneName) continue;
-          // Map Pi zone name to app Zone type
           const destZone = zoneName as Zone;
           if (!['LIB', 'HND', 'BTFLD', 'GRV', 'EXL', 'CMD'].includes(destZone)) {
             console.log(`[ZonePoll] sleeve ${sleeveId}: unrecognised zone name "${zoneName}" — skipping`);
@@ -204,7 +216,7 @@ export default function InGameScreen() {
       }
     }, 5000);
     return () => clearInterval(interval);
-  }, []); // intentionally empty — uses deckRef to avoid recreating interval on each deck change
+  }, []); // intentionally empty — uses refs to avoid recreating interval on state changes
 
   const cards = Array.isArray(deck?.cards) ? deck!.cards : [];
 
@@ -623,51 +635,60 @@ export default function InGameScreen() {
   };
 
   // ─── Place in Library ─────────────────────────────────────────────────────
-  // Step 1: tap "Place in Library" → show position picker
+  // Step 1: tap "Place in Library" → enter waiting-for-sleeve state
   const handleStartPlaceInLibrary = () => {
-    setPlaceFrom('top');
-    setPlacePositionText('1');
-    setPlaceModalVisible(true);
+    waitingForSleeveRef.current = true;
+    setWaitingForSleeve(true);
   };
 
-  // Step 2: user taps "Next" in position picker → wait for sleeve press
-  const handlePlacePositionNext = async () => {
-    const pos = parseInt(placePositionText, 10);
-    if (isNaN(pos) || pos < 1) { Alert.alert('Invalid', 'Enter a position ≥ 1'); return; }
-    const chosenFrom = placeFrom;
-    setPlaceModalVisible(false);
+  const handleCancelWaiting = () => {
+    waitingForSleeveRef.current = false;
+    setWaitingForSleeve(false);
+  };
 
-    sleeveSelectCancelledRef.current = false;
-    setSleeveWaitMessage(`Press the button on the card to place it at position ${placePositionText} from the ${chosenFrom}.`);
-    setSleeveSelectVisible(true);
-    const sid = await waitForSleeveSelection(() => sleeveSelectCancelledRef.current);
-    setSleeveSelectVisible(false);
-    if (sleeveSelectCancelledRef.current || sid === null) return;
+  // Step 2: position chosen → execute placement
+  const handlePlaceConfirm = async () => {
+    if (!placeCard || !deck) return;
+    const deckCards = Array.isArray(deck.cards) ? deck.cards : [];
 
-    // Map sleeve → card via permanent sleeveId
-    const targetCard = cards.find(c => c.sleeveId === sid);
-    if (!targetCard) { Alert.alert('Unknown sleeve', `Sleeve ${sid} is not mapped to a card.`); return; }
-    if (targetCard.zone !== 'LIB') { Alert.alert('Not in library', 'That card is not in your library.'); return; }
-
-    // Execute placement
-    const sortedLib = cards
-      .filter(c => c.zone === 'LIB')
+    let insertIdx: number;
+    const sortedLib = deckCards
+      .filter(c => c.zone === 'LIB' && c !== placeCard)
       .sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10));
-    const withoutCard = sortedLib.filter(c => c !== targetCard);
-    const insertIdx = chosenFrom === 'top'
-      ? Math.min(pos - 1, withoutCard.length)
-      : Math.max(withoutCard.length - pos + 1, 0);
+
+    if (placeFrom === 'top') {
+      insertIdx = 0;
+    } else if (placeFrom === 'bottom') {
+      insertIdx = sortedLib.length;
+    } else {
+      const pos = parseInt(placePositionText, 10);
+      if (isNaN(pos) || pos < 1) { Alert.alert('Invalid', 'Enter a position ≥ 1'); return; }
+      insertIdx = Math.min(pos - 1, sortedLib.length);
+    }
+
+    const cardInLib = { ...placeCard, zone: 'LIB' as Zone };
     const newLib = [
-      ...withoutCard.slice(0, insertIdx),
-      targetCard,
-      ...withoutCard.slice(insertIdx),
+      ...sortedLib.slice(0, insertIdx),
+      cardInLib,
+      ...sortedLib.slice(insertIdx),
     ].map((c, i) => ({ ...c, place: String(i + 1) }));
-    const nonLib = cards.filter(c => c.zone !== 'LIB');
-    const newCards = [...nonLib, ...newLib];
-    const updated = { ...deck!, cards: newCards };
+
+    const commanderCards = deckCards.filter(c => c.place === 'commander');
+    const otherCards = deckCards.filter(c => c !== placeCard && c.zone !== 'LIB' && c.place !== 'commander');
+    const newCards = assignSleeveIds([...commanderCards, ...newLib, ...otherCards], settings);
+
+    // Cascade: push new images to sleeves whose card changed
+    pushNewlySleevedImages(deckCards, newCards);
+    // Reset zone strips for all sleeved cards (library cards → LIB = 4)
+    for (const c of newCards) {
+      if (c.sleeveId !== null) pushZoneUpdateViaPi(c.sleeveId, c.zone).catch(() => {});
+    }
+
+    setPlacePositionVisible(false);
+    setPlaceCard(null);
+    const updated = { ...deck, cards: newCards };
     await saveDeck(updated);
     setDeck(updated);
-    syncSleeves(newCards);
   };
 
   // ─── Flip Card ────────────────────────────────────────────────────────────
@@ -720,10 +741,6 @@ export default function InGameScreen() {
     );
   };
 
-  const handleCancelSleeveSelect = () => {
-    sleeveSelectCancelledRef.current = true;
-    setSleeveSelectVisible(false);
-  };
 
   // ─── Create Token ─────────────────────────────────────────────────────────
   const createTokenFromValues = async (
@@ -1288,43 +1305,66 @@ export default function InGameScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Place in Library — step 1: position picker */}
-      <Modal visible={placeModalVisible} transparent animationType="slide" onRequestClose={() => setPlaceModalVisible(false)}>
+      {/* Place in Library — step 1: waiting for sleeve button press */}
+      <Modal visible={waitingForSleeve} transparent animationType="fade" onRequestClose={handleCancelWaiting}>
+        <View style={styles.sleeveWaitBackdrop}>
+          <View style={styles.sleeveWaitCard}>
+            <ActivityIndicator color="#D0BCFF" size="large" style={{ marginBottom: 16 }} />
+            <Text style={styles.sleeveWaitTitle}>Press the button on the card you want to place in the library.</Text>
+            <Pressable style={[styles.cancelBtn, { marginTop: 16 }]} onPress={handleCancelWaiting}>
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Place in Library — step 2: position picker */}
+      <Modal visible={placePositionVisible} transparent animationType="slide" onRequestClose={() => { setPlacePositionVisible(false); setPlaceCard(null); }}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <Pressable style={styles.sheetBackdrop} onPress={() => setPlaceModalVisible(false)}>
+          <Pressable style={styles.sheetBackdrop} onPress={() => { setPlacePositionVisible(false); setPlaceCard(null); }}>
             <Pressable style={styles.sheet} onPress={() => {}}>
               <View style={styles.sheetHandle} />
               <Text style={styles.sheetTitle}>Place in Library</Text>
-              <Text style={styles.sheetLabel}>Direction</Text>
+              {placeCard && <Text style={[styles.sheetLabel, { marginBottom: 12 }]}>{placeCard.displayName}</Text>}
               <View style={styles.segRow}>
                 <Pressable
                   style={[styles.segBtn, placeFrom === 'top' && styles.segBtnActive]}
                   onPress={() => setPlaceFrom('top')}
                 >
-                  <Text style={[styles.segBtnText, placeFrom === 'top' && styles.segBtnTextActive]}>From Top</Text>
+                  <Text style={[styles.segBtnText, placeFrom === 'top' && styles.segBtnTextActive]}>Top</Text>
                 </Pressable>
                 <Pressable
                   style={[styles.segBtn, placeFrom === 'bottom' && styles.segBtnActive]}
                   onPress={() => setPlaceFrom('bottom')}
                 >
-                  <Text style={[styles.segBtnText, placeFrom === 'bottom' && styles.segBtnTextActive]}>From Bottom</Text>
+                  <Text style={[styles.segBtnText, placeFrom === 'bottom' && styles.segBtnTextActive]}>Bottom</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.segBtn, placeFrom === 'position' && styles.segBtnActive]}
+                  onPress={() => setPlaceFrom('position')}
+                >
+                  <Text style={[styles.segBtnText, placeFrom === 'position' && styles.segBtnTextActive]}>Position</Text>
                 </Pressable>
               </View>
-              <Text style={styles.sheetLabel}>Position</Text>
-              <TextInput
-                style={styles.sheetInput}
-                value={placePositionText}
-                onChangeText={setPlacePositionText}
-                keyboardType="number-pad"
-                selectTextOnFocus
-                autoFocus
-              />
+              {placeFrom === 'position' && (
+                <>
+                  <Text style={styles.sheetLabel}>Position from top</Text>
+                  <TextInput
+                    style={styles.sheetInput}
+                    value={placePositionText}
+                    onChangeText={setPlacePositionText}
+                    keyboardType="number-pad"
+                    selectTextOnFocus
+                    autoFocus
+                  />
+                </>
+              )}
               <View style={styles.sheetActions}>
-                <Pressable style={styles.cancelBtn} onPress={() => { setPlaceModalVisible(false); setPlacePositionText('1'); }}>
+                <Pressable style={styles.cancelBtn} onPress={() => { setPlacePositionVisible(false); setPlaceCard(null); }}>
                   <Text style={styles.cancelBtnText}>Cancel</Text>
                 </Pressable>
-                <Pressable style={styles.confirmBtn} onPress={handlePlacePositionNext}>
-                  <Text style={styles.confirmBtnText}>Next</Text>
+                <Pressable style={styles.confirmBtn} onPress={handlePlaceConfirm}>
+                  <Text style={styles.confirmBtnText}>Confirm</Text>
                 </Pressable>
               </View>
             </Pressable>
@@ -1362,19 +1402,6 @@ export default function InGameScreen() {
         </Pressable>
       </Modal>
 
-      {/* Sleeve waiting modal — used by Place in Library */}
-      <Modal visible={sleeveSelectVisible} transparent animationType="fade" onRequestClose={handleCancelSleeveSelect}>
-        <View style={styles.sleeveWaitBackdrop}>
-          <View style={styles.sleeveWaitCard}>
-            <ActivityIndicator color="#D0BCFF" size="large" style={{ marginBottom: 16 }} />
-            <Text style={styles.sleeveWaitTitle}>{sleeveWaitMessage}</Text>
-            <Text style={styles.sleeveWaitCountdown}>{sleeveSelectCountdown}s</Text>
-            <Pressable style={styles.cancelBtn} onPress={handleCancelSleeveSelect}>
-              <Text style={styles.cancelBtnText}>Cancel</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
 
     </View>
   );
