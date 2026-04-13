@@ -180,12 +180,10 @@ export function assignSleeveIds(
   const physZones = new Set(settings.physicalZones);
   const depth = settings.librarySleeveDepth ?? 1;
 
-  // Build ordered list of cards that get a sleeve
-  const sleeved: CardInstance[] = [];
-
-  // Commander always gets sleeve 1
-  const commander = cards.find(c => c.place === 'commander');
-  if (commander) sleeved.push(commander);
+  // Sleeve 1 is permanently reserved for the commander and is never part of the
+  // non-commander fill loop. Non-commander cards always start at sleeve 2.
+  const nonCommanderSlots = settings.sleeveCount - 1;
+  const nonCommanderSleeved: CardInstance[] = [];
 
   const addZone = (zone: string) => {
     let zoneCards: CardInstance[];
@@ -200,19 +198,21 @@ export function assignSleeveIds(
       zoneCards = cards.filter(c => c.zone === zone && c.place !== 'commander');
     }
     for (const card of zoneCards) {
-      if (sleeved.length >= settings.sleeveCount) return;
-      if (!sleeved.includes(card)) sleeved.push(card);
+      if (nonCommanderSleeved.length >= nonCommanderSlots) return;
+      if (!nonCommanderSleeved.includes(card)) nonCommanderSleeved.push(card);
     }
   };
 
   for (const zone of ['LIB', 'HND', 'BTFLD', 'GRV', 'EXL']) {
-    if (sleeved.length >= settings.sleeveCount) break;
+    if (nonCommanderSleeved.length >= nonCommanderSlots) break;
     if (physZones.has(zone)) addZone(zone);
   }
 
-  // Build a set of cards that got a sleeve, in order → their sleeveId is index+1
+  // Commander → sleeve 1 (always). Non-commander cards → sleeves 2..N.
   const sleevedSet = new Map<CardInstance, number>();
-  sleeved.forEach((c, i) => sleevedSet.set(c, i + 1));
+  const commander = cards.find(c => c.place === 'commander');
+  if (commander) sleevedSet.set(commander, 1);
+  nonCommanderSleeved.forEach((c, i) => sleevedSet.set(c, i + 2));
 
   return cards.map(c => ({ ...c, sleeveId: sleevedSet.get(c) ?? null }));
 }
