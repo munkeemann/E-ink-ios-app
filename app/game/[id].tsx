@@ -428,6 +428,10 @@ export default function InGameScreen() {
       await saveDeck(updated);
       setDeck(updated);
       syncSleeves(finalCards);
+      // Update zone strips: HND cards → zone 3, LIB cards → zone 4
+      for (const c of finalCards) {
+        if (c.sleeveId !== null) pushZoneUpdateViaPi(c.sleeveId, c.zone).catch(() => {});
+      }
     } else {
       // After a mulligan the new hand is already in HND; remind about bottoming.
       Alert.alert(
@@ -465,31 +469,32 @@ export default function InGameScreen() {
       return;
     }
 
-    // Build updated card array with card in its new zone.
-    // sleeveIds are intentionally left stale here — assignSleeveIds recalculates everything.
-    const withMove = deckCards.map(c => c === card ? { ...c, zone: destZone } : c);
-    const commanderCards = withMove.filter(c => c.place === 'commander');
-    const libCards = withMove
-      .filter(c => c.zone === 'LIB' && c.place !== 'commander')
-      .map((c, i) => ({ ...c, place: String(i + 1) }));
-    const otherCards = withMove.filter(c => c.zone !== 'LIB' && c.place !== 'commander');
-
-    // Reassign ALL sleeve IDs from scratch.
-    // This cascades the library correctly: if a lib card left, the next one fills its sleeve.
-    // If a lib card entered HND/BTFLD, it gets a new sleeve and the new top-of-lib takes its old one.
-    const newCards = assignSleeveIds([...commanderCards, ...libCards, ...otherCards], settings);
-
-    // Push zone-strip updates for every card that still has a sleeve.
-    // (Cards now in GRV/EXL have sleeveId=null after reassignment — no update needed for them.)
-    for (const c of newCards) {
-      if (c.sleeveId !== null) pushZoneUpdateViaPi(c.sleeveId, c.zone).catch(() => {});
+    // Only GRV/EXL free a physical sleeve — cascade the library to fill the gap.
+    // For HND, BTFLD, CMD and all other destinations the card keeps its current sleeve;
+    // only the zone strip needs updating.
+    if (destZone === 'GRV' || destZone === 'EXL') {
+      const withMove = deckCards.map(c => c === card ? { ...c, zone: destZone } : c);
+      const commanderCards = withMove.filter(c => c.place === 'commander');
+      const libCards = withMove
+        .filter(c => c.zone === 'LIB' && c.place !== 'commander')
+        .map((c, i) => ({ ...c, place: String(i + 1) }));
+      const otherCards = withMove.filter(c => c.zone !== 'LIB' && c.place !== 'commander');
+      const newCards = assignSleeveIds([...commanderCards, ...libCards, ...otherCards], settings);
+      for (const c of newCards) {
+        if (c.sleeveId !== null) pushZoneUpdateViaPi(c.sleeveId, c.zone).catch(() => {});
+      }
+      pushNewlySleevedImages(deckCards, newCards);
+      const newDeck = { ...deck, cards: newCards };
+      await saveDeck(newDeck);
+      setDeck(newDeck);
+    } else {
+      // Card keeps its sleeve — just move the zone flag and update the strip.
+      const newCards = deckCards.map(c => c === card ? { ...c, zone: destZone } : c);
+      if (card.sleeveId !== null) pushZoneUpdateViaPi(card.sleeveId, destZone).catch(() => {});
+      const newDeck = { ...deck, cards: newCards };
+      await saveDeck(newDeck);
+      setDeck(newDeck);
     }
-    // Push a new image only to sleeves that now carry a different card.
-    pushNewlySleevedImages(deckCards, newCards);
-
-    const newDeck = { ...deck, cards: newCards };
-    await saveDeck(newDeck);
-    setDeck(newDeck);
   };
 
   // ─── Move selected cards ──────────────────────────────────────────────────
@@ -515,25 +520,34 @@ export default function InGameScreen() {
       return acc;
     }, []);
 
-    const commanderCards = withMove.filter(c => c.place === 'commander');
-    const libCards = withMove
-      .filter(c => c.zone === 'LIB' && c.place !== 'commander')
-      .map((c, i) => ({ ...c, place: String(i + 1) }));
-    const otherCards = withMove.filter(c => c.zone !== 'LIB' && c.place !== 'commander');
-
-    // Reassign ALL sleeve IDs from scratch so library cascades fill any gaps
-    const newCards = assignSleeveIds([...commanderCards, ...libCards, ...otherCards], settings);
-
-    // Push zone-strip updates for every card that still has a sleeve
-    for (const c of newCards) {
-      if (c.sleeveId !== null) pushZoneUpdateViaPi(c.sleeveId, c.zone).catch(() => {});
+    // Only GRV/EXL free physical sleeves — cascade the library to fill the gap.
+    // For all other destinations cards keep their sleeves; just update zone strips.
+    if (destZone === 'GRV' || destZone === 'EXL') {
+      const commanderCards = withMove.filter(c => c.place === 'commander');
+      const libCards = withMove
+        .filter(c => c.zone === 'LIB' && c.place !== 'commander')
+        .map((c, i) => ({ ...c, place: String(i + 1) }));
+      const otherCards = withMove.filter(c => c.zone !== 'LIB' && c.place !== 'commander');
+      const newCards = assignSleeveIds([...commanderCards, ...libCards, ...otherCards], settings);
+      for (const c of newCards) {
+        if (c.sleeveId !== null) pushZoneUpdateViaPi(c.sleeveId, c.zone).catch(() => {});
+      }
+      pushNewlySleevedImages(deckCards, newCards);
+      const newDeck = { ...deck, cards: newCards };
+      await saveDeck(newDeck);
+      setDeck(newDeck);
+    } else {
+      // Cards keep their sleeves — push zone strips only for selected cards that have one.
+      for (const c of deckCards) {
+        const isSelected = keys.has(cardKey(c)) && (c.zone === sourceZone || (sourceZone === 'BTFLD' && c.zone === 'TKN'));
+        if (isSelected && !c.isToken && c.sleeveId !== null) {
+          pushZoneUpdateViaPi(c.sleeveId, destZone).catch(() => {});
+        }
+      }
+      const newDeck = { ...deck, cards: withMove };
+      await saveDeck(newDeck);
+      setDeck(newDeck);
     }
-    // Push a new image only to sleeves that now carry a different card
-    pushNewlySleevedImages(deckCards, newCards);
-
-    const newDeck = { ...deck, cards: newCards };
-    await saveDeck(newDeck);
-    setDeck(newDeck);
   };
 
   const openMoveSelectedPicker = () => {
