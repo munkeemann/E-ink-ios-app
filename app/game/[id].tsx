@@ -15,7 +15,7 @@ import {
   View,
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { PI_SERVER, assignSleeveIds, beginGame, clearSleeve, getRegisteredSleeves, pushCardToSleeve, pushZoneUpdateViaPi, waitForSleeveSelection } from '../../src/api/piServer';
+import { PI_SERVER, assignSleeveIds, beginGame, getRegisteredSleeves, pushCardToSleeve, pushZoneUpdateViaPi, waitForSleeveSelection } from '../../src/api/piServer';
 import { fetchTokenImage } from '../../src/api/scryfall';
 import { getDeck, loadSettings, saveDeck } from '../../src/storage/deckStorage';
 import { AppSettings, CardInstance, Deck, TokenTemplate } from '../../src/types';
@@ -261,6 +261,25 @@ export default function InGameScreen() {
     beginGame(updatedCards, sleeves, undefined, undefined, settings).catch(() => {});
   };
 
+  // ─── Push images only for sleeves whose card assignment changed ───────────
+  // Use this instead of syncSleeves for single-card zone moves to avoid the
+  // clear+display race condition. Only sleeves that now carry a *different*
+  // card (or a card that is newly sleeved) get a fresh image push.
+  const pushNewlySleevedImages = (oldCards: CardInstance[], newCards: CardInstance[]) => {
+    if (!connectedSleeves || connectedSleeves.length === 0) return;
+    const oldSleeveToName = new Map<number, string>();
+    for (const c of oldCards) {
+      if (c.sleeveId !== null) oldSleeveToName.set(c.sleeveId, c.displayName);
+    }
+    const registered = new Set(connectedSleeves);
+    for (const c of newCards) {
+      if (c.sleeveId === null || !registered.has(c.sleeveId)) continue;
+      if (oldSleeveToName.get(c.sleeveId) !== c.displayName) {
+        pushCardToSleeve(c).catch(() => {});
+      }
+    }
+  };
+
   // ─── Shuffle ──────────────────────────────────────────────────────────────
   const handleShuffle = async () => {
     const deckCards = Array.isArray(deck?.cards) ? deck!.cards : [];
@@ -418,7 +437,6 @@ export default function InGameScreen() {
 
     // Tokens leaving the battlefield are removed entirely
     if (card.isToken && destZone !== 'BTFLD' && destZone !== 'TKN') {
-      if (card.sleeveId !== null) clearSleeve(card.sleeveId).catch(() => {});
       const without = deckCards.filter(c => c !== card);
       const commanderCards = without.filter(c => c.place === 'commander');
       const libCards = without
@@ -430,17 +448,11 @@ export default function InGameScreen() {
       for (const c of newCards) {
         if (c.sleeveId !== null) pushZoneUpdateViaPi(c.sleeveId, c.zone).catch(() => {});
       }
+      pushNewlySleevedImages(deckCards, newCards);
       const newDeck = { ...deck, cards: newCards };
       await saveDeck(newDeck);
       setDeck(newDeck);
-      syncSleeves(newCards);
       return;
-    }
-
-    // If leaving a physical zone for GRV/EXL/CMD, blank the sleeve now.
-    // (The sleeve slot will be filled by the cascade after assignSleeveIds.)
-    if (card.sleeveId !== null && !isDestPhysical) {
-      clearSleeve(card.sleeveId).catch(() => {});
     }
 
     // Build updated card array with card in its new zone.
@@ -457,15 +469,17 @@ export default function InGameScreen() {
     // If a lib card entered HND/BTFLD, it gets a new sleeve and the new top-of-lib takes its old one.
     const newCards = assignSleeveIds([...commanderCards, ...libCards, ...otherCards], settings);
 
-    // Push zone-display updates for every card that now has a sleeve
+    // Push zone-strip updates for every card that still has a sleeve.
+    // (Cards now in GRV/EXL have sleeveId=null after reassignment — no update needed for them.)
     for (const c of newCards) {
       if (c.sleeveId !== null) pushZoneUpdateViaPi(c.sleeveId, c.zone).catch(() => {});
     }
+    // Push a new image only to sleeves that now carry a different card.
+    pushNewlySleevedImages(deckCards, newCards);
 
     const newDeck = { ...deck, cards: newCards };
     await saveDeck(newDeck);
     setDeck(newDeck);
-    syncSleeves(newCards);  // pushes images for all sleeved cards via beginGame
   };
 
   // ─── Move selected cards ──────────────────────────────────────────────────
@@ -481,23 +495,12 @@ export default function InGameScreen() {
       ? settings.physicalZones.includes('BTFLD')
       : settings.physicalZones.includes(destZone);
 
-    // Blank sleeves for cards leaving a physical zone for GRV/EXL
-    if (!isDestPhysical) {
-      for (const c of deckCards) {
-        const isSelected = keys.has(cardKey(c)) && (c.zone === sourceZone || (sourceZone === 'BTFLD' && c.zone === 'TKN'));
-        if (isSelected && c.sleeveId !== null) clearSleeve(c.sleeveId).catch(() => {});
-      }
-    }
-
     // Build updated card array: move selected cards, remove tokens leaving battlefield
     const withMove = deckCards.reduce<CardInstance[]>((acc, c) => {
       const isSelected = keys.has(cardKey(c)) && (c.zone === sourceZone || (sourceZone === 'BTFLD' && c.zone === 'TKN'));
       if (!isSelected) { acc.push(c); return acc; }
       // Tokens leaving the battlefield are deleted, not moved
-      if (c.isToken && destZone !== 'BTFLD' && destZone !== 'TKN') {
-        // clearSleeve already handled above
-        return acc;
-      }
+      if (c.isToken && destZone !== 'BTFLD' && destZone !== 'TKN') return acc;
       acc.push({ ...c, zone: destZone });
       return acc;
     }, []);
@@ -511,15 +514,16 @@ export default function InGameScreen() {
     // Reassign ALL sleeve IDs from scratch so library cascades fill any gaps
     const newCards = assignSleeveIds([...commanderCards, ...libCards, ...otherCards], settings);
 
-    // Push zone-display updates for every card that now has a sleeve
+    // Push zone-strip updates for every card that still has a sleeve
     for (const c of newCards) {
       if (c.sleeveId !== null) pushZoneUpdateViaPi(c.sleeveId, c.zone).catch(() => {});
     }
+    // Push a new image only to sleeves that now carry a different card
+    pushNewlySleevedImages(deckCards, newCards);
 
     const newDeck = { ...deck, cards: newCards };
     await saveDeck(newDeck);
     setDeck(newDeck);
-    syncSleeves(newCards);
   };
 
   const openMoveSelectedPicker = () => {
