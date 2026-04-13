@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -152,7 +152,8 @@ export default function DeckPreviewScreen() {
     setDeck(updated);
   };
 
-  const uniqueGalleryCards = useMemo(() => {
+  // Plain computation (deck is guaranteed non-null here, after the early return above)
+  const uniqueGalleryCards: CardInstance[] = (() => {
     const allCards = [...(commander ? [commander] : []), ...library];
     const seen = new Set<string>();
     const result: CardInstance[] = [];
@@ -163,7 +164,7 @@ export default function DeckPreviewScreen() {
       }
     }
     return result;
-  }, [commander, library]);
+  })();
 
   const renderCard = ({ item }: { item: CardInstance }) => (
     <Pressable style={styles.cardRow} onLongPress={() => setArtPopupCard(item)}>
@@ -218,6 +219,7 @@ export default function DeckPreviewScreen() {
         {viewMode === 'list' ? (
           /* Card list */
           <FlatList
+            key="list"
             data={[...(commander ? [commander] : []), ...library]}
             keyExtractor={(c, i) => `${c.baseName}-${i}`}
             renderItem={renderCard}
@@ -226,6 +228,7 @@ export default function DeckPreviewScreen() {
         ) : (
           /* Gallery — unique cards in a 2-column grid */
           <FlatList
+            key="gallery"
             data={uniqueGalleryCards}
             keyExtractor={(c, i) => `gallery-${c.baseName}-${i}`}
             numColumns={2}
