@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -32,6 +32,9 @@ export default function DeckPreviewScreen() {
     devMode: false,
     piDebugAlerts: false,
   });
+
+  const [viewMode, setViewMode] = useState<'list' | 'gallery'>('list');
+  const [artPopupCard, setArtPopupCard] = useState<CardInstance | null>(null);
 
   const [addTokenVisible, setAddTokenVisible] = useState(false);
   const [newTokenName, setNewTokenName] = useState('');
@@ -149,13 +152,26 @@ export default function DeckPreviewScreen() {
     setDeck(updated);
   };
 
+  const uniqueGalleryCards = useMemo(() => {
+    const allCards = [...(commander ? [commander] : []), ...library];
+    const seen = new Set<string>();
+    const result: CardInstance[] = [];
+    for (const c of allCards) {
+      if (!seen.has(c.baseName)) {
+        seen.add(c.baseName);
+        result.push(c);
+      }
+    }
+    return result;
+  }, [commander, library]);
+
   const renderCard = ({ item }: { item: CardInstance }) => (
-    <View style={styles.cardRow}>
+    <Pressable style={styles.cardRow} onLongPress={() => setArtPopupCard(item)}>
       <Text style={styles.cardIndex}>
         {item.place === 'commander' ? '⚔' : settings.devMode ? item.place : '·'}
       </Text>
       <Text style={styles.cardName}>{item.displayName}</Text>
-    </View>
+    </Pressable>
   );
 
   return (
@@ -182,17 +198,54 @@ export default function DeckPreviewScreen() {
         </View>
       </View>
 
+      {/* View toggle */}
+      <View style={styles.viewToggleBar}>
+        <Pressable
+          style={[styles.viewToggleBtn, viewMode === 'list' && styles.viewToggleBtnActive]}
+          onPress={() => setViewMode('list')}
+        >
+          <Text style={[styles.viewToggleBtnText, viewMode === 'list' && styles.viewToggleBtnTextActive]}>≡ List</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.viewToggleBtn, viewMode === 'gallery' && styles.viewToggleBtnActive]}
+          onPress={() => setViewMode('gallery')}
+        >
+          <Text style={[styles.viewToggleBtnText, viewMode === 'gallery' && styles.viewToggleBtnTextActive]}>▦ Gallery</Text>
+        </Pressable>
+      </View>
+
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        {/* Card list */}
-        <FlatList
-          data={[...(commander ? [commander] : []), ...library]}
-          keyExtractor={(c, i) => `${c.baseName}-${i}`}
-          renderItem={renderCard}
-          scrollEnabled={false}
-        />
+        {viewMode === 'list' ? (
+          /* Card list */
+          <FlatList
+            data={[...(commander ? [commander] : []), ...library]}
+            keyExtractor={(c, i) => `${c.baseName}-${i}`}
+            renderItem={renderCard}
+            scrollEnabled={false}
+          />
+        ) : (
+          /* Gallery — unique cards in a 2-column grid */
+          <FlatList
+            data={uniqueGalleryCards}
+            keyExtractor={(c, i) => `gallery-${c.baseName}-${i}`}
+            numColumns={2}
+            renderItem={({ item }) => (
+              <Pressable style={styles.galleryTile} onLongPress={() => setArtPopupCard(item)}>
+                {item.imagePath ? (
+                  <Image source={{ uri: item.imagePath }} style={styles.galleryArt} resizeMode="cover" />
+                ) : (
+                  <View style={[styles.galleryArt, styles.galleryArtPlaceholder]} />
+                )}
+                <Text style={styles.galleryName} numberOfLines={2}>{item.displayName}</Text>
+              </Pressable>
+            )}
+            scrollEnabled={false}
+            contentContainerStyle={styles.galleryGrid}
+          />
+        )}
 
         {/* Manage Tokens section */}
-        <View style={styles.sectionHeader}>
+        <View style={[styles.sectionHeader, viewMode === 'gallery' && { marginTop: 0 }]}>
           <Text style={styles.sectionTitle}>Token Library</Text>
           <Pressable style={styles.addTokenBtn} onPress={() => setAddTokenVisible(true)}>
             <Text style={styles.addTokenBtnText}>+ Add</Text>
@@ -315,6 +368,15 @@ export default function DeckPreviewScreen() {
               </Pressable>
             </View>
           </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Card art popup (long press) */}
+      <Modal visible={artPopupCard !== null} transparent animationType="fade" onRequestClose={() => setArtPopupCard(null)}>
+        <Pressable style={styles.artBackdrop} onPress={() => setArtPopupCard(null)}>
+          {artPopupCard?.imagePath ? (
+            <Image source={{ uri: artPopupCard.imagePath }} style={styles.artFull} resizeMode="contain" />
+          ) : null}
         </Pressable>
       </Modal>
     </View>
@@ -489,4 +551,37 @@ const styles = StyleSheet.create({
   colorBtnText: { fontSize: 18 },
   colorBtnLabel: { color: '#625b71', fontSize: 11, fontWeight: '800' },
   colorBtnLabelActive: { color: '#D0BCFF' },
+
+  viewToggleBar: {
+    flexDirection: 'row',
+    padding: 8,
+    gap: 8,
+    backgroundColor: '#353A40',
+    borderBottomWidth: 1,
+    borderColor: '#4a4f55',
+  },
+  viewToggleBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#4a4f55',
+  },
+  viewToggleBtnActive: { backgroundColor: '#6650a4', borderColor: '#6650a4' },
+  viewToggleBtnText: { color: '#625b71', fontSize: 14, fontWeight: '700' },
+  viewToggleBtnTextActive: { color: '#D0BCFF' },
+
+  galleryGrid: { padding: 4 },
+  galleryTile: {
+    flex: 1,
+    margin: 4,
+    alignItems: 'center',
+  },
+  galleryArt: { width: '100%', aspectRatio: 0.72, borderRadius: 8 },
+  galleryArtPlaceholder: { backgroundColor: '#4a4f55' },
+  galleryName: { color: '#D4CDC1', fontSize: 12, textAlign: 'center', marginTop: 4, paddingHorizontal: 4 },
+
+  artBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center' },
+  artFull: { width: '90%', height: '80%' },
 });

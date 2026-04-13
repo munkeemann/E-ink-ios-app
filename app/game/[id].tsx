@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -74,6 +75,11 @@ export default function InGameScreen() {
 
   const [scryModalVisible, setScryModalVisible] = useState(false);
   const [scryCountText, setScryCountText] = useState('3');
+
+  const [revealModalVisible, setRevealModalVisible] = useState(false);
+  const [revealCountText, setRevealCountText] = useState('3');
+
+  const [artPopupCard, setArtPopupCard] = useState<CardInstance | null>(null);
 
   const [tutorModalVisible, setTutorModalVisible] = useState(false);
   const [tutorQuery, setTutorQuery] = useState('');
@@ -591,6 +597,14 @@ export default function InGameScreen() {
     router.push({ pathname: '/scry', params: { deckId: id, count: String(n) } });
   };
 
+  // ─── Reveal ───────────────────────────────────────────────────────────────
+  const handleRevealConfirm = () => {
+    const n = parseInt(revealCountText, 10);
+    if (isNaN(n) || n < 1) { Alert.alert('Invalid', 'Enter a number ≥ 1'); return; }
+    setRevealModalVisible(false);
+    router.push({ pathname: '/reveal', params: { deckId: id, count: String(n) } });
+  };
+
   // ─── Tutor ────────────────────────────────────────────────────────────────
   const handleTutor = async () => {
     const q = tutorQuery.trim().toLowerCase();
@@ -948,6 +962,10 @@ export default function InGameScreen() {
             <Text style={styles.actionIcon}>👁</Text>
             <Text style={styles.actionLabel}>Scry</Text>
           </Pressable>
+          <Pressable style={[styles.actionBtn, busy && styles.btnDisabled]} onPress={() => setRevealModalVisible(true)} disabled={busy}>
+            <Text style={styles.actionIcon}>🃏</Text>
+            <Text style={styles.actionLabel}>Reveal</Text>
+          </Pressable>
           <Pressable style={[styles.actionBtn, busy && styles.btnDisabled]} onPress={() => setTutorModalVisible(true)} disabled={busy}>
             <Text style={styles.actionIcon}>🔍</Text>
             <Text style={styles.actionLabel}>Tutor</Text>
@@ -1038,7 +1056,9 @@ export default function InGameScreen() {
                           {isSelected && <Text style={styles.checkmark}>✓</Text>}
                         </Pressable>
                       )}
-                      <Text style={styles.cardName}>{item.displayName}</Text>
+                      <Pressable style={styles.cardNameWrapper} onLongPress={() => setArtPopupCard(item)}>
+                        <Text style={styles.cardName}>{item.displayName}</Text>
+                      </Pressable>
                       {isToken && <Text style={styles.tokenBadge}>Token</Text>}
                     </View>
                   );
@@ -1124,6 +1144,28 @@ export default function InGameScreen() {
                 </Pressable>
                 <Pressable style={styles.confirmBtn} onPress={handleScryConfirm}>
                   <Text style={styles.confirmBtnText}>Scry</Text>
+                </Pressable>
+              </View>
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Reveal — bottom sheet */}
+      <Modal visible={revealModalVisible} transparent animationType="slide" onRequestClose={() => setRevealModalVisible(false)}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <Pressable style={styles.sheetBackdrop} onPress={() => setRevealModalVisible(false)}>
+            <Pressable style={styles.sheet} onPress={() => {}}>
+              <View style={styles.sheetHandle} />
+              <Text style={styles.sheetTitle}>Reveal</Text>
+              <Text style={styles.sheetLabel}>How many cards?</Text>
+              <TextInput style={styles.sheetInput} value={revealCountText} onChangeText={setRevealCountText} keyboardType="number-pad" selectTextOnFocus autoFocus />
+              <View style={styles.sheetActions}>
+                <Pressable style={styles.cancelBtn} onPress={() => setRevealModalVisible(false)}>
+                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                </Pressable>
+                <Pressable style={styles.confirmBtn} onPress={handleRevealConfirm}>
+                  <Text style={styles.confirmBtnText}>Reveal</Text>
                 </Pressable>
               </View>
             </Pressable>
@@ -1407,6 +1449,15 @@ export default function InGameScreen() {
       </Modal>
 
 
+      {/* Card art popup (long press) */}
+      <Modal visible={artPopupCard !== null} transparent animationType="fade" onRequestClose={() => setArtPopupCard(null)}>
+        <Pressable style={styles.artBackdrop} onPress={() => setArtPopupCard(null)}>
+          {artPopupCard?.imagePath ? (
+            <Image source={{ uri: artPopupCard.imagePath }} style={styles.artFull} resizeMode="contain" />
+          ) : null}
+        </Pressable>
+      </Modal>
+
     </View>
   );
 }
@@ -1564,7 +1615,8 @@ const styles = StyleSheet.create({
   },
   checkboxChecked: { backgroundColor: '#6650a4', borderColor: '#D0BCFF' },
   checkmark: { color: '#D0BCFF', fontSize: 13, fontWeight: '800' },
-  cardName: { flex: 1, color: '#D4CDC1', fontSize: 15 },
+  cardNameWrapper: { flex: 1 },
+  cardName: { color: '#D4CDC1', fontSize: 15 },
   tokenBadge: { color: '#f59e0b', fontSize: 11, fontWeight: '700', marginLeft: 6 },
 
   tabRow: { flexDirection: 'row', marginBottom: 16, borderRadius: 8, backgroundColor: '#292E32', padding: 3 },
@@ -1656,5 +1708,8 @@ const styles = StyleSheet.create({
   },
   sleeveWaitTitle: { color: '#D0BCFF', fontSize: 16, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
   sleeveWaitCountdown: { color: '#9ca3af', fontSize: 36, fontWeight: '800', marginBottom: 20 },
+
+  artBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center' },
+  artFull: { width: '90%', height: '80%' },
 
 });
