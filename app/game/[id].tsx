@@ -15,7 +15,7 @@ import {
   View,
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { PI_SERVER, assignSleeveIds, beginGame, getRegisteredSleeves, pushCardToSleeve, pushZoneUpdateViaPi, waitForSleeveSelection } from '../../src/api/piServer';
+import { fetchZones, assignSleeveIds, beginGame, getRegisteredSleeves, pushCardToSleeve, pushZoneUpdateViaPi, waitForSleeveSelection } from '../../src/api/piServer';
 import { fetchTokenImage } from '../../src/api/scryfall';
 import { getDeck, loadSettings, saveDeck } from '../../src/storage/deckStorage';
 import { AppSettings, CardInstance, Deck, TokenTemplate } from '../../src/types';
@@ -158,11 +158,7 @@ export default function InGameScreen() {
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 3000);
-        const resp = await fetch(`${PI_SERVER}/zones`, { signal: controller.signal }).finally(() => clearTimeout(timer));
-        if (!resp.ok) return;
-        const data = await resp.json() as Array<{ sleeve_id: number; zone_name: string }>;
+        const zoneMap = await fetchZones(); // {"2": "EXL", "3": "LIB", ...}
 
         const currentDeck = deckRef.current;
         if (!currentDeck) return;
@@ -170,18 +166,29 @@ export default function InGameScreen() {
         let changed = false;
         const updatedCards = [...(Array.isArray(currentDeck.cards) ? currentDeck.cards : [])];
 
-        for (const item of data) {
-          const prevZone = zonesSnapshotRef.current[item.sleeve_id];
-          zonesSnapshotRef.current[item.sleeve_id] = item.zone_name;
+        for (const [idStr, zoneName] of Object.entries(zoneMap)) {
+          const sleeveId = Number(idStr);
+          const prevZone = zonesSnapshotRef.current[sleeveId];
+          zonesSnapshotRef.current[sleeveId] = zoneName;
           // Only act on changes we didn't already know about
-          if (prevZone === undefined || prevZone === item.zone_name) continue;
+          if (prevZone === undefined || prevZone === zoneName) continue;
           // Map Pi zone name to app Zone type
-          const destZone = item.zone_name as Zone;
-          if (!['LIB', 'HND', 'BTFLD', 'GRV', 'EXL', 'CMD'].includes(destZone)) continue;
-          const idx = updatedCards.findIndex(c => c.sleeveId === item.sleeve_id);
-          if (idx === -1) continue;
+          const destZone = zoneName as Zone;
+          if (!['LIB', 'HND', 'BTFLD', 'GRV', 'EXL', 'CMD'].includes(destZone)) {
+            console.log(`[ZonePoll] sleeve ${sleeveId}: unrecognised zone name "${zoneName}" — skipping`);
+            continue;
+          }
+          const idx = updatedCards.findIndex(c => c.sleeveId === sleeveId);
+          if (idx === -1) {
+            console.log(`[ZonePoll] sleeve ${sleeveId}: no card found with this sleeveId — skipping`);
+            continue;
+          }
           const card = updatedCards[idx];
-          if (card.zone === destZone) continue; // already in sync
+          if (card.zone === destZone) {
+            console.log(`[ZonePoll] sleeve ${sleeveId} (${card.displayName}): already in zone ${destZone} — no-op`);
+            continue;
+          }
+          console.log(`[ZonePoll] sleeve ${sleeveId} (${card.displayName}): ${card.zone} → ${destZone}`);
           updatedCards[idx] = { ...card, zone: destZone };
           changed = true;
         }

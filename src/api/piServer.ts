@@ -143,7 +143,7 @@ export async function pushZoneUpdate(
 }
 
 /**
- * Routes a zone-index update through the Pi server (POST /zone_update_sleeve).
+ * Routes a zone-index update through the Pi server (POST /set_zone).
  * The Pi looks up the sleeve IP from its registry and forwards the request,
  * so the app does not need to maintain an IP map.
  * Zone index mapping: LIB=4, HND=3, BTFLD/TKN/CMD=2, GRV=1, EXL=0.
@@ -157,7 +157,7 @@ export async function pushZoneUpdateViaPi(
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 3000);
-    await fetch(`${serverUrl}/zone_update_sleeve`, {
+    await fetch(`${serverUrl}/set_zone`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sleeve_id: sleeveId, zone_index: zoneIndex }),
@@ -256,6 +256,30 @@ export async function pushCardToSleeve(
 }
 
 /**
+ * Fetches /zones and returns a sleeveId→zoneName map.
+ * Pi returns {"zones": {"2": "EXL", "3": "LIB", ...}}.
+ * Returns an empty object if the Pi is unreachable or the response is malformed.
+ */
+export async function fetchZones(serverUrl: string = PI_SERVER): Promise<Record<number, string>> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 3000);
+  const resp = await fetch(`${serverUrl}/zones`, { signal: controller.signal }).finally(() => clearTimeout(timer));
+  if (!resp.ok) return {};
+  const raw = await resp.json() as unknown;
+  // Expected shape: {"zones": {"2": "EXL", ...}}
+  if (raw && typeof raw === 'object' && 'zones' in raw) {
+    const map = (raw as { zones: Record<string, string> }).zones;
+    const result: Record<number, string> = {};
+    for (const [idStr, zoneName] of Object.entries(map)) {
+      const id = Number(idStr);
+      if (!isNaN(id)) result[id] = zoneName;
+    }
+    return result;
+  }
+  return {};
+}
+
+/**
  * Snapshots /zones then polls every 500ms for any sleeve whose zone_name changed.
  * Returns the sleeve_id of the first changed sleeve, or null on timeout or cancellation.
  * Pass isCancelled to allow the caller to abort early (e.g. user taps Cancel).
@@ -266,15 +290,9 @@ export async function waitForSleeveSelection(
   serverUrl: string = PI_SERVER,
 ): Promise<number | null> {
   // Snapshot current zone state
-  const snapshot: Record<number, string> = {};
+  let snapshot: Record<number, string> = {};
   try {
-    const c1 = new AbortController();
-    const t1 = setTimeout(() => c1.abort(), 3000);
-    const resp = await fetch(`${serverUrl}/zones`, { signal: c1.signal }).finally(() => clearTimeout(t1));
-    if (resp.ok) {
-      const data = await resp.json() as Array<{ sleeve_id: number; zone_name: string }>;
-      for (const item of data) snapshot[item.sleeve_id] = item.zone_name;
-    }
+    snapshot = await fetchZones(serverUrl);
   } catch {
     return null;
   }
@@ -285,13 +303,10 @@ export async function waitForSleeveSelection(
     await sleep(500);
     if (isCancelled()) return null;
     try {
-      const c2 = new AbortController();
-      const t2 = setTimeout(() => c2.abort(), 3000);
-      const resp = await fetch(`${serverUrl}/zones`, { signal: c2.signal }).finally(() => clearTimeout(t2));
-      if (!resp.ok) continue;
-      const data = await resp.json() as Array<{ sleeve_id: number; zone_name: string }>;
-      for (const item of data) {
-        if (snapshot[item.sleeve_id] !== item.zone_name) return item.sleeve_id;
+      const current = await fetchZones(serverUrl);
+      for (const [idStr, zoneName] of Object.entries(current)) {
+        const id = Number(idStr);
+        if (snapshot[id] !== zoneName) return id;
       }
     } catch {
       // Pi offline or slow — keep polling

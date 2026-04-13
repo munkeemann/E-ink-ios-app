@@ -11,7 +11,7 @@ Endpoints
 GET  /sleeves               — return {"sleeves": {id: ip, ...}}
 POST /display?sleeve_id=N   — forward JPEG body to sleeve /display
 POST /clear?sleeve_id=N     — tell sleeve to blank its display
-POST /zone_update_sleeve    — forward a zone-index update to a sleeve's /zone endpoint
+POST /set_zone              — forward a zone-index update to a sleeve's /zone endpoint
 GET  /zones                 — return per-sleeve zone state as seen by the Pi
 """
 
@@ -87,8 +87,8 @@ def clear():
 
 # ── Zone update (app → Pi → sleeve) ─────────────────────────────────────────
 
-@app.route("/zone_update_sleeve", methods=["POST"])
-def zone_update_sleeve():
+@app.route("/set_zone", methods=["POST"])
+def set_zone():
     """
     Body: {"sleeve_id": <int>, "zone_index": <int 0-4>}
     Looks up the sleeve IP from the registry and POSTs {"zone": zone_index}
@@ -141,16 +141,16 @@ def zone_report():
 def get_zones():
     """
     Returns the last-known zone for every registered sleeve.
-    Response: [{"sleeve_id": <int>, "zone_name": <str>}, ...]
+    Response: {"zones": {"2": "EXL", "3": "LIB", ...}}
     """
     with sleeves_lock:
         registered = set(sleeves.keys())
     with zones_lock:
-        result = [
-            {"sleeve_id": sid, "zone_name": sleeve_zones.get(sid, "LIB")}
+        result = {
+            str(sid): sleeve_zones.get(sid, "LIB")
             for sid in registered
-        ]
-    return jsonify(result)
+        }
+    return jsonify({"zones": result})
 
 
 if __name__ == "__main__":
