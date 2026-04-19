@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { assignSleeveIds, beginGame, getRegisteredSleeves } from '../../src/api/piServer';
+import { fetchPrintings, ScryfallPrinting } from '../../src/api/scryfall';
 import { getDeck, loadSettings, saveDeck } from '../../src/storage/deckStorage';
 import { AppSettings, CardInstance, Deck, TokenTemplate } from '../../src/types';
 
@@ -35,6 +36,10 @@ export default function DeckPreviewScreen() {
 
   const [viewMode, setViewMode] = useState<'list' | 'gallery'>('list');
   const [artPopupCard, setArtPopupCard] = useState<CardInstance | null>(null);
+
+  const [pickerCard, setPickerCard] = useState<CardInstance | null>(null);
+  const [printings, setPrintings] = useState<ScryfallPrinting[]>([]);
+  const [printingsLoading, setPrintingsLoading] = useState(false);
 
   const [addTokenVisible, setAddTokenVisible] = useState(false);
   const [newTokenName, setNewTokenName] = useState('');
@@ -152,6 +157,60 @@ export default function DeckPreviewScreen() {
     setDeck(updated);
   };
 
+  const openPrintingPicker = async (card: CardInstance) => {
+    setPickerCard(card);
+    setPrintings([]);
+    setPrintingsLoading(true);
+    try {
+      const results = await fetchPrintings(card.baseName);
+      setPrintings(results);
+    } finally {
+      setPrintingsLoading(false);
+    }
+  };
+
+  const closePrintingPicker = () => {
+    setPickerCard(null);
+    setPrintings([]);
+  };
+
+  const handleSwapPrinting = (printing: ScryfallPrinting) => {
+    if (!pickerCard || !deck) return;
+    const fromLabel = pickerCard.setCode
+      ? `${pickerCard.baseName} (${pickerCard.setCode} ${pickerCard.collectorNumber ?? ''})`
+      : pickerCard.baseName;
+    const toLabel = `${printing.setName} #${printing.collectorNumber}`;
+    Alert.alert(
+      'Swap printing?',
+      `Replace ${fromLabel} with ${toLabel}?\n\nAll copies of this printing in the deck will be updated. You can swap back anytime.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Swap',
+          onPress: async () => {
+            const updatedCards = deck.cards.map(c => {
+              if (c.baseName !== pickerCard.baseName) return c;
+              // Only update cards sharing the same current printing
+              if (c.setCode !== pickerCard.setCode || c.collectorNumber !== pickerCard.collectorNumber) return c;
+              return {
+                ...c,
+                imagePath: printing.imagePath,
+                backImagePath: printing.backImagePath,
+                setCode: printing.set,
+                collectorNumber: printing.collectorNumber,
+                scryfallId: printing.id,
+              };
+            });
+            const updatedDeck: Deck = { ...deck, cards: updatedCards, schemaVersion: 2 };
+            await saveDeck(updatedDeck);
+            setDeck(updatedDeck);
+            closePrintingPicker();
+          },
+        },
+      ],
+    );
+  };
+
   // Plain computation (deck is guaranteed non-null here, after the early return above)
   const uniqueGalleryCards: CardInstance[] = (() => {
     const allCards = [...(commander ? [commander] : []), ...library];
@@ -167,11 +226,21 @@ export default function DeckPreviewScreen() {
   })();
 
   const renderCard = ({ item }: { item: CardInstance }) => (
-    <Pressable style={styles.cardRow} onLongPress={() => setArtPopupCard(item)}>
+    <Pressable
+      style={styles.cardRow}
+      onPress={() => openPrintingPicker(item)}
+      onLongPress={() => setArtPopupCard(item)}
+    >
       <Text style={styles.cardIndex}>
         {item.place === 'commander' ? '⚔' : settings.devMode ? item.place : '·'}
       </Text>
-      <Text style={styles.cardName}>{item.displayName}</Text>
+      <View style={styles.cardNameRow}>
+        <Text style={styles.cardName}>{item.displayName}</Text>
+        {item.setCode && (
+          <Text style={styles.cardSetBadge}>{item.setCode} · {item.collectorNumber}</Text>
+        )}
+      </View>
+      <Text style={styles.cardPickArrow}>›</Text>
     </Pressable>
   );
 
@@ -382,6 +451,100 @@ export default function DeckPreviewScreen() {
           ) : null}
         </Pressable>
       </Modal>
+
+      {/* Printing picker sheet */}
+      <Modal
+        visible={pickerCard !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={closePrintingPicker}
+      >
+        <Pressable style={styles.sheetBackdrop} onPress={closePrintingPicker}>
+          <Pressable style={styles.pickerSheet} onPress={() => {}}>
+            <View style={styles.sheetHandle} />
+
+            <View style={styles.pickerHeader}>
+              <View style={styles.pickerTitleBlock}>
+                <Text style={styles.pickerTitle} numberOfLines={1}>
+                  {pickerCard?.baseName}
+                </Text>
+                {pickerCard?.setCode && (
+                  <Text style={styles.pickerCurrentPrinting}>
+                    Current: {pickerCard.setCode} · {pickerCard.collectorNumber}
+                  </Text>
+                )}
+              </View>
+              <Pressable style={styles.pickerCloseBtn} onPress={closePrintingPicker} hitSlop={10}>
+                <Text style={styles.pickerCloseBtnText}>✕</Text>
+              </Pressable>
+            </View>
+
+            {printingsLoading ? (
+              <View style={styles.pickerLoading}>
+                <ActivityIndicator color="#D0BCFF" size="large" />
+                <Text style={styles.pickerLoadingText}>Loading printings…</Text>
+              </View>
+            ) : (
+              <>
+                <Text style={styles.pickerCount}>
+                  {printings.length} printing{printings.length !== 1 ? 's' : ''}
+                </Text>
+                <FlatList
+                  data={printings}
+                  keyExtractor={p => p.id}
+                  style={styles.pickerList}
+                  initialNumToRender={12}
+                  maxToRenderPerBatch={12}
+                  windowSize={5}
+                  removeClippedSubviews
+                  renderItem={({ item }) => {
+                    const isCurrentPrinting =
+                      item.set === pickerCard?.setCode &&
+                      item.collectorNumber === pickerCard?.collectorNumber;
+                    const year = item.releasedAt.slice(0, 4);
+                    return (
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.printingRow,
+                          isCurrentPrinting && styles.printingRowCurrent,
+                          pressed && styles.printingRowPressed,
+                        ]}
+                        onPress={() => handleSwapPrinting(item)}
+                      >
+                        {item.imagePath ? (
+                          <Image
+                            source={{ uri: item.imagePath }}
+                            style={styles.printingThumb}
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <View style={[styles.printingThumb, styles.printingThumbPlaceholder]} />
+                        )}
+                        <View style={styles.printingInfo}>
+                          <Text style={styles.printingSetName} numberOfLines={1}>
+                            {item.setName}
+                          </Text>
+                          <Text style={styles.printingMeta}>
+                            {item.set.toUpperCase()} · #{item.collectorNumber} · {year}
+                          </Text>
+                        </View>
+                        {isCurrentPrinting ? (
+                          <Text style={styles.printingCurrentBadge}>✓</Text>
+                        ) : (
+                          <Text style={styles.printingArrow}>›</Text>
+                        )}
+                      </Pressable>
+                    );
+                  }}
+                  ListEmptyComponent={
+                    <Text style={styles.pickerEmpty}>No printings found.</Text>
+                  }
+                />
+              </>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -422,7 +585,10 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     marginRight: 12,
   },
+  cardNameRow: { flex: 1, gap: 2 },
   cardName: { color: '#D4CDC1', fontSize: 15 },
+  cardSetBadge: { color: '#625b71', fontSize: 11 },
+  cardPickArrow: { color: '#4a4f55', fontSize: 18, marginLeft: 6 },
 
   sectionHeader: {
     flexDirection: 'row',
@@ -587,4 +753,57 @@ const styles = StyleSheet.create({
 
   artBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center' },
   artFull: { width: '90%', height: '80%' },
+
+  // ── Printing picker ────────────────────────────────────────────────────────
+  pickerSheet: {
+    backgroundColor: '#292E32',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: '#625b71',
+    paddingBottom: 36,
+    maxHeight: '88%',
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: 20,
+    paddingBottom: 8,
+    gap: 12,
+  },
+  pickerTitleBlock: { flex: 1, gap: 3 },
+  pickerTitle: { color: '#D0BCFF', fontSize: 18, fontWeight: '800' },
+  pickerCurrentPrinting: { color: '#625b71', fontSize: 12 },
+  pickerCloseBtn: { paddingTop: 2 },
+  pickerCloseBtnText: { color: '#625b71', fontSize: 16 },
+  pickerCount: {
+    color: '#625b71',
+    fontSize: 12,
+    paddingHorizontal: 20,
+    paddingBottom: 8,
+  },
+  pickerList: { flexGrow: 0 },
+  pickerLoading: { alignItems: 'center', paddingVertical: 40, gap: 12 },
+  pickerLoadingText: { color: '#9C6ADE', fontSize: 14 },
+  pickerEmpty: { color: '#625b71', fontSize: 14, padding: 20, textAlign: 'center' },
+
+  printingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: '#353A40',
+    gap: 12,
+  },
+  printingRowCurrent: { backgroundColor: 'rgba(208,188,255,0.07)' },
+  printingRowPressed: { backgroundColor: 'rgba(208,188,255,0.12)' },
+  printingThumb: { width: 44, height: 62, borderRadius: 4 },
+  printingThumbPlaceholder: { backgroundColor: '#353A40' },
+  printingInfo: { flex: 1, gap: 4 },
+  printingSetName: { color: '#D4CDC1', fontSize: 14, fontWeight: '600' },
+  printingMeta: { color: '#625b71', fontSize: 12 },
+  printingCurrentBadge: { color: '#9C6ADE', fontSize: 18, fontWeight: '700', width: 20, textAlign: 'center' },
+  printingArrow: { color: '#4a4f55', fontSize: 20, width: 20, textAlign: 'center' },
 });
