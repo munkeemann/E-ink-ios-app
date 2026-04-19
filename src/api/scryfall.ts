@@ -9,6 +9,19 @@ export interface FetchedCard {
   imagePath: string;
   backImagePath: string;
   colorIdentity: string[];
+  scryfallId?: string;
+  setCode?: string;
+  collectorNumber?: string;
+}
+
+export interface ScryfallPrinting {
+  id: string;
+  set: string;
+  setName: string;
+  collectorNumber: string;
+  releasedAt: string;
+  imagePath: string;
+  backImagePath: string;
 }
 
 interface SlimCard {
@@ -184,7 +197,14 @@ export async function fetchCards(
         const colorIdentity = Array.isArray(fuzzyCard.color_identity)
           ? (fuzzyCard.color_identity as unknown[]).filter((x): x is string => typeof x === 'string')
           : [];
-        results[name] = { imagePath, backImagePath, colorIdentity };
+        results[name] = {
+          imagePath,
+          backImagePath,
+          colorIdentity,
+          scryfallId: fuzzyCard.id as string | undefined,
+          setCode: fuzzyCard.set as string | undefined,
+          collectorNumber: fuzzyCard.collector_number as string | undefined,
+        };
       } catch {
         errors.push(`${name}: Card not found in local database`);
         results[name] = { imagePath: '', backImagePath: '', colorIdentity: [] };
@@ -194,4 +214,76 @@ export async function fetchCards(
   }
 
   return { results, errors };
+}
+
+/**
+ * Fetches the exact printing of a card via /cards/{set}/{collector_number}.
+ * Returns null on 404 (caller falls back to default printing).
+ */
+export async function fetchCardByPrinting(
+  setCode: string,
+  collectorNumber: string,
+): Promise<FetchedCard | null> {
+  try {
+    const resp = await fetch(
+      `https://api.scryfall.com/cards/${encodeURIComponent(setCode.toLowerCase())}/${encodeURIComponent(collectorNumber)}`,
+      { headers: { 'User-Agent': 'ECardsApp/1.0', Accept: 'application/json' } },
+    );
+    if (resp.status === 404) return null;
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const card = await resp.json() as Record<string, unknown>;
+    const colorIdentity = Array.isArray(card.color_identity)
+      ? (card.color_identity as unknown[]).filter((x): x is string => typeof x === 'string')
+      : [];
+    return {
+      imagePath: extractImageUrl(card) ?? '',
+      backImagePath: extractBackImageUrl(card),
+      colorIdentity,
+      scryfallId: card.id as string,
+      setCode: card.set as string,
+      collectorNumber: card.collector_number as string,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Returns all printings for a card by exact name, sorted newest-first.
+ * Uses /cards/search?q=!"Name"&unique=prints&order=released&dir=desc.
+ * Fetches all pages so no results are silently dropped.
+ */
+export async function fetchPrintings(cardName: string): Promise<ScryfallPrinting[]> {
+  const results: ScryfallPrinting[] = [];
+  const query = encodeURIComponent(`!"${cardName}"`);
+  let url: string | null =
+    `https://api.scryfall.com/cards/search?q=${query}&unique=prints&order=released&dir=desc`;
+
+  while (url) {
+    const resp = await fetch(url, {
+      headers: { 'User-Agent': 'ECardsApp/1.0', Accept: 'application/json' },
+    });
+    if (!resp.ok) break;
+    const data = await resp.json() as {
+      data: Array<Record<string, unknown>>;
+      has_more: boolean;
+      next_page?: string;
+    };
+    for (const card of data.data) {
+      const imagePath = extractImageUrl(card);
+      if (!imagePath) continue;
+      results.push({
+        id: card.id as string,
+        set: card.set as string,
+        setName: card.set_name as string,
+        collectorNumber: card.collector_number as string,
+        releasedAt: card.released_at as string,
+        imagePath,
+        backImagePath: extractBackImageUrl(card),
+      });
+    }
+    url = data.has_more && data.next_page ? data.next_page : null;
+  }
+
+  return results;
 }
