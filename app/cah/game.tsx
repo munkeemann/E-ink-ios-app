@@ -223,35 +223,44 @@ export default function CahGameScreen() {
                 )}
               </View>
 
-              {/* Hand cards */}
+              {/* Hand — card values hidden on shared phone */}
               {!isCzar && (
                 <View style={styles.handRow}>
-                  {playerHands[p].map((card, k) => {
-                    const isSubmittedSlot = submittedSlot === k;
-                    const showReveal = isRevealed && isSubmittedSlot;
-                    const canSubmit = showSubmit && !isCzar && !hasSubmitted;
-
-                    return (
-                      <Pressable
-                        key={k}
-                        style={({ pressed }) => [
-                          styles.cardChip,
-                          isSubmittedSlot && styles.cardChipSubmitted,
-                          showReveal && styles.cardChipRevealed,
-                          pressed && canSubmit && styles.cardChipPressed,
-                        ]}
-                        onPress={canSubmit ? () => handleSubmit(p, k) : undefined}
-                        disabled={!canSubmit}
-                      >
-                        <Text style={[
-                          styles.cardChipText,
-                          showReveal && styles.cardChipTextRevealed,
-                        ]} numberOfLines={3}>
-                          {showReveal ? card.text : `C${k + 1}`}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
+                  {isRevealed ? (
+                    <View style={styles.cardChipRevealed}>
+                      <Text style={styles.cardChipTextRevealed} numberOfLines={3}>
+                        {playerHands[p][submittedSlot]?.text ?? ''}
+                      </Text>
+                    </View>
+                  ) : (
+                    <>
+                      <Text style={styles.handCount}>{playerHands[p].length} cards</Text>
+                      {showSubmit && !hasSubmitted && (
+                        <Pressable
+                          style={({ pressed }) => [
+                            styles.submitBtn,
+                            pressed && styles.submitBtnPressed,
+                          ]}
+                          onPress={() => {
+                            Alert.alert(
+                              `Player ${p + 1} — Submit a card`,
+                              undefined,
+                              [
+                                ...playerHands[p].map((_, k) => ({
+                                  text: `Card ${k + 1}`,
+                                  onPress: () => handleSubmit(p, k),
+                                })),
+                                { text: 'Cancel', style: 'cancel' as const },
+                              ],
+                            );
+                          }}
+                          disabled={busy}
+                        >
+                          <Text style={styles.submitBtnText}>Submit card…</Text>
+                        </Pressable>
+                      )}
+                    </>
+                  )}
                 </View>
               )}
 
@@ -379,7 +388,18 @@ const styles = StyleSheet.create({
     borderColor: '#0e7490',
   },
 
-  handRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  handRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center' },
+  handCount: { color: '#3a6070', fontSize: 12, fontWeight: '600' },
+  submitBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    backgroundColor: '#0a2c3d',
+    borderWidth: 1,
+    borderColor: '#0e7490',
+  },
+  submitBtnPressed: { backgroundColor: '#0c2340', borderColor: '#22d3ee' },
+  submitBtnText: { color: '#22d3ee', fontSize: 12, fontWeight: '700' },
   cardChip: {
     minWidth: 44,
     maxWidth: 90,

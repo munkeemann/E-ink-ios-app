@@ -171,8 +171,8 @@ export default function HoldemGameScreen() {
           >
             <Text style={styles.playerLabel}>Player {p.playerNumber}</Text>
             <View style={styles.cardPair}>
-              <CardChip card={p.card1} revealed={p.revealed1} />
-              <CardChip card={p.card2} revealed={p.revealed2} />
+              <CardChip card={p.card1} revealed={false} />
+              <CardChip card={p.card2} revealed={false} />
             </View>
           </View>
         ))}
