@@ -17,9 +17,34 @@ export async function loadDecks(): Promise<Deck[]> {
   return raw ? (JSON.parse(raw) as Deck[]) : [];
 }
 
+function deduplicateCommander(deck: Deck): Deck {
+  const commander = deck.cards.find(c => c.place === 'commander');
+  if (!commander) return deck;
+  const removed: string[] = [];
+  const cleanedCards = deck.cards.filter(c => {
+    if (c === commander) return true;
+    if (c.baseName === commander.baseName && c.place !== 'commander') {
+      removed.push(`${c.displayName} (place=${c.place}, zone=${c.zone})`);
+      return false;
+    }
+    return true;
+  });
+  if (removed.length === 0) return deck;
+  console.warn(`[DeckMigration] "${deck.name}": removed ${removed.length} orphaned commander duplicate(s): ${removed.join(', ')}`);
+  return { ...deck, cards: cleanedCards };
+}
+
 export async function getDeck(id: string): Promise<Deck | null> {
   const decks = await loadDecks();
-  return decks.find(d => d.id === id) ?? null;
+  const idx = decks.findIndex(d => d.id === id);
+  if (idx < 0) return null;
+  const deck = decks[idx];
+  const cleaned = deduplicateCommander(deck);
+  if (cleaned !== deck) {
+    decks[idx] = cleaned;
+    await AsyncStorage.setItem(KEY, JSON.stringify(decks));
+  }
+  return cleaned;
 }
 
 export async function saveDeck(deck: Deck): Promise<void> {
