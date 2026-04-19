@@ -18,6 +18,7 @@ import {
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { fetchZones, assignSleeveIds, beginGame, getRegisteredSleeves, pushCardToSleeve, pushZoneUpdateViaPi } from '../../src/api/piServer';
 import { fetchTokenImage } from '../../src/api/scryfall';
+import { clearMemo } from '../../src/api/sleeveService';
 import { getDeck, loadSettings, saveDeck } from '../../src/storage/deckStorage';
 import { AppSettings, CardInstance, Deck, TokenTemplate } from '../../src/types';
 
@@ -342,6 +343,7 @@ export default function InGameScreen() {
       setBusy(true);
       setBusyLabel('Sending sleeves…');
       try {
+        clearMemo();
         await beginGame(newCards, sleeves, undefined, undefined, settings);
       } catch (e) {
         Alert.alert('Error', e instanceof Error ? e.message : String(e));
@@ -418,6 +420,7 @@ export default function InGameScreen() {
 
       const sleeves = connectedSleeves ?? await getRegisteredSleeves();
       if (sleeves.length > 0) {
+        clearMemo();
         await beginGame(finalCards, sleeves, undefined, undefined, settings);
       }
     } catch (e) {
@@ -644,6 +647,7 @@ export default function InGameScreen() {
       setBusy(true);
       setBusyLabel('Sending sleeves…');
       try {
+        clearMemo();
         await beginGame(newCards, sleeves, undefined, undefined, settings);
       } catch (e) {
         Alert.alert('Error', e instanceof Error ? e.message : String(e));
@@ -764,6 +768,7 @@ export default function InGameScreen() {
     const newDeck = { ...deck, cards: [...commanderCards, ...libCards, ...otherCards] };
     await saveDeck(newDeck);
     setDeck(newDeck);
+    clearMemo();
     syncSleeves(newDeck.cards);
     Alert.alert(
       `Milled ${toMill.length} card${toMill.length !== 1 ? 's' : ''}`,
