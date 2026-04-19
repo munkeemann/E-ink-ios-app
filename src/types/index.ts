@@ -26,6 +26,12 @@ export interface CardInstance {
    * Set at game-start and transferred when the card moves zones.
    */
   sleeveId: number | null;
+  /** Scryfall set code for this specific printing, e.g. "C21". Absent = default printing. */
+  setCode?: string;
+  /** Scryfall collector number for this printing, e.g. "234". Absent = default printing. */
+  collectorNumber?: string;
+  /** Scryfall UUID for this exact printing. Used to identify the card for printing swaps. */
+  scryfallId?: string;
 }
 
 export interface TokenTemplate {
@@ -48,6 +54,11 @@ export interface Deck {
   gameInProgress?: boolean;
   /** Unix ms timestamp of the last time a game was started — used to pick the most recent resume candidate */
   lastPlayedAt?: number;
+  /**
+   * 1 (or absent) = original schema, no printing metadata.
+   * 2 = cards may carry setCode / collectorNumber / scryfallId.
+   */
+  schemaVersion?: number;
 }
 
 export interface AppSettings {

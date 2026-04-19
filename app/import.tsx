@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { router } from 'expo-router';
-import { fetchCards, fetchTokenImage } from '../src/api/scryfall';
+import { fetchCardByPrinting, fetchCards, fetchTokenImage } from '../src/api/scryfall';
 import { saveDeck } from '../src/storage/deckStorage';
 import { CardInstance, Deck, TokenTemplate } from '../src/types';
 
@@ -70,24 +70,38 @@ export default function ImportDeckScreen() {
 
     const [commanderEntry, ...libraryEntries] = entries;
 
-    const libraryNames: string[] = [];
+    // Expand each DeckEntry into per-slot entries so we can track printing per card
+    const librarySlots: DeckEntry[] = [];
     for (const e of libraryEntries) {
-      for (let i = 0; i < e.count; i++) libraryNames.push(e.name);
+      for (let i = 0; i < e.count; i++) librarySlots.push(e);
     }
 
     const uniqueNames = [
-      ...new Set([commanderEntry.name, ...libraryNames]),
+      ...new Set([commanderEntry.name, ...librarySlots.map(e => e.name)]),
     ];
 
-    setProgress({ current: 0, total: uniqueNames.length });
+    // Unique printing-specified entries (deduped by set+collector key)
+    const allEntries = [commanderEntry, ...libraryEntries];
+    const uniquePrintings = [...new Map(
+      allEntries
+        .filter(e => e.setCode && e.collectorNumber)
+        .map(e => [`${e.setCode}/${e.collectorNumber}`, e]),
+    ).values()];
+
+    const totalSteps = uniqueNames.length + uniquePrintings.length;
+    setProgress({ current: 0, total: totalSteps });
     setDownloadPercent(null);
     setTokenProgress(null);
     setImporting(true);
 
     try {
+      let stepsDone = 0;
       const { results, errors } = await fetchCards(
         uniqueNames,
-        (done, total) => setProgress({ current: done, total }),
+        (done) => {
+          stepsDone = done;
+          setProgress({ current: stepsDone, total: totalSteps });
+        },
         (pct) => setDownloadPercent(pct),
       );
 
@@ -95,36 +109,65 @@ export default function ImportDeckScreen() {
         console.warn('Some cards failed:', errors);
       }
 
+      // Fetch printing-specific cards; fall back silently if 404
+      type FetchedCard = (typeof results)[string];
+      const printingMap = new Map<string, FetchedCard>();
+      for (const e of uniquePrintings) {
+        const key = `${e.setCode}/${e.collectorNumber}`;
+        const fetched = await fetchCardByPrinting(e.setCode!, e.collectorNumber!);
+        stepsDone++;
+        setProgress({ current: stepsDone, total: totalSteps });
+        if (fetched) {
+          printingMap.set(key, fetched);
+        } else {
+          console.warn(`SAM1-40: ${key} not found, falling back to name lookup for "${e.name}"`);
+        }
+      }
+
+      const getResult = (e: DeckEntry): FetchedCard => {
+        if (e.setCode && e.collectorNumber) {
+          const specific = printingMap.get(`${e.setCode}/${e.collectorNumber}`);
+          if (specific) return specific;
+        }
+        return results[e.name] ?? { imagePath: '', backImagePath: '', colorIdentity: [] };
+      };
+
       const cards: CardInstance[] = [];
 
       for (let i = 0; i < commanderEntry.count; i++) {
+        const fetched = getResult(commanderEntry);
         cards.push({
           baseName: commanderEntry.name,
           displayName:
             commanderEntry.count > 1
               ? `${commanderEntry.name} ${i + 1}`
               : commanderEntry.name,
-          imagePath: results[commanderEntry.name]?.imagePath ?? '',
-          backImagePath: results[commanderEntry.name]?.backImagePath ?? '',
+          imagePath: fetched.imagePath,
+          backImagePath: fetched.backImagePath,
           isFlipped: false,
           place: 'commander',
           zone: 'BTFLD',
           sleeveId: null,
+          setCode: commanderEntry.setCode ?? fetched.setCode,
+          collectorNumber: commanderEntry.collectorNumber ?? fetched.collectorNumber,
+          scryfallId: fetched.scryfallId,
         });
       }
 
-      const nameCount: Record<string, number> = {};
-      libraryNames.forEach((name, idx) => {
-        nameCount[name] = (nameCount[name] ?? 0) + 1;
+      librarySlots.forEach((entry, idx) => {
+        const fetched = getResult(entry);
         cards.push({
-          baseName: name,
-          displayName: name,
-          imagePath: results[name]?.imagePath ?? '',
-          backImagePath: results[name]?.backImagePath ?? '',
+          baseName: entry.name,
+          displayName: entry.name,
+          imagePath: fetched.imagePath,
+          backImagePath: fetched.backImagePath,
           isFlipped: false,
           place: String(idx + 1),
           zone: 'LIB',
           sleeveId: null,
+          setCode: entry.setCode ?? fetched.setCode,
+          collectorNumber: entry.collectorNumber ?? fetched.collectorNumber,
+          scryfallId: fetched.scryfallId,
         });
       });
 
@@ -161,13 +204,15 @@ export default function ImportDeckScreen() {
         }
       }
 
+      const commanderResult = getResult(commanderEntry);
       const deck: Deck = {
         id: Date.now().toString(),
         name: trimmedName,
-        commanderImagePath: results[commanderEntry.name]?.imagePath ?? '',
+        commanderImagePath: commanderResult.imagePath,
         colors: [...allColors].sort(),
         cards,
         tokens: tokens.length > 0 ? tokens : undefined,
+        schemaVersion: 2,
       };
 
       await saveDeck(deck);
