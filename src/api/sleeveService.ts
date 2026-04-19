@@ -55,6 +55,20 @@ export function faceDownDescriptor(primaryLabel?: string, secondaryLabel?: strin
   return d;
 }
 
+// ── CAH descriptors ──────────────────────────────────────────────────────────
+
+export function cahBlackCardDescriptor(): Descriptor {
+  return { v: 2, primary_label: 'CAH', secondary_label: 'Prompt' };
+}
+
+export function cahWhiteCardDescriptor(playerIdx: number, handSlot: number): Descriptor {
+  return {
+    v: 2,
+    primary_label: `P${playerIdx + 1}`,
+    secondary_label: `Card ${handSlot + 1}`,
+  };
+}
+
 // ── Core send ────────────────────────────────────────────────────────────────
 
 /**
