@@ -112,7 +112,10 @@ export async function sendToSleeve(
   serverUrl: string = PI_SERVER,
 ): Promise<void> {
   const fp = await fingerprint(descriptor, imageData);
-  if (lastSentHash.get(sleeveId) === fp) return;
+  if (lastSentHash.get(sleeveId) === fp) {
+    console.debug(`[SleeveService] sleeve ${sleeveId} skipped — identical to last send (${descriptor.primary_label ?? ''})`);
+    return;
+  }
 
   const boundary = `----ECBoundary${Date.now()}`;
   const CRLF = '\r\n';
@@ -152,7 +155,7 @@ export async function sendToSleeve(
     body.set(b, a.byteLength);
   }
 
-  console.log(`[SleeveService] sleeve=${sleeveId} ${JSON.stringify(descriptor)}`);
+  console.log(`[SleeveService] sleeve ${sleeveId} → ${descriptor.primary_label ?? ''} ${descriptor.secondary_label ?? ''} face_down=${!!descriptor.face_down} has_image=${!!imageData}`.trimEnd());
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10000);
