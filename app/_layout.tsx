@@ -50,6 +50,14 @@ export default function RootLayout() {
           name="holdem/game"
           options={{ title: "Texas Hold'em", contentStyle: { backgroundColor: '#060c14' } }}
         />
+        <Stack.Screen
+          name="cah/setup"
+          options={{ title: 'Cards Against Humanity', contentStyle: { backgroundColor: '#060c14' } }}
+        />
+        <Stack.Screen
+          name="cah/game"
+          options={{ title: 'Cards Against Humanity', contentStyle: { backgroundColor: '#060c14' } }}
+        />
         <Stack.Screen name="import" options={{ title: 'Import Deck' }} />
         <Stack.Screen name="deck/[id]" options={{ title: 'Deck Preview' }} />
         <Stack.Screen name="game/[id]" options={{ title: 'In Game' }} />

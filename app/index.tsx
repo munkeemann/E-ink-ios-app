@@ -10,8 +10,10 @@ import {
 import { router, useFocusEffect } from 'expo-router';
 import { loadDecks } from '../src/storage/deckStorage';
 import { loadHoldemGame } from '../src/storage/holdemStorage';
+import { loadCahGame } from '../src/storage/cahStorage';
 import { Deck } from '../src/types';
 import { HoldemGameState } from '../src/types/holdem';
+import { CahGameState } from '../src/types/cah';
 
 type GameDef = {
   id: string;
@@ -42,10 +44,10 @@ const GAMES: GameDef[] = [
   {
     id: 'cah',
     title: 'Cards Against Humanity',
-    subtitle: 'Coming soon',
+    subtitle: 'Black card prompt, white card fills',
     icon: '🃏',
-    available: false,
-    route: '/coming-soon?game=Cards+Against+Humanity',
+    available: true,
+    route: '/cah/setup',
   },
   {
     id: 'dnd',
@@ -59,7 +61,8 @@ const GAMES: GameDef[] = [
 
 type ResumeTarget =
   | { kind: 'mtg'; deck: Deck; ts: number }
-  | { kind: 'holdem'; game: HoldemGameState; ts: number };
+  | { kind: 'holdem'; game: HoldemGameState; ts: number }
+  | { kind: 'cah'; game: CahGameState; ts: number };
 
 export default function GameSelectScreen() {
   const [resume, setResume] = useState<ResumeTarget | null>(null);
@@ -80,8 +83,13 @@ export default function GameSelectScreen() {
             ? ({ kind: 'holdem', game, ts: game.startedAt } as ResumeTarget)
             : null,
         ),
-      ]).then(([mtg, holdem]) => {
-        const candidates = [mtg, holdem].filter((c): c is ResumeTarget => c !== null);
+        loadCahGame().then(game =>
+          game
+            ? ({ kind: 'cah', game, ts: game.startedAt } as ResumeTarget)
+            : null,
+        ),
+      ]).then(([mtg, holdem, cah]) => {
+        const candidates = [mtg, holdem, cah].filter((c): c is ResumeTarget => c !== null);
         if (candidates.length === 0) { setResume(null); return; }
         setResume(candidates.reduce((best, c) => (c.ts > best.ts ? c : best)));
       });
@@ -91,7 +99,8 @@ export default function GameSelectScreen() {
   const handleResume = () => {
     if (!resume) return;
     if (resume.kind === 'mtg') router.push(`/game/${resume.deck.id}` as any);
-    else router.push('/holdem/game');
+    else if (resume.kind === 'holdem') router.push('/holdem/game');
+    else router.push('/cah/game');
   };
 
   const resumeName =
@@ -99,7 +108,9 @@ export default function GameSelectScreen() {
       ? resume.deck.name
       : resume?.kind === 'holdem'
         ? `Hold'em — ${resume.game.playerCount} players`
-        : null;
+        : resume?.kind === 'cah'
+          ? `CAH — ${resume.game.playerCount} players`
+          : null;
 
   const renderGame = ({ item }: { item: GameDef }) => (
     <Pressable
