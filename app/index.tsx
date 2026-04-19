@@ -109,7 +109,6 @@ export default function GameSelectScreen() {
         pressed && item.available && styles.tilePressed,
       ]}
       onPress={() => router.push(item.route as any)}
-      disabled={!item.available}
     >
       <Text style={styles.tileIcon}>{item.icon}</Text>
       <Text style={[styles.tileTitle, !item.available && styles.tileTitleDim]}>
