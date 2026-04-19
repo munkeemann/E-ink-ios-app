@@ -25,7 +25,7 @@ import CardRenderer, { CardRendererRef } from '../../src/shared/CardRenderer';
 
 async function pushUpdates(
   updates: CahSleeveUpdate[],
-  rendererRef: React.RefObject<CardRendererRef>,
+  rendererRef: React.RefObject<CardRendererRef | null>,
 ): Promise<void> {
   for (const u of updates) {
     let imageData: ArrayBuffer | undefined;
