@@ -92,7 +92,7 @@ function descriptorForSlot(slot: SleeveSlot, phase: HoldemPhase): Descriptor {
 
 // ── Sleeve updates ────────────────────────────────────────────────────────────
 
-export type SleeveUpdate = { sleeveId: number; descriptor: Descriptor };
+export type SleeveUpdate = { sleeveId: number; descriptor: Descriptor; card?: PlayingCard };
 
 /** All sleeve descriptors for the state's current phase — used at game-start. */
 export function allSleeveUpdates(state: HoldemGameState): SleeveUpdate[] {
@@ -102,6 +102,7 @@ export function allSleeveUpdates(state: HoldemGameState): SleeveUpdate[] {
     .map(([sleeveId, slot]) => ({
       sleeveId,
       descriptor: descriptorForSlot(slot, state.phase),
+      card: isFaceUp(slot, state.phase) ? state.sleeveCards[sleeveId] : undefined,
     }));
 }
 
@@ -120,7 +121,7 @@ function deltaSleeveUpdates(
     const wasUp = isFaceUp(slot, fromPhase);
     const nowUp = isFaceUp(slot, toPhase);
     if (!wasUp && nowUp) {
-      updates.push({ sleeveId, descriptor: descriptorForSlot(slot, toPhase) });
+      updates.push({ sleeveId, descriptor: descriptorForSlot(slot, toPhase), card: state.sleeveCards[sleeveId] });
     }
   }
   return updates.sort((a, b) => a.sleeveId - b.sleeveId);

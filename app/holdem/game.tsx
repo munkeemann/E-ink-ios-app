@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -23,6 +23,7 @@ import {
 import { loadHoldemGame, saveHoldemGame, clearHoldemGame } from '../../src/storage/holdemStorage';
 import { sendToSleeve, clearMemo } from '../../src/api/sleeveService';
 import { HoldemGameState, PlayingCard, Suit } from '../../src/types/holdem';
+import CardRenderer, { CardRendererRef } from '../../src/shared/CardRenderer';
 
 const SUIT_COLOR: Record<Suit, string> = {
   S: '#e0f7ff', H: '#f87171', D: '#f87171', C: '#e0f7ff',
@@ -43,6 +44,7 @@ function CardChip({ card, revealed }: { card: PlayingCard; revealed: boolean }) 
 export default function HoldemGameScreen() {
   const [state, setState] = useState<HoldemGameState | null>(null);
   const [busy, setBusy] = useState(false);
+  const rendererRef = useRef<CardRendererRef>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -72,7 +74,13 @@ export default function HoldemGameScreen() {
       await saveHoldemGame(newState);
       if (newState.phase === 'pre_deal') clearMemo();
       for (const u of sleeveUpdates) {
-        await sendToSleeve(u.sleeveId, u.descriptor).catch(() => {});
+        let imageData: ArrayBuffer | undefined;
+        if (u.card && rendererRef.current) {
+          try {
+            imageData = await rendererRef.current.captureHoldem(u.card.rank, u.card.suit);
+          } catch { /* send descriptor-only if render fails */ }
+        }
+        await sendToSleeve(u.sleeveId, u.descriptor, imageData).catch(() => {});
       }
     } finally {
       setBusy(false);
@@ -126,6 +134,9 @@ export default function HoldemGameScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+
+      {/* Off-screen card renderer for generating hole/community card JPEGs */}
+      <CardRenderer ref={rendererRef} />
 
       {/* Phase header */}
       <View style={styles.phaseRow}>

@@ -4,11 +4,14 @@ import { captureRef } from 'react-native-view-shot';
 
 export interface CardRendererRef {
   capture(text: string, scheme: 'black' | 'white'): Promise<ArrayBuffer>;
+  captureHoldem(rank: string, suit: string): Promise<ArrayBuffer>;
 }
 
 interface CardState {
   text: string;
-  scheme: 'black' | 'white';
+  scheme: 'black' | 'white' | 'holdem';
+  rank?: string;
+  suit?: string;
 }
 
 const CardRenderer = forwardRef<CardRendererRef>((_, ref) => {
@@ -23,6 +26,13 @@ const CardRenderer = forwardRef<CardRendererRef>((_, ref) => {
         resolveRef.current = resolve;
         rejectRef.current = reject;
         setCard({ text, scheme });
+      });
+    },
+    async captureHoldem(rank: string, suit: string): Promise<ArrayBuffer> {
+      return new Promise<ArrayBuffer>((resolve, reject) => {
+        resolveRef.current = resolve;
+        rejectRef.current = reject;
+        setCard({ text: '', scheme: 'holdem', rank, suit });
       });
     },
   }));
@@ -51,21 +61,31 @@ const CardRenderer = forwardRef<CardRendererRef>((_, ref) => {
   };
 
   const isBlack = card.scheme === 'black';
+  const isHoldem = card.scheme === 'holdem';
 
   return (
     <View style={styles.offscreen} pointerEvents="none">
       <View
         ref={viewRef}
-        style={[styles.card, isBlack ? styles.cardBlack : styles.cardWhite]}
+        style={[styles.card, isHoldem ? styles.cardHoldem : isBlack ? styles.cardBlack : styles.cardWhite]}
         onLayout={handleLayout}
         collapsable={false}
       >
-        <Text style={[styles.cardText, isBlack ? styles.cardTextBlack : styles.cardTextWhite]}>
-          {card.text}
-        </Text>
-        <Text style={[styles.cardFooter, isBlack ? styles.footerBlack : styles.footerWhite]}>
-          {isBlack ? '■ CAH' : '□ CAH'}
-        </Text>
+        {isHoldem ? (
+          <>
+            <Text style={styles.holdemRank}>{card.rank}</Text>
+            <Text style={styles.holdemSuit}>{card.suit}</Text>
+          </>
+        ) : (
+          <>
+            <Text style={[styles.cardText, isBlack ? styles.cardTextBlack : styles.cardTextWhite]}>
+              {card.text}
+            </Text>
+            <Text style={[styles.cardFooter, isBlack ? styles.footerBlack : styles.footerWhite]}>
+              {isBlack ? '■ CAH' : '□ CAH'}
+            </Text>
+          </>
+        )}
       </View>
     </View>
   );
@@ -97,6 +117,7 @@ const styles = StyleSheet.create({
   },
   cardBlack: { backgroundColor: '#050505' },
   cardWhite: { backgroundColor: '#f5f0e8' },
+  cardHoldem: { backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
 
   cardText: {
     fontSize: 28,
@@ -115,4 +136,18 @@ const styles = StyleSheet.create({
   },
   footerBlack: { color: '#888888' },
   footerWhite: { color: '#444444' },
+
+  holdemRank: {
+    fontSize: 120,
+    fontWeight: '900',
+    color: '#111111',
+    lineHeight: 132,
+    textAlign: 'center',
+  },
+  holdemSuit: {
+    fontSize: 108,
+    fontWeight: '900',
+    color: '#111111',
+    textAlign: 'center',
+  },
 });
