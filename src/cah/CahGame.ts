@@ -311,7 +311,9 @@ function startNextRound(state: CahGameState): {
     roundWinner: null,
   };
 
-  return { newState, sleeveUpdates: allSleeveUpdates(newState) };
+  // No sleeve push here — "Deal Cards" (pre_deal→dealt) is the single
+  // button that owns the visible push, consistent with Hold'em semantics.
+  return { newState, sleeveUpdates: [] };
 }
 
 // ── Phase button labels ───────────────────────────────────────────────────────
