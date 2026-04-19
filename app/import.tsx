@@ -19,6 +19,8 @@ import { CardInstance, Deck, TokenTemplate } from '../src/types';
 interface DeckEntry {
   name: string;
   count: number;
+  setCode?: string;
+  collectorNumber?: string;
 }
 
 function parseDeckList(text: string): DeckEntry[] {
@@ -27,9 +29,14 @@ function parseDeckList(text: string): DeckEntry[] {
     .map(l => l.trim())
     .filter(Boolean)
     .flatMap(line => {
-      const m = line.match(/^(\d+)\s+(.+)$/);
-      if (m) return [{ count: parseInt(m[1], 10), name: m[2].trim() }];
-      return [];
+      // Matches "4 Card Name" or "4 Card Name (SET) 123"
+      const m = line.match(/^(\d+)\s+(.+?)(?:\s+\(([A-Za-z0-9]{2,6})\)(?:\s+(\S+))?)?$/);
+      if (!m) return [];
+      const [, countStr, name, setCode, collectorNumber] = m;
+      const entry: DeckEntry = { count: parseInt(countStr, 10), name: name.trim() };
+      if (setCode) entry.setCode = setCode.toUpperCase();
+      if (collectorNumber) entry.collectorNumber = collectorNumber;
+      return [entry];
     });
 }
 
@@ -229,7 +236,7 @@ export default function ImportDeckScreen() {
 
         <Text style={styles.label}>Deck List</Text>
         <Text style={styles.hint}>
-          One card per line: "1 Card Name". First line is the commander.
+          One card per line: "1 Card Name" or "1 Card Name (SET) 123". First line is the commander.
         </Text>
         <TextInput
           style={[styles.input, styles.textArea]}
