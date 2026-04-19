@@ -669,6 +669,12 @@ export default function InGameScreen() {
   // Step 2: position chosen → execute placement
   const handlePlaceConfirm = async () => {
     if (!placeCard || !deck) return;
+    if (placeCard.place === 'commander') {
+      console.warn('[PlaceInLibrary] refusing to place commander in library');
+      setPlaceCard(null);
+      setPlacePositionVisible(false);
+      return;
+    }
     const deckCards = Array.isArray(deck.cards) ? deck.cards : [];
 
     let insertIdx: number;
