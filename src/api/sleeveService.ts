@@ -69,6 +69,33 @@ export function cahWhiteCardDescriptor(playerIdx: number, handSlot: number): Des
   };
 }
 
+// ── Dedup memo ───────────────────────────────────────────────────────────────
+
+const lastSentHash = new Map<number, string>();
+
+async function fingerprint(descriptor: Descriptor, imageData?: ArrayBuffer): Promise<string> {
+  const descStr = JSON.stringify(descriptor);
+  const imgLen = imageData?.byteLength ?? 0;
+  const imgSample = imageData
+    ? Array.from(new Uint8Array(imageData, 0, Math.min(32, imageData.byteLength)))
+        .map(b => b.toString(16).padStart(2, '0')).join('')
+    : '';
+  const raw = `${descStr}\x00${imgLen}\x00${imgSample}`;
+  if (typeof crypto !== 'undefined' && crypto.subtle) {
+    const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
+    return Array.from(new Uint8Array(hash)).slice(0, 8)
+      .map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  let h = 5381;
+  for (let i = 0; i < raw.length; i++) h = (((h << 5) + h) ^ raw.charCodeAt(i)) >>> 0;
+  return h.toString(16).padStart(8, '0');
+}
+
+export function clearMemo(sleeveId?: number): void {
+  if (sleeveId === undefined) lastSentHash.clear();
+  else lastSentHash.delete(sleeveId);
+}
+
 // ── Core send ────────────────────────────────────────────────────────────────
 
 /**
@@ -84,6 +111,9 @@ export async function sendToSleeve(
   imageData?: ArrayBuffer,
   serverUrl: string = PI_SERVER,
 ): Promise<void> {
+  const fp = await fingerprint(descriptor, imageData);
+  if (lastSentHash.get(sleeveId) === fp) return;
+
   const boundary = `----ECBoundary${Date.now()}`;
   const CRLF = '\r\n';
   const enc = new TextEncoder();
@@ -139,4 +169,5 @@ export async function sendToSleeve(
   }
 
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  lastSentHash.set(sleeveId, fp);
 }

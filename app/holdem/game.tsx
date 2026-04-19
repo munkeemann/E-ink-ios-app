@@ -21,7 +21,7 @@ import {
   totalSleeveCount,
 } from '../../src/holdem/HoldemSleeveLayout';
 import { loadHoldemGame, saveHoldemGame, clearHoldemGame } from '../../src/storage/holdemStorage';
-import { sendToSleeve } from '../../src/api/sleeveService';
+import { sendToSleeve, clearMemo } from '../../src/api/sleeveService';
 import { HoldemGameState, PlayingCard, Suit } from '../../src/types/holdem';
 
 const SUIT_COLOR: Record<Suit, string> = {
@@ -70,6 +70,7 @@ export default function HoldemGameScreen() {
       const { newState, sleeveUpdates } = advance(state);
       setState(newState);
       await saveHoldemGame(newState);
+      if (newState.phase === 'pre_deal') clearMemo();
       for (const u of sleeveUpdates) {
         await sendToSleeve(u.sleeveId, u.descriptor).catch(() => {});
       }

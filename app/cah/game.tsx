@@ -19,7 +19,7 @@ import {
   totalCahSleeveCount,
 } from '../../src/cah/CahGame';
 import { loadCahGame, saveCahGame, clearCahGame } from '../../src/storage/cahStorage';
-import { sendToSleeve } from '../../src/api/sleeveService';
+import { sendToSleeve, clearMemo } from '../../src/api/sleeveService';
 import { CahGameState } from '../../src/types/cah';
 import CardRenderer, { CardRendererRef } from '../../src/shared/CardRenderer';
 
@@ -73,6 +73,7 @@ export default function CahGameScreen() {
     if (busy) return;
     setBusy(true);
     try {
+      if (state.phase === 'winner') clearMemo();
       const { newState, sleeveUpdates } = advanceCah(state);
       setState(newState);
       await saveCahGame(newState);

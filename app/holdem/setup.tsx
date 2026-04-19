@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { router } from 'expo-router';
 import { createGame, allSleeveUpdates } from '../../src/holdem/HoldemGame';
 import { saveHoldemGame } from '../../src/storage/holdemStorage';
-import { sendToSleeve } from '../../src/api/sleeveService';
+import { sendToSleeve, clearMemo } from '../../src/api/sleeveService';
 import { totalSleeveCount } from '../../src/holdem/HoldemSleeveLayout';
 
 const MIN_PLAYERS = 2;
@@ -19,6 +19,7 @@ export default function HoldemSetupScreen() {
       await saveHoldemGame(state);
 
       // Push face-down descriptors to all sleeves to initialise displays
+      clearMemo();
       const updates = allSleeveUpdates(state);
       for (const u of updates) {
         await sendToSleeve(u.sleeveId, u.descriptor).catch(() => {});

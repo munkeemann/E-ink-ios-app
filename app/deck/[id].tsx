@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { assignSleeveIds, beginGame, getRegisteredSleeves } from '../../src/api/piServer';
+import { clearMemo } from '../../src/api/sleeveService';
 import { fetchPrintings, ScryfallPrinting } from '../../src/api/scryfall';
 import { getDeck, loadSettings, saveDeck } from '../../src/storage/deckStorage';
 import { AppSettings, CardInstance, Deck, TokenTemplate } from '../../src/types';
@@ -103,6 +104,7 @@ export default function DeckPreviewScreen() {
       setDeck(newDeck);
 
       const sleeves = await getRegisteredSleeves();
+      clearMemo();
       await beginGame(newCards, sleeves, (sent, total) => setSendProgress({ sent, total }), undefined, settings);
       router.push(`/game/${deck.id}?freshStart=true`);
     } catch (e) {
