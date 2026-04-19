@@ -170,6 +170,12 @@ export default function InGameScreen() {
             pushZoneUpdateViaPi(sleeveId, prevZone).catch(() => {});
             zonesSnapshotRef.current[sleeveId] = prevZone; // keep snapshot stable
             if (card) {
+              if (card.place === 'commander') {
+                // Commander is ineligible for Place in Library — silently ignore,
+                // keep the waiting state so the user can press a different sleeve.
+                console.log(`[PlaceInLib] sleeve ${sleeveId} is commander — ignoring`);
+                continue;
+              }
               waitingForSleeveRef.current = false;
               setWaitingForSleeve(false);
               setPlaceCard(card);
