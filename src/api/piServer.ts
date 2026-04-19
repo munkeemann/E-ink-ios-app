@@ -1,7 +1,8 @@
 import { Alert } from 'react-native';
 import { AppSettings, CardInstance } from '../types';
+import { PI_SERVER, mtgDescriptor, sendToSleeve } from './sleeveService';
 
-export const PI_SERVER = 'http://192.168.86.193:5050';
+export { PI_SERVER };
 
 /** Set to true via configurePiDebug() to show blocking step-by-step alerts. */
 let _piDebugAlerts = false;
@@ -242,11 +243,7 @@ export async function pushCardToSleeve(
     const imageResp = await fetch(card.imagePath);
     if (!imageResp.ok) return;
     const buf = await imageResp.arrayBuffer();
-    await fetch(`${serverUrl}/display?sleeve_id=${card.sleeveId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'image/jpeg' },
-      body: buf,
-    });
+    await sendToSleeve(card.sleeveId, mtgDescriptor(card.sleeveId, card.zone), buf, serverUrl);
   } catch {
     // Pi offline — fail silently
   }
@@ -378,17 +375,8 @@ export async function beginGame(
         const arrayBuffer = await imageResp.arrayBuffer();
 
         await alertWait(`beginGame: sleeve ${sid}`, `Image fetched (${arrayBuffer.byteLength} bytes). POSTing to Pi…`);
-        const uploadResp = await fetch(`${serverUrl}/display?sleeve_id=${sid}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'image/jpeg' },
-          body: arrayBuffer,
-        });
-
-        if (uploadResp.ok) {
-          await alertWait(`beginGame: sleeve ${sid} ✓`, `HTTP ${uploadResp.status}`);
-        } else {
-          await alertWait(`beginGame: sleeve ${sid} REJECTED`, `HTTP ${uploadResp.status}`);
-        }
+        await sendToSleeve(sid, mtgDescriptor(sid, card.zone), arrayBuffer, serverUrl);
+        await alertWait(`beginGame: sleeve ${sid} ✓`, 'Sent OK');
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         console.error(`[Pi] Sleeve ${sid} failed:`, msg);
