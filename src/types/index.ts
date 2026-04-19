@@ -46,6 +46,8 @@ export interface Deck {
   tokens?: TokenTemplate[];
   /** True while a game session is active for this deck */
   gameInProgress?: boolean;
+  /** Unix ms timestamp of the last time a game was started — used to pick the most recent resume candidate */
+  lastPlayedAt?: number;
 }
 
 export interface AppSettings {

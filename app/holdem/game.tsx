@@ -1,0 +1,288 @@
+import { useCallback, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import {
+  advance,
+  cardLabel,
+  PHASE_BUTTON_LABEL,
+  SUIT_SYMBOL,
+} from '../../src/holdem/HoldemGame';
+import {
+  buildSleeveLayout,
+  isFaceUp,
+  totalSleeveCount,
+} from '../../src/holdem/HoldemSleeveLayout';
+import { loadHoldemGame, saveHoldemGame, clearHoldemGame } from '../../src/storage/holdemStorage';
+import { sendToSleeve } from '../../src/api/sleeveService';
+import { HoldemGameState, PlayingCard, Suit } from '../../src/types/holdem';
+
+const SUIT_COLOR: Record<Suit, string> = {
+  S: '#e0f7ff', H: '#f87171', D: '#f87171', C: '#e0f7ff',
+};
+
+const COMMUNITY_SLEEVE_LABELS = ['Flop 1', 'Flop 2', 'Flop 3', 'Turn', 'River'];
+
+function CardChip({ card, revealed }: { card: PlayingCard; revealed: boolean }) {
+  return (
+    <View style={[styles.chip, !revealed && styles.chipHidden]}>
+      <Text style={[styles.chipText, revealed && { color: SUIT_COLOR[card.suit] }]}>
+        {revealed ? cardLabel(card) : '?'}
+      </Text>
+    </View>
+  );
+}
+
+export default function HoldemGameScreen() {
+  const [state, setState] = useState<HoldemGameState | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadHoldemGame().then(s => {
+        if (!s) { router.replace('/holdem/setup'); return; }
+        setState(s);
+      });
+    }, []),
+  );
+
+  if (!state) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator color="#22d3ee" size="large" />
+      </View>
+    );
+  }
+
+  const layout = buildSleeveLayout(state.playerCount);
+
+  const handleAdvance = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const { newState, sleeveUpdates } = advance(state);
+      setState(newState);
+      await saveHoldemGame(newState);
+      for (const u of sleeveUpdates) {
+        await sendToSleeve(u.sleeveId, u.descriptor).catch(() => {});
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleEnd = () => {
+    Alert.alert('End Game', 'End this session and return to the game select screen?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'End Game',
+        style: 'destructive',
+        onPress: async () => {
+          await clearHoldemGame();
+          router.back();
+        },
+      },
+    ]);
+  };
+
+  // Build player rows: each player has two sleeve IDs
+  const players = Array.from({ length: state.playerCount }, (_, i) => {
+    const p = i + 1;
+    const s1 = (p - 1) * 2 + 1;
+    const s2 = (p - 1) * 2 + 2;
+    const slot1 = layout.get(s1)!;
+    const slot2 = layout.get(s2)!;
+    return {
+      playerNumber: p,
+      card1: state.sleeveCards[s1],
+      card2: state.sleeveCards[s2],
+      revealed1: isFaceUp(slot1, state.phase),
+      revealed2: isFaceUp(slot2, state.phase),
+    };
+  });
+
+  // Community cards
+  const communityBase = state.playerCount * 2;
+  const community = COMMUNITY_SLEEVE_LABELS.map((label, i) => {
+    const sid = communityBase + i + 1;
+    const slot = layout.get(sid)!;
+    return {
+      label,
+      card: state.sleeveCards[sid],
+      revealed: isFaceUp(slot, state.phase),
+    };
+  });
+
+  const phaseLabel = state.phase.replace('_', ' ').toUpperCase();
+  const sleeveTotal = totalSleeveCount(state.playerCount);
+
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+
+      {/* Phase header */}
+      <View style={styles.phaseRow}>
+        <View style={styles.phaseBadge}>
+          <Text style={styles.phaseText}>{phaseLabel}</Text>
+        </View>
+        <Text style={styles.sleeveInfo}>{sleeveTotal} sleeves</Text>
+      </View>
+
+      {/* Advance button */}
+      <Pressable
+        style={({ pressed }) => [styles.advanceBtn, (pressed || busy) && styles.advanceBtnPressed]}
+        onPress={handleAdvance}
+        disabled={busy}
+      >
+        {busy ? (
+          <ActivityIndicator color="#060c14" />
+        ) : (
+          <Text style={styles.advanceBtnLabel}>
+            {PHASE_BUTTON_LABEL[state.phase]}  →
+          </Text>
+        )}
+      </Pressable>
+
+      {/* Players */}
+      <Text style={styles.sectionHeader}>Players</Text>
+      <View style={styles.tableCard}>
+        {players.map((p, i) => (
+          <View
+            key={p.playerNumber}
+            style={[styles.playerRow, i < players.length - 1 && styles.rowBorder]}
+          >
+            <Text style={styles.playerLabel}>Player {p.playerNumber}</Text>
+            <View style={styles.cardPair}>
+              <CardChip card={p.card1} revealed={p.revealed1} />
+              <CardChip card={p.card2} revealed={p.revealed2} />
+            </View>
+          </View>
+        ))}
+      </View>
+
+      {/* Community */}
+      <Text style={styles.sectionHeader}>Community</Text>
+      <View style={styles.tableCard}>
+        <View style={styles.communityRow}>
+          {community.slice(0, 3).map(c => (
+            <View key={c.label} style={styles.communityCell}>
+              <Text style={styles.communityLabel}>{c.label}</Text>
+              <CardChip card={c.card} revealed={c.revealed} />
+            </View>
+          ))}
+        </View>
+        <View style={[styles.communityRow, styles.rowBorder, styles.communityRowTop]}>
+          {community.slice(3).map(c => (
+            <View key={c.label} style={styles.communityCell}>
+              <Text style={styles.communityLabel}>{c.label}</Text>
+              <CardChip card={c.card} revealed={c.revealed} />
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* End game */}
+      <Pressable style={styles.endBtn} onPress={handleEnd}>
+        <Text style={styles.endBtnLabel}>End Game</Text>
+      </Pressable>
+
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#060c14' },
+  content: { padding: 16, paddingBottom: 40, gap: 12 },
+  loading: { flex: 1, backgroundColor: '#060c14', alignItems: 'center', justifyContent: 'center' },
+
+  phaseRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  phaseBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    backgroundColor: '#071a2a',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#0e7490',
+  },
+  phaseText: { color: '#22d3ee', fontSize: 12, fontWeight: '700', letterSpacing: 1.2 },
+  sleeveInfo: { color: '#3a6070', fontSize: 12 },
+
+  advanceBtn: {
+    height: 56,
+    borderRadius: 10,
+    backgroundColor: '#22d3ee',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 4,
+  },
+  advanceBtnPressed: { opacity: 0.7 },
+  advanceBtnLabel: { color: '#060c14', fontSize: 18, fontWeight: '800', letterSpacing: 0.5 },
+
+  sectionHeader: {
+    color: '#64b5c8',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    marginTop: 4,
+  },
+
+  tableCard: {
+    backgroundColor: '#071a2a',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#0e7490',
+    overflow: 'hidden',
+  },
+  rowBorder: { borderTopWidth: 1, borderTopColor: '#0a2c3d' },
+
+  playerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  playerLabel: { color: '#64b5c8', fontSize: 14, fontWeight: '600' },
+  cardPair: { flexDirection: 'row', gap: 8 },
+
+  chip: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: '#0a2c3d',
+    borderWidth: 1,
+    borderColor: '#0e7490',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chipHidden: { borderColor: '#1a2535', backgroundColor: '#060f18' },
+  chipText: { color: '#3a6070', fontSize: 14, fontWeight: '700' },
+
+  communityRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 10,
+  },
+  communityRowTop: { paddingTop: 12 },
+  communityCell: { alignItems: 'center', gap: 4 },
+  communityLabel: { color: '#3a6070', fontSize: 10, letterSpacing: 0.4 },
+
+  endBtn: {
+    marginTop: 8,
+    height: 44,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2a1520',
+    backgroundColor: '#0f0a0d',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  endBtnLabel: { color: '#7d5260', fontSize: 14, fontWeight: '600' },
+});

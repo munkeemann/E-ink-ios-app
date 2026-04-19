@@ -23,6 +23,13 @@ export default function RootLayout() {
         <Stack.Screen
           name="index"
           options={{
+            headerShown: false,
+            contentStyle: { backgroundColor: '#060c14' },
+          }}
+        />
+        <Stack.Screen
+          name="mtg/index"
+          options={{
             title: 'MTG Deck Manager',
             headerRight: () => (
               <Pressable onPress={() => router.push('/settings')} hitSlop={8} style={styles.gearBtn}>
@@ -30,6 +37,18 @@ export default function RootLayout() {
               </Pressable>
             ),
           }}
+        />
+        <Stack.Screen
+          name="coming-soon"
+          options={{ title: '', contentStyle: { backgroundColor: '#060c14' } }}
+        />
+        <Stack.Screen
+          name="holdem/setup"
+          options={{ title: "Texas Hold'em", contentStyle: { backgroundColor: '#060c14' } }}
+        />
+        <Stack.Screen
+          name="holdem/game"
+          options={{ title: "Texas Hold'em", contentStyle: { backgroundColor: '#060c14' } }}
         />
         <Stack.Screen name="import" options={{ title: 'Import Deck' }} />
         <Stack.Screen name="deck/[id]" options={{ title: 'Deck Preview' }} />

@@ -93,7 +93,7 @@ export default function DeckPreviewScreen() {
       const settings = await loadSettings();
       const newCards = assignSleeveIds(unsleevedCards, settings);
 
-      const newDeck = { ...deck, cards: newCards, gameInProgress: true };
+      const newDeck = { ...deck, cards: newCards, gameInProgress: true, lastPlayedAt: Date.now() };
       await saveDeck(newDeck);
       setDeck(newDeck);
 
