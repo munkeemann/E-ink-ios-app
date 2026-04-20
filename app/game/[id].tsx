@@ -358,6 +358,9 @@ export default function InGameScreen() {
     // though it's no longer at position 1), so beginGame pushes the wrong images.
     const newCards = assignSleeveIds([...commanderCards, ...nonLibNonCommander, ...shuffled], settings);
 
+    console.log('[DEBUG shuffle] cards after Shuffle:\n' +
+      JSON.stringify(newCards.map(c => ({ name: c.displayName, place: c.place, zone: c.zone, sleeveId: c.sleeveId })), null, 2));
+
     const top5 = newCards
       .filter(c => c.zone === 'LIB')
       .sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10))
@@ -485,6 +488,8 @@ export default function InGameScreen() {
       const updated = { ...deck, cards: finalCards };
       await saveDeck(updated);
       setDeck(updated);
+      console.log('[DEBUG keep-hand] cards after Keep Hand:\n' +
+        JSON.stringify(finalCards.map(c => ({ name: c.displayName, place: c.place, zone: c.zone, sleeveId: c.sleeveId })), null, 2));
       syncSleeves(finalCards);
       // Update zone strips: HND cards → zone 3, LIB cards → zone 4
       for (const c of finalCards) {
