@@ -20,6 +20,7 @@ import {
 } from '../../src/cah/CahGame';
 import { loadCahGame, saveCahGame, clearCahGame } from '../../src/storage/cahStorage';
 import { sendToSleeve, clearMemo } from '../../src/api/sleeveService';
+import { getRegisteredSleeves } from '../../src/api/piServer';
 import { CahGameState } from '../../src/types/cah';
 import CardRenderer, { CardRendererRef } from '../../src/shared/CardRenderer';
 
@@ -38,7 +39,12 @@ async function pushUpdates(
   updates: CahSleeveUpdate[],
   rendererRef: React.RefObject<CardRendererRef | null>,
 ): Promise<void> {
+  const registered = new Set(await getRegisteredSleeves());
   for (const u of updates) {
+    if (!registered.has(u.sleeveId)) {
+      console.log(`[CahDeal] sleeve ${u.sleeveId} not registered — skipping`);
+      continue;
+    }
     let imageData: ArrayBuffer | undefined;
     if (u.cardText && rendererRef.current) {
       try {

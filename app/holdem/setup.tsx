@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { createGame, allSleeveUpdates } from '../../src/holdem/HoldemGame';
 import { saveHoldemGame } from '../../src/storage/holdemStorage';
 import { sendToSleeve, clearMemo } from '../../src/api/sleeveService';
+import { getRegisteredSleeves } from '../../src/api/piServer';
 import { totalSleeveCount } from '../../src/holdem/HoldemSleeveLayout';
 
 const MIN_PLAYERS = 2;
@@ -21,7 +22,12 @@ export default function HoldemSetupScreen() {
       // Push face-down descriptors to all sleeves to initialise displays
       clearMemo();
       const updates = allSleeveUpdates(state);
+      const registered = new Set(await getRegisteredSleeves());
       for (const u of updates) {
+        if (!registered.has(u.sleeveId)) {
+          console.log(`[HoldemSetup] sleeve ${u.sleeveId} not registered — skipping`);
+          continue;
+        }
         await sendToSleeve(u.sleeveId, u.descriptor).catch(() => {});
       }
 

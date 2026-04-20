@@ -13,6 +13,7 @@ import { createCahGame, allSleeveUpdates } from '../../src/cah/CahGame';
 import { totalCahSleeveCount } from '../../src/cah/CahSleeveLayout';
 import { saveCahGame } from '../../src/storage/cahStorage';
 import { faceDownDescriptor, sendToSleeve, clearMemo } from '../../src/api/sleeveService';
+import { getRegisteredSleeves } from '../../src/api/piServer';
 import { CahBlackCard, CahCard } from '../../src/types/cah';
 
 const MIN_PLAYERS = 3;
@@ -73,7 +74,12 @@ export default function CahSetupScreen() {
 
       // Send all sleeves face-down initially
       clearMemo();
+      const registered = new Set(await getRegisteredSleeves());
       for (let sid = 1; sid <= sleeveCount; sid++) {
+        if (!registered.has(sid)) {
+          console.log(`[CahSetup] sleeve ${sid} not registered — skipping`);
+          continue;
+        }
         await sendToSleeve(sid, faceDownDescriptor()).catch(() => {});
       }
 

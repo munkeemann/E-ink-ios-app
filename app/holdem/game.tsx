@@ -22,6 +22,7 @@ import {
 } from '../../src/holdem/HoldemSleeveLayout';
 import { loadHoldemGame, saveHoldemGame, clearHoldemGame } from '../../src/storage/holdemStorage';
 import { sendToSleeve, clearMemo } from '../../src/api/sleeveService';
+import { getRegisteredSleeves } from '../../src/api/piServer';
 import { HoldemGameState, PlayingCard, Suit } from '../../src/types/holdem';
 import CardRenderer, { CardRendererRef } from '../../src/shared/CardRenderer';
 
@@ -84,7 +85,12 @@ export default function HoldemGameScreen() {
       setState(newState);
       await saveHoldemGame(newState);
       if (newState.phase === 'pre_deal') clearMemo();
+      const registered = new Set(await getRegisteredSleeves());
       for (const u of sleeveUpdates) {
+        if (!registered.has(u.sleeveId)) {
+          console.log(`[HoldemDeal] sleeve ${u.sleeveId} not registered — skipping`);
+          continue;
+        }
         let imageData: ArrayBuffer | undefined;
         if (u.card && rendererRef.current) {
           try {
