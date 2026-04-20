@@ -318,14 +318,15 @@ export default function InGameScreen() {
   // ─── Shuffle ──────────────────────────────────────────────────────────────
   const handleShuffle = async () => {
     const deckCards = Array.isArray(deck?.cards) ? deck!.cards : [];
-    const lib = deckCards.filter(c => c.zone === 'LIB');
+    const commanderCards = deckCards.filter(c => c.place === 'commander');
+    const lib = deckCards.filter(c => c.zone === 'LIB' && c.place !== 'commander');
     const shuffled = shuffle(lib).map((c, i) => ({ ...c, place: String(i + 1) }));
-    const nonLib = deckCards.filter(c => c.zone !== 'LIB');
+    const nonLibNonCommander = deckCards.filter(c => c.zone !== 'LIB' && c.place !== 'commander');
 
     // Reassign sleeve IDs based on new positions. Without this, sleeveId stays
     // tied to the pre-shuffle card (e.g. Lightning Bolt keeps sleeveId=2 even
     // though it's no longer at position 1), so beginGame pushes the wrong images.
-    const newCards = assignSleeveIds([...nonLib, ...shuffled], settings);
+    const newCards = assignSleeveIds([...commanderCards, ...nonLibNonCommander, ...shuffled], settings);
 
     const top5 = newCards
       .filter(c => c.zone === 'LIB')
@@ -516,7 +517,8 @@ export default function InGameScreen() {
       setDeck(newDeck);
     } else {
       // Card keeps its sleeve — just move the zone flag and update the strip.
-      const newCards = deckCards.map(c => c === card ? { ...c, zone: destZone } : c);
+      const key = cardKey(card);
+      const newCards = deckCards.map(c => cardKey(c) === key ? { ...c, zone: destZone } : c);
       if (card.sleeveId !== null) pushZoneUpdateViaPi(card.sleeveId, destZone).catch(() => {});
       const newDeck = { ...deck, cards: newCards };
       await saveDeck(newDeck);

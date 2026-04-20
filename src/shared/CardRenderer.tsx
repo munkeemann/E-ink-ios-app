@@ -14,51 +14,35 @@ interface CardState {
   suit?: string;
 }
 
+function rafTick(): Promise<void> {
+  return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+}
+
+async function toArrayBuffer(base64: string): Promise<ArrayBuffer> {
+  const binary = atob(base64);
+  const buf = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) buf[i] = binary.charCodeAt(i);
+  return buf.buffer as ArrayBuffer;
+}
+
 const CardRenderer = forwardRef<CardRendererRef>((_, ref) => {
   const viewRef = useRef<View>(null);
   const [card, setCard] = useState<CardState>({ text: '', scheme: 'white' });
-  const resolveRef = useRef<((buf: ArrayBuffer) => void) | null>(null);
-  const rejectRef = useRef<((err: unknown) => void) | null>(null);
 
   useImperativeHandle(ref, () => ({
     async capture(text: string, scheme: 'black' | 'white'): Promise<ArrayBuffer> {
-      return new Promise<ArrayBuffer>((resolve, reject) => {
-        resolveRef.current = resolve;
-        rejectRef.current = reject;
-        setCard({ text, scheme });
-      });
+      setCard({ text, scheme });
+      await rafTick();
+      const uri = await captureRef(viewRef, { format: 'jpg', quality: 0.85, result: 'base64' });
+      return toArrayBuffer(uri);
     },
     async captureHoldem(rank: string, suit: string): Promise<ArrayBuffer> {
-      return new Promise<ArrayBuffer>((resolve, reject) => {
-        resolveRef.current = resolve;
-        rejectRef.current = reject;
-        setCard({ text: '', scheme: 'holdem', rank, suit });
-      });
+      setCard({ text: '', scheme: 'holdem', rank, suit });
+      await rafTick();
+      const uri = await captureRef(viewRef, { format: 'jpg', quality: 0.85, result: 'base64' });
+      return toArrayBuffer(uri);
     },
   }));
-
-  const handleLayout = async () => {
-    if (!resolveRef.current) return;
-    const resolve = resolveRef.current;
-    const reject = rejectRef.current!;
-    resolveRef.current = null;
-    rejectRef.current = null;
-
-    try {
-      const uri = await captureRef(viewRef, {
-        format: 'jpg',
-        quality: 0.85,
-        result: 'base64',
-      });
-      // Convert base64 to ArrayBuffer
-      const binary = atob(uri);
-      const buf = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) buf[i] = binary.charCodeAt(i);
-      resolve(buf.buffer as ArrayBuffer);
-    } catch (err) {
-      reject(err);
-    }
-  };
 
   const isBlack = card.scheme === 'black';
   const isHoldem = card.scheme === 'holdem';
@@ -68,7 +52,6 @@ const CardRenderer = forwardRef<CardRendererRef>((_, ref) => {
       <View
         ref={viewRef}
         style={[styles.card, isHoldem ? styles.cardHoldem : isBlack ? styles.cardBlack : styles.cardWhite]}
-        onLayout={handleLayout}
         collapsable={false}
       >
         {isHoldem ? (

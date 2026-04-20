@@ -25,6 +25,17 @@ import { sendToSleeve, clearMemo } from '../../src/api/sleeveService';
 import { HoldemGameState, PlayingCard, Suit } from '../../src/types/holdem';
 import CardRenderer, { CardRendererRef } from '../../src/shared/CardRenderer';
 
+const CAPTURE_TIMEOUT_MS = 3000;
+
+function captureWithTimeout(p: Promise<ArrayBuffer>): Promise<ArrayBuffer> {
+  return Promise.race([
+    p,
+    new Promise<ArrayBuffer>((_, reject) =>
+      setTimeout(() => reject(new Error('capture timed out')), CAPTURE_TIMEOUT_MS),
+    ),
+  ]);
+}
+
 const SUIT_COLOR: Record<Suit, string> = {
   S: '#e0f7ff', H: '#f87171', D: '#f87171', C: '#e0f7ff',
 };
@@ -77,8 +88,12 @@ export default function HoldemGameScreen() {
         let imageData: ArrayBuffer | undefined;
         if (u.card && rendererRef.current) {
           try {
-            imageData = await rendererRef.current.captureHoldem(u.card.rank, u.card.suit);
-          } catch { /* send descriptor-only if render fails */ }
+            imageData = await captureWithTimeout(
+              rendererRef.current.captureHoldem(u.card.rank, u.card.suit),
+            );
+          } catch (e) {
+            console.warn(`[HoldemDeal] sleeve ${u.sleeveId} capture failed: ${e instanceof Error ? e.message : e}`);
+          }
         }
         await sendToSleeve(u.sleeveId, u.descriptor, imageData).catch(() => {});
       }

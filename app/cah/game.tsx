@@ -23,6 +23,17 @@ import { sendToSleeve, clearMemo } from '../../src/api/sleeveService';
 import { CahGameState } from '../../src/types/cah';
 import CardRenderer, { CardRendererRef } from '../../src/shared/CardRenderer';
 
+const CAPTURE_TIMEOUT_MS = 3000;
+
+function captureWithTimeout(p: Promise<ArrayBuffer>): Promise<ArrayBuffer> {
+  return Promise.race([
+    p,
+    new Promise<ArrayBuffer>((_, reject) =>
+      setTimeout(() => reject(new Error('capture timed out')), CAPTURE_TIMEOUT_MS),
+    ),
+  ]);
+}
+
 async function pushUpdates(
   updates: CahSleeveUpdate[],
   rendererRef: React.RefObject<CardRendererRef | null>,
@@ -31,9 +42,11 @@ async function pushUpdates(
     let imageData: ArrayBuffer | undefined;
     if (u.cardText && rendererRef.current) {
       try {
-        imageData = await rendererRef.current.capture(u.cardText, u.cardScheme ?? 'white');
-      } catch {
-        // send descriptor-only if render fails
+        imageData = await captureWithTimeout(
+          rendererRef.current.capture(u.cardText, u.cardScheme ?? 'white'),
+        );
+      } catch (e) {
+        console.warn(`[CahDeal] sleeve ${u.sleeveId} capture failed: ${e instanceof Error ? e.message : e}`);
       }
     }
     await sendToSleeve(u.sleeveId, u.descriptor, imageData).catch(() => {});
