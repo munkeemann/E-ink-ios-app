@@ -6,14 +6,25 @@ Output : assets/images/playing_cards/card_{rank}{suit}.jpg
 Ranks  : A 2 3 4 5 6 7 8 9 T J Q K   (T = Ten)
 Suits  : S H D C
 
-Original CC0 works — no external art dependency.
+SPDX-License-Identifier: CC0-1.0
+These images are original programmatic works. No existing card art was
+incorporated or derived. The output files are released to the public domain
+under the Creative Commons Zero v1.0 Universal (CC0-1.0) dedication.
+
 Requires: Pillow  (pip install Pillow)
 System fonts (macOS): /System/Library/Fonts/Helvetica.ttc
                       /System/Library/Fonts/Symbol.ttf
+
+Design notes:
+  - All suits rendered black for 4-bit grayscale e-ink panels (no color).
+    Hearts/diamonds are distinguishable from spades/clubs by shape alone,
+    matching Piatnik-style tournament card convention.
+  - Inverted (bottom-half) pips rotated with BICUBIC resampling to preserve
+    anti-aliased edges, matching visual weight of upright pips.
 """
 
 from PIL import Image, ImageDraw, ImageFont
-import os, sys
+import os
 
 # ── dimensions ────────────────────────────────────────────────────────
 W, H   = 600, 840
@@ -23,7 +34,7 @@ RANK_FONT = '/System/Library/Fonts/Helvetica.ttc'
 SUIT_FONT = '/System/Library/Fonts/Symbol.ttf'
 
 SUIT_CHAR  = {'S': '♠', 'H': '♥', 'D': '♦', 'C': '♣'}
-SUIT_COLOR = {'S': (0, 0, 0), 'H': (180, 0, 0), 'D': (180, 0, 0), 'C': (0, 0, 0)}
+SUIT_COLOR = {'S': (0, 0, 0), 'H': (0, 0, 0), 'D': (0, 0, 0), 'C': (0, 0, 0)}
 RANK_DISPLAY = {'T': '10'}   # show "10" in corners; filename rank stays "T"
 
 RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K']
@@ -85,10 +96,10 @@ def draw_corner_block(img: Image.Image, rank: str, suit_char: str,
 
     tmp = Image.new('RGBA', (bw, bh), (255, 255, 255, 0))
     td  = ImageDraw.Draw(tmp)
-    td.text((bw // 2 - rw // 2 - rox, 8 - roy),           display_rank, font=rf, fill=color + (255,))
-    td.text((bw // 2 - sw // 2 - sox, 8 + rh + gap - soy), suit_char,   font=sf, fill=color + (255,))
+    td.text((bw // 2 - rw // 2 - rox, 8 - roy),            display_rank, font=rf, fill=color + (255,))
+    td.text((bw // 2 - sw // 2 - sox, 8 + rh + gap - soy), suit_char,    font=sf, fill=color + (255,))
     if flip:
-        tmp = tmp.rotate(180)
+        tmp = tmp.rotate(180, resample=Image.Resampling.BICUBIC)
     img.paste(tmp, (cx - bw // 2, cy - bh // 2), tmp)
 
 
@@ -98,14 +109,14 @@ def draw_pip(img: Image.Image, cx: float, cy: float, size: int,
     font = suit_font(size)
     w, h, ox, oy = text_dims(font, suit_char)
     if inverted:
+        # BICUBIC resampling preserves anti-aliased edges through the 180° rotation,
+        # matching the visual weight of upright pips (nearest-neighbour drops them).
         tmp = Image.new('RGBA', (w + 4, h + 4), (255, 255, 255, 0))
-        td  = ImageDraw.Draw(tmp)
-        td.text((2 - ox, 2 - oy), suit_char, font=font, fill=color + (255,))
-        tmp = tmp.rotate(180)
+        ImageDraw.Draw(tmp).text((2 - ox, 2 - oy), suit_char, font=font, fill=color + (255,))
+        tmp = tmp.rotate(180, resample=Image.Resampling.BICUBIC)
         img.paste(tmp, (int(cx - w / 2 - 2), int(cy - h / 2 - 2)), tmp)
     else:
-        draw = ImageDraw.Draw(img)
-        draw.text((cx - w / 2 - ox, cy - h / 2 - oy), suit_char, font=font, fill=color)
+        ImageDraw.Draw(img).text((cx - w / 2 - ox, cy - h / 2 - oy), suit_char, font=font, fill=color)
 
 
 # ── card generator ────────────────────────────────────────────────────
@@ -150,8 +161,7 @@ def generate_card(rank: str, suit: str) -> Image.Image:
 
 def main() -> None:
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    out_dir    = os.path.join(script_dir, '..', 'assets', 'images', 'playing_cards')
-    out_dir    = os.path.normpath(out_dir)
+    out_dir    = os.path.normpath(os.path.join(script_dir, '..', 'assets', 'images', 'playing_cards'))
     os.makedirs(out_dir, exist_ok=True)
 
     total = len(RANKS) * len(SUITS)
