@@ -1,7 +1,8 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -24,18 +25,71 @@ import { loadHoldemGame, saveHoldemGame, clearHoldemGame } from '../../src/stora
 import { sendToSleeve, clearMemo } from '../../src/api/sleeveService';
 import { getRegisteredSleeves } from '../../src/api/piServer';
 import { HoldemGameState, PlayingCard, Suit } from '../../src/types/holdem';
-import CardRenderer, { CardRendererRef } from '../../src/shared/CardRenderer';
 
-const CAPTURE_TIMEOUT_MS = 3000;
+// Pre-built card JPEG assets (Metro requires static require() calls)
+const CARD_ASSETS: Record<string, number> = {
+  card_AS: require('../../assets/images/playing_cards/card_AS.jpg'),
+  card_2S: require('../../assets/images/playing_cards/card_2S.jpg'),
+  card_3S: require('../../assets/images/playing_cards/card_3S.jpg'),
+  card_4S: require('../../assets/images/playing_cards/card_4S.jpg'),
+  card_5S: require('../../assets/images/playing_cards/card_5S.jpg'),
+  card_6S: require('../../assets/images/playing_cards/card_6S.jpg'),
+  card_7S: require('../../assets/images/playing_cards/card_7S.jpg'),
+  card_8S: require('../../assets/images/playing_cards/card_8S.jpg'),
+  card_9S: require('../../assets/images/playing_cards/card_9S.jpg'),
+  card_TS: require('../../assets/images/playing_cards/card_TS.jpg'),
+  card_JS: require('../../assets/images/playing_cards/card_JS.jpg'),
+  card_QS: require('../../assets/images/playing_cards/card_QS.jpg'),
+  card_KS: require('../../assets/images/playing_cards/card_KS.jpg'),
+  card_AH: require('../../assets/images/playing_cards/card_AH.jpg'),
+  card_2H: require('../../assets/images/playing_cards/card_2H.jpg'),
+  card_3H: require('../../assets/images/playing_cards/card_3H.jpg'),
+  card_4H: require('../../assets/images/playing_cards/card_4H.jpg'),
+  card_5H: require('../../assets/images/playing_cards/card_5H.jpg'),
+  card_6H: require('../../assets/images/playing_cards/card_6H.jpg'),
+  card_7H: require('../../assets/images/playing_cards/card_7H.jpg'),
+  card_8H: require('../../assets/images/playing_cards/card_8H.jpg'),
+  card_9H: require('../../assets/images/playing_cards/card_9H.jpg'),
+  card_TH: require('../../assets/images/playing_cards/card_TH.jpg'),
+  card_JH: require('../../assets/images/playing_cards/card_JH.jpg'),
+  card_QH: require('../../assets/images/playing_cards/card_QH.jpg'),
+  card_KH: require('../../assets/images/playing_cards/card_KH.jpg'),
+  card_AD: require('../../assets/images/playing_cards/card_AD.jpg'),
+  card_2D: require('../../assets/images/playing_cards/card_2D.jpg'),
+  card_3D: require('../../assets/images/playing_cards/card_3D.jpg'),
+  card_4D: require('../../assets/images/playing_cards/card_4D.jpg'),
+  card_5D: require('../../assets/images/playing_cards/card_5D.jpg'),
+  card_6D: require('../../assets/images/playing_cards/card_6D.jpg'),
+  card_7D: require('../../assets/images/playing_cards/card_7D.jpg'),
+  card_8D: require('../../assets/images/playing_cards/card_8D.jpg'),
+  card_9D: require('../../assets/images/playing_cards/card_9D.jpg'),
+  card_TD: require('../../assets/images/playing_cards/card_TD.jpg'),
+  card_JD: require('../../assets/images/playing_cards/card_JD.jpg'),
+  card_QD: require('../../assets/images/playing_cards/card_QD.jpg'),
+  card_KD: require('../../assets/images/playing_cards/card_KD.jpg'),
+  card_AC: require('../../assets/images/playing_cards/card_AC.jpg'),
+  card_2C: require('../../assets/images/playing_cards/card_2C.jpg'),
+  card_3C: require('../../assets/images/playing_cards/card_3C.jpg'),
+  card_4C: require('../../assets/images/playing_cards/card_4C.jpg'),
+  card_5C: require('../../assets/images/playing_cards/card_5C.jpg'),
+  card_6C: require('../../assets/images/playing_cards/card_6C.jpg'),
+  card_7C: require('../../assets/images/playing_cards/card_7C.jpg'),
+  card_8C: require('../../assets/images/playing_cards/card_8C.jpg'),
+  card_9C: require('../../assets/images/playing_cards/card_9C.jpg'),
+  card_TC: require('../../assets/images/playing_cards/card_TC.jpg'),
+  card_JC: require('../../assets/images/playing_cards/card_JC.jpg'),
+  card_QC: require('../../assets/images/playing_cards/card_QC.jpg'),
+  card_KC: require('../../assets/images/playing_cards/card_KC.jpg'),
+};
 
-function captureWithTimeout(p: Promise<ArrayBuffer>): Promise<ArrayBuffer> {
-  return Promise.race([
-    p,
-    new Promise<ArrayBuffer>((_, reject) =>
-      setTimeout(() => reject(new Error('capture timed out')), CAPTURE_TIMEOUT_MS),
-    ),
-  ]);
+async function getCardBytes(rank: string, suit: string): Promise<ArrayBuffer> {
+  const key = `card_${rank}${suit}`;
+  const src = Image.resolveAssetSource(CARD_ASSETS[key]);
+  const resp = await fetch(src.uri);
+  if (!resp.ok) throw new Error(`card asset ${key}: HTTP ${resp.status}`);
+  return resp.arrayBuffer();
 }
+
 
 const SUIT_COLOR: Record<Suit, string> = {
   S: '#e0f7ff', H: '#f87171', D: '#f87171', C: '#e0f7ff',
@@ -56,7 +110,6 @@ function CardChip({ card, revealed }: { card: PlayingCard; revealed: boolean }) 
 export default function HoldemGameScreen() {
   const [state, setState] = useState<HoldemGameState | null>(null);
   const [busy, setBusy] = useState(false);
-  const rendererRef = useRef<CardRendererRef>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -92,13 +145,11 @@ export default function HoldemGameScreen() {
           continue;
         }
         let imageData: ArrayBuffer | undefined;
-        if (u.card && rendererRef.current) {
+        if (u.card) {
           try {
-            imageData = await captureWithTimeout(
-              rendererRef.current.captureHoldem(u.card.rank, u.card.suit),
-            );
+            imageData = await getCardBytes(u.card.rank, u.card.suit);
           } catch (e) {
-            console.warn(`[HoldemDeal] sleeve ${u.sleeveId} capture failed: ${e instanceof Error ? e.message : e}`);
+            console.warn(`[HoldemDeal] sleeve ${u.sleeveId} asset load failed: ${e instanceof Error ? e.message : e}`);
           }
         }
         await sendToSleeve(u.sleeveId, u.descriptor, imageData).catch(() => {});
@@ -155,9 +206,6 @@ export default function HoldemGameScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-
-      {/* Off-screen card renderer for generating hole/community card JPEGs */}
-      <CardRenderer ref={rendererRef} />
 
       {/* Phase header */}
       <View style={styles.phaseRow}>
