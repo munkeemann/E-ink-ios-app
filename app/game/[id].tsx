@@ -22,6 +22,36 @@ import { clearMemo } from '../../src/api/sleeveService';
 import { getDeck, loadSettings, saveDeck } from '../../src/storage/deckStorage';
 import { AppSettings, CardInstance, Deck, TokenTemplate } from '../../src/types';
 
+function ArtPopupContent({ card }: { card: CardInstance | null }) {
+  const [showBack, setShowBack] = useState(false);
+  if (!card) return null;
+  const uri = showBack && card.backImagePath ? card.backImagePath : card.imagePath;
+  return (
+    <View style={artPopupStyles.wrap}>
+      <Image source={{ uri }} style={artPopupStyles.img} resizeMode="contain" />
+      {!!card.backImagePath && (
+        <Pressable onPress={() => setShowBack(v => !v)} style={artPopupStyles.flipBtn}>
+          <Text style={artPopupStyles.flipLabel}>{showBack ? '⟵ Front' : 'Back ⟶'}</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+const artPopupStyles = StyleSheet.create({
+  wrap: { alignItems: 'center', gap: 12 },
+  img: { width: '90%', height: '80%' },
+  flipBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  flipLabel: { color: '#e0f7ff', fontSize: 14, fontWeight: '700' },
+});
+
 type Zone = 'LIB' | 'HND' | 'BTFLD' | 'GRV' | 'EXL' | 'CMD' | 'TKN';
 
 const ZONE_CONFIG: { id: Zone; label: string; color: string }[] = [
@@ -1086,6 +1116,14 @@ export default function InGameScreen() {
             )}
           </View>
         </View>
+        {artPopupCard !== null && (
+          <Pressable
+            style={[StyleSheet.absoluteFill, styles.artBackdrop]}
+            onPress={() => setArtPopupCard(null)}
+          >
+            <ArtPopupContent card={artPopupCard} />
+          </Pressable>
+        )}
       </Modal>
 
       {/* Mulligan bottom sheet */}
@@ -1467,15 +1505,6 @@ export default function InGameScreen() {
         </Pressable>
       </Modal>
 
-
-      {/* Card art popup (long press) */}
-      <Modal visible={artPopupCard !== null} transparent animationType="fade" onRequestClose={() => setArtPopupCard(null)}>
-        <Pressable style={styles.artBackdrop} onPress={() => setArtPopupCard(null)}>
-          {artPopupCard?.imagePath ? (
-            <Image source={{ uri: artPopupCard.imagePath }} style={styles.artFull} resizeMode="contain" />
-          ) : null}
-        </Pressable>
-      </Modal>
 
     </View>
   );
