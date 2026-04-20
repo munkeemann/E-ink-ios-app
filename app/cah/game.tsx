@@ -55,6 +55,7 @@ async function pushUpdates(
         console.warn(`[CahDeal] sleeve ${u.sleeveId} capture failed: ${e instanceof Error ? e.message : e}`);
       }
     }
+    console.log(`[CahDeal] sleeve ${u.sleeveId} cardText=${u.cardText ? u.cardText.slice(0, 30) + '…' : 'none'} imageData=${imageData?.byteLength ?? 'none'} faceBack=${!!(u.descriptor as any)._useFaceBack}`);
     await sendToSleeve(u.sleeveId, u.descriptor, imageData).catch(() => {});
   }
 }
