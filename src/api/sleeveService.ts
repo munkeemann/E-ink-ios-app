@@ -1,4 +1,21 @@
+import { Image } from 'react-native';
+
 export const PI_SERVER = 'http://192.168.86.193:5050';
+
+// ── Card-back asset ──────────────────────────────────────────────────────────
+
+let _cardBackBytes: ArrayBuffer | null = null;
+
+async function getCardBackBytes(): Promise<ArrayBuffer> {
+  if (_cardBackBytes) return _cardBackBytes;
+  const src = Image.resolveAssetSource(
+    require('../../assets/images/card_back.jpg') as number,
+  );
+  const resp = await fetch(src.uri);
+  if (!resp.ok) throw new Error(`card_back fetch: HTTP ${resp.status}`);
+  _cardBackBytes = await resp.arrayBuffer();
+  return _cardBackBytes;
+}
 
 // ── Descriptor type ──────────────────────────────────────────────────────────
 
@@ -111,7 +128,11 @@ export async function sendToSleeve(
   imageData?: ArrayBuffer,
   serverUrl: string = PI_SERVER,
 ): Promise<void> {
-  const fp = await fingerprint(descriptor, imageData);
+  const effectiveImage = (!imageData && descriptor.face_down)
+    ? await getCardBackBytes().catch(() => undefined)
+    : imageData;
+
+  const fp = await fingerprint(descriptor, effectiveImage);
   if (lastSentHash.get(sleeveId) === fp) {
     console.debug(`[SleeveService] sleeve ${sleeveId} skipped — identical to last send (${descriptor.primary_label ?? ''})`);
     return;
@@ -129,7 +150,7 @@ export async function sendToSleeve(
 
   let body: Uint8Array;
 
-  if (imageData) {
+  if (effectiveImage) {
     const imgHeader =
       `--${boundary}${CRLF}` +
       `Content-Disposition: form-data; name="image"; filename="card.jpg"${CRLF}` +
@@ -139,7 +160,7 @@ export async function sendToSleeve(
     const chunks = [
       enc.encode(descPart),
       enc.encode(imgHeader),
-      new Uint8Array(imageData),
+      new Uint8Array(effectiveImage),
       enc.encode(closing),
     ];
     const total = chunks.reduce((n, c) => n + c.byteLength, 0);
@@ -155,7 +176,7 @@ export async function sendToSleeve(
     body.set(b, a.byteLength);
   }
 
-  console.log(`[SleeveService] sleeve ${sleeveId} → ${descriptor.primary_label ?? ''} ${descriptor.secondary_label ?? ''} face_down=${!!descriptor.face_down} has_image=${!!imageData}`.trimEnd());
+  console.log(`[SleeveService] sleeve ${sleeveId} → ${descriptor.primary_label ?? ''} ${descriptor.secondary_label ?? ''} face_down=${!!descriptor.face_down} has_image=${!!effectiveImage}`.trimEnd());
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10000);
