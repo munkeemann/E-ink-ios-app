@@ -21,7 +21,7 @@ async function getCardBackBytes(): Promise<ArrayBuffer> {
 
 export type Descriptor = {
   v: 2;
-  face_down?: boolean;
+  _useFaceBack?: true;   // app-internal flag — stripped before wire serialisation, triggers card_back.jpg
   primary_label?: string;
   secondary_label?: string;
   zone_strip?: { cells: string[]; active_index: number };
@@ -66,7 +66,7 @@ export function holdemCommunityDescriptor(communityLabel: string): Descriptor {
 }
 
 export function faceDownDescriptor(primaryLabel?: string, secondaryLabel?: string): Descriptor {
-  const d: Descriptor = { v: 2, face_down: true };
+  const d: Descriptor = { v: 2, _useFaceBack: true };
   if (primaryLabel !== undefined) d.primary_label = primaryLabel;
   if (secondaryLabel !== undefined) d.secondary_label = secondaryLabel;
   return d;
@@ -128,7 +128,7 @@ export async function sendToSleeve(
   imageData?: ArrayBuffer,
   serverUrl: string = PI_SERVER,
 ): Promise<void> {
-  const effectiveImage = (!imageData && descriptor.face_down)
+  const effectiveImage = (!imageData && descriptor._useFaceBack)
     ? await getCardBackBytes().catch(() => undefined)
     : imageData;
 
@@ -142,10 +142,13 @@ export async function sendToSleeve(
   const CRLF = '\r\n';
   const enc = new TextEncoder();
 
+  // Strip the app-internal _useFaceBack flag before serialising for the wire
+  const { _useFaceBack: _fd, ...wireDescriptor } = descriptor;
+
   const descPart =
     `--${boundary}${CRLF}` +
     `Content-Disposition: form-data; name="descriptor"${CRLF}${CRLF}` +
-    JSON.stringify(descriptor) +
+    JSON.stringify(wireDescriptor) +
     CRLF;
 
   let body: Uint8Array;
@@ -176,7 +179,7 @@ export async function sendToSleeve(
     body.set(b, a.byteLength);
   }
 
-  console.log(`[SleeveService] sleeve ${sleeveId} → ${descriptor.primary_label ?? ''} ${descriptor.secondary_label ?? ''} face_down=${!!descriptor.face_down} has_image=${!!effectiveImage}`.trimEnd());
+  console.log(`[SleeveService] sleeve ${sleeveId} → ${descriptor.primary_label ?? ''} ${descriptor.secondary_label ?? ''} face_back=${!!descriptor._useFaceBack} has_image=${!!effectiveImage}`.trimEnd());
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10000);
