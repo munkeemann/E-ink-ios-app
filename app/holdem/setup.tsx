@@ -1,22 +1,24 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { createGame, allSleeveUpdates } from '../../src/holdem/HoldemGame';
 import { saveHoldemGame } from '../../src/storage/holdemStorage';
 import { sendToSleeve, clearMemo } from '../../src/api/sleeveService';
 import { getRegisteredSleeves } from '../../src/api/piServer';
 import { totalSleeveCount } from '../../src/holdem/HoldemSleeveLayout';
+import { SKIN_NAMES } from '../../src/assets/skins/registry';
 
 const MIN_PLAYERS = 2;
 
 export default function HoldemSetupScreen() {
   const [playerCount, setPlayerCount] = useState(2);
+  const [cardSkin, setCardSkin] = useState('default');
   const [loading, setLoading] = useState(false);
 
   const handleStart = async () => {
     setLoading(true);
     try {
-      const state = createGame(playerCount);
+      const state = createGame(playerCount, cardSkin);
       await saveHoldemGame(state);
 
       // Push face-down descriptors to all sleeves to initialise displays
@@ -38,7 +40,19 @@ export default function HoldemSetupScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+    >
+      {/* Offscreen warmup: forces Metro's asset server to serve a bundled image
+          before the user taps Deal, preventing getCardBytes' fetch from hanging
+          on the first cold request. */}
+      <Image
+        source={require('../../assets/images/card_back.jpg')}
+        style={styles.metroWarmup}
+        aria-hidden
+      />
       <Text style={styles.title}>Texas Hold'em</Text>
 
       <View style={styles.card}>
@@ -62,6 +76,23 @@ export default function HoldemSetupScreen() {
         </Text>
       </View>
 
+      <View style={styles.card}>
+        <Text style={styles.label}>Card Skin</Text>
+        <View style={styles.skinRow}>
+          {SKIN_NAMES.map(skin => (
+            <Pressable
+              key={skin}
+              style={[styles.skinChip, cardSkin === skin && styles.skinChipActive]}
+              onPress={() => setCardSkin(skin)}
+            >
+              <Text style={[styles.skinChipText, cardSkin === skin && styles.skinChipTextActive]}>
+                {skin}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+
       <Pressable
         style={[styles.startBtn, loading && styles.startBtnDisabled]}
         onPress={handleStart}
@@ -73,17 +104,19 @@ export default function HoldemSetupScreen() {
           <Text style={styles.startLabel}>Start Game</Text>
         )}
       </Pressable>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  scroll: { flex: 1, backgroundColor: '#060c14' },
+  metroWarmup: { width: 0, height: 0, opacity: 0, position: 'absolute' },
   container: {
-    flex: 1,
-    backgroundColor: '#060c14',
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
+    paddingVertical: 40,
     gap: 24,
   },
   title: {
@@ -133,4 +166,17 @@ const styles = StyleSheet.create({
   },
   startBtnDisabled: { opacity: 0.5 },
   startLabel: { color: '#060c14', fontSize: 16, fontWeight: '800', letterSpacing: 0.8 },
+
+  skinRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  skinChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#1a3a50',
+    backgroundColor: '#040d16',
+  },
+  skinChipActive: { borderColor: '#22d3ee', backgroundColor: '#071e30' },
+  skinChipText: { color: '#3a6070', fontSize: 13, fontWeight: '600', textTransform: 'capitalize' },
+  skinChipTextActive: { color: '#22d3ee' },
 });

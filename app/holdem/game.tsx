@@ -25,6 +25,7 @@ import { loadHoldemGame, saveHoldemGame, clearHoldemGame } from '../../src/stora
 import { sendToSleeve, clearMemo } from '../../src/api/sleeveService';
 import { getRegisteredSleeves } from '../../src/api/piServer';
 import { HoldemGameState, PlayingCard, Suit } from '../../src/types/holdem';
+import { SKIN_ASSETS, skinCardKey } from '../../src/assets/skins/registry';
 
 // Pre-built card JPEG assets (Metro requires static require() calls)
 const CARD_ASSETS: Record<string, number> = {
@@ -82,12 +83,58 @@ const CARD_ASSETS: Record<string, number> = {
   card_KC: require('../../assets/images/playing_cards/card_KC.jpg'),
 };
 
-async function getCardBytes(rank: string, suit: string): Promise<ArrayBuffer> {
+async function timedFetch(uri: string, timeoutMs = 5000): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(uri, { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function getCardBytes(
+  rank: string,
+  suit: string,
+  skin = 'default',
+): Promise<{ data: ArrayBuffer; source: 'skin' | 'default' }> {
+  console.log(`[Holdem] getCardBytes called: rank=${rank} suit=${suit} skin=${skin}`);
+
+  // Try skin asset first (skip for 'default' — it has no images by design)
+  if (skin !== 'default') {
+    const skinAssets = SKIN_ASSETS[skin];
+    if (skinAssets) {
+      const fileKey = skinCardKey(rank, suit);
+      const skinAsset = skinAssets[fileKey];
+      if (skinAsset) {
+        const skinSrc = Image.resolveAssetSource(skinAsset);
+        if (skinSrc?.uri) {
+          try {
+            const skinResp = await timedFetch(skinSrc.uri);
+            if (skinResp.ok) {
+              const data = await skinResp.arrayBuffer();
+              console.log(`[Holdem] skin asset HIT: ${fileKey} (${skin}) — ${data.byteLength} bytes`);
+              return { data, source: 'skin' };
+            }
+          } catch {
+            // timeout or fetch error — fall through to CARD_ASSETS
+            console.log(`[Holdem] skin asset fetch failed for ${fileKey} — falling back`);
+          }
+        }
+      }
+    }
+  }
+
+  // Fallback: programmatic card assets
+  console.log(`[Holdem] skin asset MISS, using CARD_ASSETS fallback: rank=${rank} suit=${suit} skin=${skin}`);
   const key = `card_${rank}${suit}`;
+  if (!CARD_ASSETS[key]) throw new Error(`card asset key not found: ${key}`);
   const src = Image.resolveAssetSource(CARD_ASSETS[key]);
-  const resp = await fetch(src.uri);
+  if (!src?.uri) throw new Error(`card asset ${key}: resolveAssetSource returned no URI`);
+  const resp = await timedFetch(src.uri);
   if (!resp.ok) throw new Error(`card asset ${key}: HTTP ${resp.status}`);
-  return resp.arrayBuffer();
+  const data = await resp.arrayBuffer();
+  return { data, source: 'default' };
 }
 
 
@@ -133,28 +180,47 @@ export default function HoldemGameScreen() {
   const handleAdvance = async () => {
     if (busy) return;
     setBusy(true);
+    const t0 = Date.now();
+    console.log(`[HoldemDeal] button pressed — phase=${state.phase} playerCount=${state.playerCount} skin=${state.cardSkin ?? 'default'}`);
     try {
       const { newState, sleeveUpdates } = advance(state);
       setState(newState);
       await saveHoldemGame(newState);
       if (newState.phase === 'pre_deal') clearMemo();
+      console.log(`[HoldemDeal] fetching sleeve registry... (+${Date.now()-t0}ms)`);
       const registered = new Set(await getRegisteredSleeves());
+      console.log(`[HoldemDeal] registry returned: [${[...registered].sort((a,b)=>a-b).join(', ')}] (+${Date.now()-t0}ms)`);
+      console.log(`[HoldemDeal] sleeveUpdates count=${sleeveUpdates.length}`);
       for (const u of sleeveUpdates) {
         if (!registered.has(u.sleeveId)) {
           console.log(`[HoldemDeal] sleeve ${u.sleeveId} not registered — skipping`);
           continue;
         }
         let imageData: ArrayBuffer | undefined;
+        let imageSource: 'skin' | 'default' | 'none' = 'none';
         if (u.card) {
+          const assetKey = `card_${u.card.rank}${u.card.suit}`;
+          console.log(`[HoldemDeal] sleeve ${u.sleeveId}: getCardBytes start — key=${assetKey} skin=${state.cardSkin ?? 'default'} (+${Date.now()-t0}ms)`);
           try {
-            imageData = await getCardBytes(u.card.rank, u.card.suit);
+            const result = await getCardBytes(u.card.rank, u.card.suit, state.cardSkin ?? 'default');
+            imageData = result.data;
+            imageSource = result.source;
+            console.log(`[HoldemDeal] sleeve ${u.sleeveId}: getCardBytes done — ${imageData.byteLength} bytes source=${imageSource} (+${Date.now()-t0}ms)`);
           } catch (e) {
-            console.warn(`[HoldemDeal] sleeve ${u.sleeveId} asset load failed: ${e instanceof Error ? e.message : e}`);
+            console.warn(`[HoldemDeal] sleeve ${u.sleeveId}: getCardBytes THREW — ${e instanceof Error ? e.message : e} (+${Date.now()-t0}ms)`);
           }
         }
-        await sendToSleeve(u.sleeveId, u.descriptor, imageData).catch(() => {});
+        console.log(`[HoldemDeal] sleeve ${u.sleeveId}: sendToSleeve start — bytes=${imageData?.byteLength ?? 0} source=${imageSource} (+${Date.now()-t0}ms)`);
+        try {
+          await sendToSleeve(u.sleeveId, u.descriptor, imageData);
+          console.log(`[HoldemDeal] sleeve ${u.sleeveId}: sendToSleeve OK (+${Date.now()-t0}ms)`);
+        } catch (e) {
+          console.warn(`[HoldemDeal] sleeve ${u.sleeveId}: sendToSleeve ERROR — ${e instanceof Error ? e.message : e} (+${Date.now()-t0}ms)`);
+        }
       }
+      console.log(`[HoldemDeal] all sleeves done (+${Date.now()-t0}ms)`);
     } finally {
+      console.log(`[HoldemDeal] finally — setBusy(false) (+${Date.now()-t0}ms)`);
       setBusy(false);
     }
   };
