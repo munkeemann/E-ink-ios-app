@@ -27,9 +27,22 @@ export function setCardBackVariant(variant: string): void {
 async function getCardBackBytes(): Promise<ArrayBuffer> {
   const v = _cardBackVariant;
   const cached = _cardBackCache.get(v);
-  if (cached) return cached;
+  if (cached) {
+    console.log('[CardBack] cache HIT:', v);
+    return cached;
+  }
+  const t0 = Date.now();
   const src = Image.resolveAssetSource(CARD_BACK_ASSETS[v]);
-  const resp = await fetch(src.uri);
+  console.log('[CardBack] cache MISS — variant:', v, 'uri:', src?.uri ?? 'NULL');
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
+  let resp: Response;
+  try {
+    resp = await fetch(src.uri, { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+  console.log('[CardBack] fetch done in', Date.now() - t0, 'ms — status:', resp.status);
   if (!resp.ok) throw new Error(`card_back fetch (${v}): HTTP ${resp.status}`);
   const bytes = await resp.arrayBuffer();
   _cardBackCache.set(v, bytes);
