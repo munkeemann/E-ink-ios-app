@@ -143,6 +143,21 @@ export async function pushZoneUpdate(
   }
 }
 
+// Short-lived cache so rapid zone-update calls don't each fire a separate /sleeves fetch.
+// NOTE: getCachedRegistered piggybacks on getRegisteredSleeves, which uses alertWait
+// internally. In debug-alert mode this will pop a blocking alert on the first zone update
+// after the cache expires (every 15 s). Before any public demo, either disable debug-alert
+// mode in settings or add a silent fast-path variant of getRegisteredSleeves here.
+let _regCache: { ids: Set<number>; expires: number } | null = null;
+
+async function getCachedRegistered(serverUrl: string): Promise<Set<number>> {
+  const now = Date.now();
+  if (_regCache && now < _regCache.expires) return _regCache.ids;
+  const ids = new Set(await getRegisteredSleeves(serverUrl));
+  _regCache = { ids, expires: now + 15_000 };
+  return ids;
+}
+
 /**
  * Routes a zone-index update through the Pi server (POST /set_zone).
  * Parameters are sent as URL query params: /set_zone?sleeve_id=N&zone=N
@@ -153,6 +168,8 @@ export async function pushZoneUpdateViaPi(
   zone: string,
   serverUrl: string = PI_SERVER,
 ): Promise<void> {
+  const registered = await getCachedRegistered(serverUrl);
+  if (!registered.has(sleeveId)) return;
   const zoneIndex = ZONE_INDEX[zone] ?? 0;
   try {
     const controller = new AbortController();

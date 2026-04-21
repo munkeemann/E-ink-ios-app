@@ -15,4 +15,6 @@ export interface HoldemGameState {
   sleeveCards: Record<number, PlayingCard>;
   /** Unix ms when the current hand started — used for resume ordering */
   startedAt: number;
+  /** Active card skin directory name; "default" = programmatic renders */
+  cardSkin?: string;
 }

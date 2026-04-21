@@ -111,9 +111,12 @@ export function allSleeveUpdates(state: CahGameState): CahSleeveUpdate[] {
           cardScheme: 'white',
         });
       } else if (card) {
+        // Show white card text on physical sleeve (not face-down)
         updates.push({
           sleeveId: sid,
-          descriptor: faceDownDescriptor(`P${p + 1}`, `Card ${k + 1}`),
+          descriptor: whiteCardDescriptor(p, k),
+          cardText: card.text,
+          cardScheme: 'white',
         });
       } else {
         updates.push({
@@ -165,51 +168,55 @@ export function submitCard(
   playerIdx: number,
   handSlot: number,
 ): { newState: CahGameState; sleeveUpdates: CahSleeveUpdate[] } {
-  if (state.phase !== 'submissions') return { newState: state, sleeveUpdates: [] };
-  if (state.submittedPlayers.includes(playerIdx)) return { newState: state, sleeveUpdates: [] };
-  if (playerIdx === state.czarIndex) return { newState: state, sleeveUpdates: [] };
+  // CAH_RULES_DISABLED: submission tracking removed
+  // if (state.phase !== 'submissions') return { newState: state, sleeveUpdates: [] };
+  // if (state.submittedPlayers.includes(playerIdx)) return { newState: state, sleeveUpdates: [] };
+  // if (playerIdx === state.czarIndex) return { newState: state, sleeveUpdates: [] };
 
-  const newSubmitted = [...state.submittedPlayers, playerIdx];
-  const newSlots = { ...state.submissionSlots, [playerIdx]: handSlot };
+  // const newSubmitted = [...state.submittedPlayers, playerIdx];
+  // const newSlots = { ...state.submissionSlots, [playerIdx]: handSlot };
 
-  const nonCzarCount = state.playerCount - 1;
-  const allSubmitted = newSubmitted.length >= nonCzarCount;
+  // const nonCzarCount = state.playerCount - 1;
+  // const allSubmitted = newSubmitted.length >= nonCzarCount;
 
-  const newPhase: CahPhase = allSubmitted ? 'reveal' : 'submissions';
-  const revealOrder = allSubmitted ? shuffle(
-    Array.from({ length: state.playerCount }, (_, i) => i).filter(i => i !== state.czarIndex)
-  ) : state.revealOrder;
+  // const newPhase: CahPhase = allSubmitted ? 'reveal' : 'submissions';
+  // const revealOrder = allSubmitted ? shuffle(
+  //   Array.from({ length: state.playerCount }, (_, i) => i).filter(i => i !== state.czarIndex)
+  // ) : state.revealOrder;
 
-  const newState: CahGameState = {
-    ...state,
-    phase: newPhase,
-    submittedPlayers: newSubmitted,
-    submissionSlots: newSlots,
-    revealOrder,
-    revealedCount: 0,
-  };
+  // const newState: CahGameState = {
+  //   ...state,
+  //   phase: newPhase,
+  //   submittedPlayers: newSubmitted,
+  //   submissionSlots: newSlots,
+  //   revealOrder,
+  //   revealedCount: 0,
+  // };
 
-  // Sleeve update: flip submitted card face-down (no reveal yet)
-  const sid = cahSleeveId(playerIdx, handSlot, state.handSize);
-  const sleeveUpdates: CahSleeveUpdate[] = [{
-    sleeveId: sid,
-    descriptor: faceDownDescriptor(`P${playerIdx + 1}`, `Submitted`),
-  }];
+  // // Sleeve update: flip submitted card face-down (no reveal yet)
+  // const sid = cahSleeveId(playerIdx, handSlot, state.handSize);
+  // const sleeveUpdates: CahSleeveUpdate[] = [{
+  //   sleeveId: sid,
+  //   descriptor: faceDownDescriptor(`P${playerIdx + 1}`, `Submitted`),
+  // }];
 
-  return { newState, sleeveUpdates };
+  // return { newState, sleeveUpdates };
+  return { newState: state, sleeveUpdates: [] };
 }
 
 export function pickWinner(
   state: CahGameState,
   winnerIdx: number,
 ): { newState: CahGameState; sleeveUpdates: CahSleeveUpdate[] } {
-  if (state.phase !== 'winner') return { newState: state, sleeveUpdates: [] };
+  // CAH_RULES_DISABLED: voting / winner selection / scoreboard
+  // if (state.phase !== 'winner') return { newState: state, sleeveUpdates: [] };
 
-  const newScores = [...state.scores];
-  newScores[winnerIdx] += 1;
+  // const newScores = [...state.scores];
+  // newScores[winnerIdx] += 1;
 
-  const newState: CahGameState = { ...state, scores: newScores, roundWinner: winnerIdx };
-  return { newState, sleeveUpdates: [] };
+  // const newState: CahGameState = { ...state, scores: newScores, roundWinner: winnerIdx };
+  // return { newState, sleeveUpdates: [] };
+  return { newState: state, sleeveUpdates: [] };
 }
 
 // ── Advance (tap to progress phase) ─────────────────────────────────────────
@@ -225,42 +232,79 @@ export function advanceCah(state: CahGameState): {
     }
 
     case 'dealt': {
-      const newState: CahGameState = { ...state, phase: 'submissions' };
-      return { newState, sleeveUpdates: [] };
-    }
+      // CAH_RULES_DISABLED: no longer opens submissions pipeline
+      // "Next Round" cycles directly to fresh black card + fresh white hands for all players
+      let blackDeck = [...state.blackDeck];
+      if (blackDeck.length === 0) blackDeck = shuffle(state.allBlackCards);
+      const nextBlack = blackDeck[0];
+      blackDeck = blackDeck.slice(1);
 
-    case 'submissions': {
-      // Auto-advance only happens via submitCard when all have submitted.
-      // If czar taps manually (e.g. someone left), force transition.
-      const nonCzarPlayers = Array.from({ length: state.playerCount }, (_, i) => i)
-        .filter(i => i !== state.czarIndex);
-      const revealOrder = shuffle(nonCzarPlayers);
+      let whiteDeck = [...state.whiteDeck];
+      const playerHands: CahCard[][] = [];
+      for (let p = 0; p < state.playerCount; p++) {
+        const hand: CahCard[] = [];
+        for (let k = 0; k < state.handSize; k++) {
+          if (whiteDeck.length === 0) {
+            const inHand = new Set(playerHands.flat().map(c => c.id));
+            whiteDeck = shuffle(state.allWhiteCards.filter(c => !inHand.has(c.id)));
+          }
+          if (whiteDeck.length > 0) hand.push(whiteDeck.shift()!);
+        }
+        playerHands.push(hand);
+      }
+
       const newState: CahGameState = {
         ...state,
-        phase: 'reveal',
-        revealOrder,
+        phase: 'dealt',
+        blackDeck,
+        whiteDeck,
+        currentBlackCard: nextBlack,
+        playerHands,
+        submittedPlayers: [],
+        submissionSlots: {},
+        revealOrder: [],
         revealedCount: 0,
+        roundWinner: null,
       };
-      return { newState, sleeveUpdates: [] };
+      return { newState, sleeveUpdates: allSleeveUpdates(newState) };
     }
 
-    case 'reveal': {
-      if (state.revealedCount < state.revealOrder.length) {
-        const newState: CahGameState = {
-          ...state,
-          revealedCount: state.revealedCount + 1,
-        };
-        return { newState, sleeveUpdates: deltaRevealUpdates(newState) };
-      }
-      // All revealed → move to winner
-      const newState: CahGameState = { ...state, phase: 'winner' };
-      return { newState, sleeveUpdates: [] };
-    }
+    // CAH_RULES_DISABLED: submissions phase — players, turns, submission tracking
+    // case 'submissions': {
+    //   const nonCzarPlayers = Array.from({ length: state.playerCount }, (_, i) => i)
+    //     .filter(i => i !== state.czarIndex);
+    //   const revealOrder = shuffle(nonCzarPlayers);
+    //   const newState: CahGameState = {
+    //     ...state,
+    //     phase: 'reveal',
+    //     revealOrder,
+    //     revealedCount: 0,
+    //   };
+    //   return { newState, sleeveUpdates: [] };
+    // }
 
-    case 'winner': {
-      // Start next round
-      return startNextRound(state);
-    }
+    // CAH_RULES_DISABLED: reveal phase — card reveal sequencing
+    // case 'reveal': {
+    //   if (state.revealedCount < state.revealOrder.length) {
+    //     const newState: CahGameState = {
+    //       ...state,
+    //       revealedCount: state.revealedCount + 1,
+    //     };
+    //     return { newState, sleeveUpdates: deltaRevealUpdates(newState) };
+    //   }
+    //   const newState: CahGameState = { ...state, phase: 'winner' };
+    //   return { newState, sleeveUpdates: [] };
+    // }
+
+    // CAH_RULES_DISABLED: winner phase — voting, czar rotation, scoreboard, round winners
+    // case 'winner': {
+    //   return startNextRound(state);
+    // }
+
+    case 'submissions':
+    case 'reveal':
+    case 'winner':
+      return { newState: state, sleeveUpdates: [] };
   }
 }
 
@@ -270,7 +314,9 @@ function startNextRound(state: CahGameState): {
   newState: CahGameState;
   sleeveUpdates: CahSleeveUpdate[];
 } {
-  const nextCzar = (state.czarIndex + 1) % state.playerCount;
+  // CAH_RULES_DISABLED: czar rotation
+  // const nextCzar = (state.czarIndex + 1) % state.playerCount;
+  const nextCzar = state.czarIndex;
 
   // Cycle black deck
   let blackDeck = [...state.blackDeck];
@@ -320,7 +366,7 @@ function startNextRound(state: CahGameState): {
 
 export const CAH_PHASE_BUTTON_LABEL: Record<CahPhase, string> = {
   pre_deal: 'Deal Cards',
-  dealt: 'Open Submissions',
+  dealt: 'Next Round',
   submissions: 'Force Reveal',
   reveal: 'Reveal Next',
   winner: 'Next Round',

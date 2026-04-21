@@ -4,17 +4,36 @@ export const PI_SERVER = 'http://192.168.86.193:5050';
 
 // ── Card-back asset ──────────────────────────────────────────────────────────
 
-let _cardBackBytes: ArrayBuffer | null = null;
+// Metro requires all require() calls to be statically analysable — no dynamic paths.
+const CARD_BACK_ASSETS: Record<string, number> = {
+  rot0:     require('../../assets/images/card_back_rot0.jpg')     as number,
+  rot90cw:  require('../../assets/images/card_back_rot90cw.jpg')  as number,
+  rot90ccw: require('../../assets/images/card_back_rot90ccw.jpg') as number,
+  rot180:   require('../../assets/images/card_back_rot180.jpg')   as number,
+};
+
+export const CARD_BACK_VARIANTS = Object.keys(CARD_BACK_ASSETS) as (keyof typeof CARD_BACK_ASSETS)[];
+
+let _cardBackVariant: string = 'rot90cw';
+const _cardBackCache: Map<string, ArrayBuffer> = new Map();
+
+export function getCardBackVariant(): string { return _cardBackVariant; }
+
+export function setCardBackVariant(variant: string): void {
+  if (CARD_BACK_ASSETS[variant] === undefined) return;
+  _cardBackVariant = variant;
+}
 
 async function getCardBackBytes(): Promise<ArrayBuffer> {
-  if (_cardBackBytes) return _cardBackBytes;
-  const src = Image.resolveAssetSource(
-    require('../../assets/images/card_back.jpg') as number,
-  );
+  const v = _cardBackVariant;
+  const cached = _cardBackCache.get(v);
+  if (cached) return cached;
+  const src = Image.resolveAssetSource(CARD_BACK_ASSETS[v]);
   const resp = await fetch(src.uri);
-  if (!resp.ok) throw new Error(`card_back fetch: HTTP ${resp.status}`);
-  _cardBackBytes = await resp.arrayBuffer();
-  return _cardBackBytes;
+  if (!resp.ok) throw new Error(`card_back fetch (${v}): HTTP ${resp.status}`);
+  const bytes = await resp.arrayBuffer();
+  _cardBackCache.set(v, bytes);
+  return bytes;
 }
 
 // ── Descriptor type ──────────────────────────────────────────────────────────

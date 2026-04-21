@@ -20,12 +20,18 @@ import { getDeck, loadSettings, saveDeck } from '../../src/storage/deckStorage';
 import { AppSettings, CardInstance, Deck, TokenTemplate } from '../../src/types';
 
 function ArtPopupContent({ card }: { card: CardInstance | null }) {
+  console.log('[ArtPopup] imagePath:', card?.imagePath);
   const [showBack, setShowBack] = useState(false);
   if (!card) return null;
   const uri = showBack && card.backImagePath ? card.backImagePath : card.imagePath;
   return (
     <View style={artPopupStyles.wrap}>
-      <Image source={{ uri }} style={artPopupStyles.img} resizeMode="contain" />
+      <Image
+        source={{ uri }}
+        style={artPopupStyles.img}
+        resizeMode="contain"
+        onError={e => console.log('[ArtPopup] image load error:', JSON.stringify(e?.nativeEvent ?? e))}
+      />
       {!!card.backImagePath && (
         <Pressable onPress={() => setShowBack(v => !v)} style={artPopupStyles.flipBtn}>
           <Text style={artPopupStyles.flipLabel}>{showBack ? '⟵ Front' : 'Back ⟶'}</Text>
@@ -36,7 +42,7 @@ function ArtPopupContent({ card }: { card: CardInstance | null }) {
 }
 
 const artPopupStyles = StyleSheet.create({
-  wrap: { alignItems: 'center', gap: 12 },
+  wrap: { flex: 1, width: '100%', alignItems: 'center', gap: 12 },
   img: { width: '90%', height: '80%' },
   flipBtn: {
     paddingHorizontal: 20,

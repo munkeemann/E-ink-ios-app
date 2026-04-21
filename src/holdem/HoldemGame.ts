@@ -64,7 +64,7 @@ function nextPhase(phase: HoldemPhase): HoldemPhase {
 // ── Game creation ────────────────────────────────────────────────────────────
 
 /** Shuffle and assign one card to every sleeve for a fresh hand. */
-export function createGame(playerCount: number): HoldemGameState {
+export function createGame(playerCount: number, cardSkin: string): HoldemGameState {
   const deck = shuffleDeck(freshDeck());
   const layout = buildSleeveLayout(playerCount);
   const sleeveCards: Record<number, PlayingCard> = {};
@@ -74,7 +74,7 @@ export function createGame(playerCount: number): HoldemGameState {
     sleeveCards[sleeveId] = deck[idx++];
   }
 
-  return { phase: 'pre_deal', playerCount, sleeveCards, startedAt: Date.now() };
+  return { phase: 'pre_deal', playerCount, sleeveCards, startedAt: Date.now(), cardSkin };
 }
 
 // ── Sleeve descriptor helpers ─────────────────────────────────────────────────
@@ -144,7 +144,7 @@ export function advance(state: HoldemGameState): AdvanceResult {
 
   if (toPhase === 'pre_deal') {
     // New hand: reshuffle, reassign cards, send all sleeves face-down
-    const newState = createGame(state.playerCount);
+    const newState = createGame(state.playerCount, state.cardSkin ?? 'default');
     return { newState, sleeveUpdates: allSleeveUpdates(newState) };
   }
 

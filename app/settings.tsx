@@ -11,6 +11,12 @@ import {
 import { router, useFocusEffect } from 'expo-router';
 import { loadSettings, saveSettings } from '../src/storage/deckStorage';
 import { configurePiDebug } from '../src/api/piServer';
+import {
+  CARD_BACK_VARIANTS,
+  getCardBackVariant,
+  setCardBackVariant,
+  clearMemo,
+} from '../src/api/sleeveService';
 import { AppSettings } from '../src/types';
 
 const ZONE_OPTIONS: { id: string; label: string; note?: string }[] = [
@@ -29,6 +35,7 @@ export default function SettingsScreen() {
     devMode: false,
     piDebugAlerts: false,
   });
+  const [cardBackVariant, setCardBackVariantState] = useState(getCardBackVariant);
 
   useFocusEffect(
     useCallback(() => {
@@ -181,6 +188,27 @@ export default function SettingsScreen() {
               />
             </View>
           )}
+          {settings.devMode && (
+            <View style={[styles.toggleRow, styles.toggleRowBorder, styles.subToggleRow]}>
+              <View style={styles.toggleInfo}>
+                <Text style={styles.toggleLabel}>Card Back Variant</Text>
+                <Text style={styles.toggleNote}>Cycles 4 rotation variants for A/B test on sleeve</Text>
+              </View>
+              <Pressable
+                style={styles.variantBtn}
+                onPress={() => {
+                  const idx = CARD_BACK_VARIANTS.indexOf(cardBackVariant as typeof CARD_BACK_VARIANTS[number]);
+                  const next = CARD_BACK_VARIANTS[(idx + 1) % CARD_BACK_VARIANTS.length];
+                  setCardBackVariant(next);
+                  clearMemo();
+                  setCardBackVariantState(next);
+                }}
+              >
+                <Text style={styles.variantBtnText}>{cardBackVariant}</Text>
+                <Text style={styles.variantBtnArrow}>›</Text>
+              </Pressable>
+            </View>
+          )}
         </View>
 
       </ScrollView>
@@ -283,4 +311,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   saveBtnText: { color: '#D0BCFF', fontSize: 17, fontWeight: '800' },
+
+  variantBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#6650a4',
+  },
+  variantBtnText: { color: '#D0BCFF', fontSize: 13, fontWeight: '700', minWidth: 72, textAlign: 'center' },
+  variantBtnArrow: { color: '#D0BCFF', fontSize: 18 },
 });

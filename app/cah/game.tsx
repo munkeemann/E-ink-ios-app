@@ -11,12 +11,10 @@ import {
 import { router, useFocusEffect } from 'expo-router';
 import {
   advanceCah,
-  allSleeveUpdates,
   CAH_PHASE_BUTTON_LABEL,
   CahSleeveUpdate,
-  pickWinner,
-  submitCard,
   totalCahSleeveCount,
+  // CAH_RULES_DISABLED: allSleeveUpdates, submitCard, pickWinner — submission tracking / voting
 } from '../../src/cah/CahGame';
 import { loadCahGame, saveCahGame, clearCahGame } from '../../src/storage/cahStorage';
 import { sendToSleeve, clearMemo } from '../../src/api/sleeveService';
@@ -82,9 +80,10 @@ export default function CahGameScreen() {
     );
   }
 
-  const { phase, playerCount, handSize, czarIndex, scores,
-          currentBlackCard, playerHands, submittedPlayers,
-          submissionSlots, revealOrder, revealedCount, roundWinner } = state;
+  const { phase, playerCount, handSize, currentBlackCard, playerHands } = state;
+  // CAH_RULES_DISABLED: czarIndex, scores, submittedPlayers, submissionSlots,
+  //                      revealOrder, revealedCount, roundWinner — players/turns/
+  //                      submission tracking/voting/scoreboard/round winners
 
   const sleeveCount = totalCahSleeveCount(playerCount, handSize);
   const phaseLabel = phase.replace('_', ' ').toUpperCase();
@@ -103,42 +102,43 @@ export default function CahGameScreen() {
     }
   };
 
-  const handleSubmit = async (playerIdx: number, handSlot: number) => {
-    if (busy) return;
-    if (phase !== 'submissions') return;
-    setBusy(true);
-    try {
-      const { newState, sleeveUpdates } = submitCard(state, playerIdx, handSlot);
-      setState(newState);
-      await saveCahGame(newState);
-      await pushUpdates(sleeveUpdates, rendererRef);
-    } finally {
-      setBusy(false);
-    }
-  };
+  // CAH_RULES_DISABLED: submission tracking
+  // const handleSubmit = async (playerIdx: number, handSlot: number) => {
+  //   if (busy) return;
+  //   if (phase !== 'submissions') return;
+  //   setBusy(true);
+  //   try {
+  //     const { newState, sleeveUpdates } = submitCard(state, playerIdx, handSlot);
+  //     setState(newState);
+  //     await saveCahGame(newState);
+  //     await pushUpdates(sleeveUpdates, rendererRef);
+  //   } finally {
+  //     setBusy(false);
+  //   }
+  // };
 
-  const handlePickWinner = async (winnerIdx: number) => {
-    if (busy) return;
-    if (phase !== 'winner' && phase !== 'reveal') return;
-    setBusy(true);
-    try {
-      // If still in reveal, first transition to winner phase
-      let workingState = state;
-      if (phase === 'reveal') {
-        const advanced = advanceCah({ ...state, phase: 'reveal', revealedCount: revealOrder.length });
-        workingState = advanced.newState;
-        await pushUpdates(advanced.sleeveUpdates, rendererRef);
-      }
-      const { newState } = pickWinner(
-        { ...workingState, phase: 'winner' },
-        winnerIdx,
-      );
-      setState(newState);
-      await saveCahGame(newState);
-    } finally {
-      setBusy(false);
-    }
-  };
+  // CAH_RULES_DISABLED: voting / winner selection
+  // const handlePickWinner = async (winnerIdx: number) => {
+  //   if (busy) return;
+  //   if (phase !== 'winner' && phase !== 'reveal') return;
+  //   setBusy(true);
+  //   try {
+  //     let workingState = state;
+  //     if (phase === 'reveal') {
+  //       const advanced = advanceCah({ ...state, phase: 'reveal', revealedCount: revealOrder.length });
+  //       workingState = advanced.newState;
+  //       await pushUpdates(advanced.sleeveUpdates, rendererRef);
+  //     }
+  //     const { newState } = pickWinner(
+  //       { ...workingState, phase: 'winner' },
+  //       winnerIdx,
+  //     );
+  //     setState(newState);
+  //     await saveCahGame(newState);
+  //   } finally {
+  //     setBusy(false);
+  //   }
+  // };
 
   const handleEnd = () => {
     Alert.alert('End Game', 'End this session and return to game select?', [
@@ -154,25 +154,17 @@ export default function CahGameScreen() {
     ]);
   };
 
-  // Show submit buttons during submissions phase for non-czar players
-  const showSubmit = phase === 'submissions';
+  // CAH_RULES_DISABLED: submission phase button visibility
+  // const showSubmit = phase === 'submissions';
 
-  // Show winner-pick buttons once all revealed or in winner phase
-  const showWinnerPick = phase === 'winner' ||
-    (phase === 'reveal' && revealedCount >= revealOrder.length);
+  // CAH_RULES_DISABLED: winner-pick button visibility
+  // const showWinnerPick = phase === 'winner' ||
+  //   (phase === 'reveal' && revealedCount >= revealOrder.length);
 
-  const buttonLabel = (() => {
-    if (phase === 'reveal') {
-      return revealedCount < revealOrder.length
-        ? `Reveal Next (${revealedCount}/${revealOrder.length})`
-        : 'Pick Winner';
-    }
-    return CAH_PHASE_BUTTON_LABEL[phase];
-  })();
+  const buttonLabel = CAH_PHASE_BUTTON_LABEL[phase];
 
-  // Hide the advance button when in submission phase (use per-card submit instead)
-  // and in winner/reveal-complete state (use per-player winner pick instead)
-  const hideAdvance = showSubmit || showWinnerPick;
+  // CAH_RULES_DISABLED: advance button was hidden during submissions/winner-pick phases
+  const hideAdvance = false;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -215,12 +207,8 @@ export default function CahGameScreen() {
       <Text style={styles.sectionHeader}>Players</Text>
       <View style={styles.tableCard}>
         {Array.from({ length: playerCount }, (_, p) => {
-          const isCzar = p === czarIndex;
-          const hasSubmitted = submittedPlayers.includes(p);
-          const isWinner = roundWinner === p;
-          const submittedSlot = submissionSlots[p];
-          const revealPos = revealOrder.indexOf(p);
-          const isRevealed = revealPos !== -1 && revealPos < revealedCount;
+          // CAH_RULES_DISABLED: isCzar, hasSubmitted, isWinner, submittedSlot, revealPos, isRevealed
+          // — players/turns, submission tracking, voting, czar rotation, round winners
 
           return (
             <View
@@ -228,97 +216,35 @@ export default function CahGameScreen() {
               style={[
                 styles.playerRow,
                 p < playerCount - 1 && styles.rowBorder,
-                isWinner && styles.winnerRow,
               ]}
             >
               <View style={styles.playerMeta}>
-                <Text style={[styles.playerLabel, isWinner && styles.winnerLabel]}>
+                <Text style={styles.playerLabel}>
                   Player {p + 1}
-                  {isCzar ? '  👑' : ''}
-                  {isWinner ? '  ★' : ''}
                 </Text>
-                <Text style={styles.playerScore}>Score: {scores[p]}</Text>
-                {hasSubmitted && !isRevealed && (
-                  <Text style={styles.submittedTag}>Submitted</Text>
-                )}
+                {/* CAH_RULES_DISABLED: score display (scoreboard) */}
+                {/* <Text style={styles.playerScore}>Score: {scores[p]}</Text> */}
               </View>
 
-              {/* Hand — card values hidden on shared phone */}
-              {!isCzar && (
-                <View style={styles.handRow}>
-                  {isRevealed ? (
-                    <View style={styles.cardChipRevealed}>
-                      <Text style={styles.cardChipTextRevealed} numberOfLines={3}>
-                        {playerHands[p][submittedSlot]?.text ?? ''}
-                      </Text>
-                    </View>
-                  ) : (
-                    <>
-                      <Text style={styles.handCount}>{playerHands[p].length} cards</Text>
-                      {showSubmit && !hasSubmitted && (
-                        <Pressable
-                          style={({ pressed }) => [
-                            styles.submitBtn,
-                            pressed && styles.submitBtnPressed,
-                          ]}
-                          onPress={() => {
-                            Alert.alert(
-                              `Player ${p + 1} — Submit a card`,
-                              undefined,
-                              [
-                                ...playerHands[p].map((_, k) => ({
-                                  text: `Card ${k + 1}`,
-                                  onPress: () => handleSubmit(p, k),
-                                })),
-                                { text: 'Cancel', style: 'cancel' as const },
-                              ],
-                            );
-                          }}
-                          disabled={busy}
-                        >
-                          <Text style={styles.submitBtnText}>Submit card…</Text>
-                        </Pressable>
-                      )}
-                    </>
-                  )}
-                </View>
-              )}
+              {/* Hand card count */}
+              <View style={styles.handRow}>
+                <Text style={styles.handCount}>{playerHands[p]?.length ?? 0} cards</Text>
+              </View>
 
-              {/* Winner pick button */}
-              {showWinnerPick && !isCzar && (
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.winPickBtn,
-                    pressed && styles.winPickBtnPressed,
-                    isWinner && styles.winPickBtnWon,
-                  ]}
-                  onPress={() => handlePickWinner(p)}
-                  disabled={busy}
-                >
-                  <Text style={[styles.winPickBtnText, isWinner && styles.winPickBtnTextWon]}>
-                    {isWinner ? '★ Winner' : 'Pick'}
-                  </Text>
-                </Pressable>
-              )}
+              {/* CAH_RULES_DISABLED: submit card button (submission tracking) */}
+              {/* {showSubmit && !hasSubmitted && ( <Pressable ... Submit card… /> )} */}
+
+              {/* CAH_RULES_DISABLED: winner pick button (voting / round winners) */}
+              {/* {showWinnerPick && !isCzar && ( <Pressable ... Pick/Winner /> )} */}
             </View>
           );
         })}
       </View>
 
-      {/* Next round button when winner is picked */}
-      {phase === 'winner' && roundWinner !== null && (
-        <Pressable
-          style={({ pressed }) => [styles.advanceBtn, (pressed || busy) && styles.advanceBtnPressed]}
-          onPress={handleAdvance}
-          disabled={busy}
-        >
-          {busy ? (
-            <ActivityIndicator color="#060c14" />
-          ) : (
-            <Text style={styles.advanceBtnLabel}>Next Round  →</Text>
-          )}
-        </Pressable>
-      )}
+      {/* CAH_RULES_DISABLED: separate "Next round" button after winner picked (round winners) */}
+      {/* {phase === 'winner' && roundWinner !== null && (
+        <Pressable ... Next Round → </Pressable>
+      )} */}
 
       {/* End game */}
       <Pressable style={styles.endBtn} onPress={handleEnd}>

@@ -14,6 +14,7 @@ import { loadCahGame } from '../src/storage/cahStorage';
 import { Deck } from '../src/types';
 import { HoldemGameState } from '../src/types/holdem';
 import { CahGameState } from '../src/types/cah';
+import AmbientLayer from '../src/components/AmbientLayer';
 
 type GameDef = {
   id: string;
@@ -66,6 +67,14 @@ type ResumeTarget =
 
 export default function GameSelectScreen() {
   const [resume, setResume] = useState<ResumeTarget | null>(null);
+  const [isFocused, setIsFocused] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      setIsFocused(true);
+      return () => setIsFocused(false);
+    }, []),
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -143,9 +152,10 @@ export default function GameSelectScreen() {
 
   return (
     <View style={styles.container}>
+      <AmbientLayer active={isFocused} />
       <StatusBar barStyle="light-content" />
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Arcane Sleeve Manager</Text>
+        <Text style={styles.headerTitle}>The Arcanum</Text>
         <Text style={styles.headerSubtitle}>Choose your game</Text>
       </View>
 
