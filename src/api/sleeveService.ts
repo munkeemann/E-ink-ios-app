@@ -34,14 +34,7 @@ async function getCardBackBytes(): Promise<ArrayBuffer> {
   const t0 = Date.now();
   const src = Image.resolveAssetSource(CARD_BACK_ASSETS[v]);
   console.log('[CardBack] cache MISS — variant:', v, 'uri:', src?.uri ?? 'NULL');
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 5000);
-  let resp: Response;
-  try {
-    resp = await fetch(src.uri, { signal: controller.signal });
-  } finally {
-    clearTimeout(timer);
-  }
+  const resp = await fetch(src.uri);
   console.log('[CardBack] fetch done in', Date.now() - t0, 'ms — status:', resp.status);
   if (!resp.ok) throw new Error(`card_back fetch (${v}): HTTP ${resp.status}`);
   const bytes = await resp.arrayBuffer();
