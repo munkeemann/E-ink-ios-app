@@ -14,7 +14,7 @@ export const CARD_BACK_ASSETS: Record<string, number> = {
 
 export const CARD_BACK_VARIANTS = Object.keys(CARD_BACK_ASSETS) as (keyof typeof CARD_BACK_ASSETS)[];
 
-let _cardBackVariant: string = 'rot90cw';
+let _cardBackVariant: string = 'rot0';
 const _cardBackCache: Map<string, ArrayBuffer> = new Map();
 
 export function getCardBackVariant(): string { return _cardBackVariant; }
