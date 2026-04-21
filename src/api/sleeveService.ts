@@ -5,7 +5,7 @@ export const PI_SERVER = 'http://192.168.86.193:5050';
 // ── Card-back asset ──────────────────────────────────────────────────────────
 
 // Metro requires all require() calls to be statically analysable — no dynamic paths.
-const CARD_BACK_ASSETS: Record<string, number> = {
+export const CARD_BACK_ASSETS: Record<string, number> = {
   rot0:     require('../../assets/images/card_back_rot0.jpg')     as number,
   rot90cw:  require('../../assets/images/card_back_rot90cw.jpg')  as number,
   rot90ccw: require('../../assets/images/card_back_rot90ccw.jpg') as number,
