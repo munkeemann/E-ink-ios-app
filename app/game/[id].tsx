@@ -23,12 +23,18 @@ import { getDeck, loadSettings, saveDeck } from '../../src/storage/deckStorage';
 import { AppSettings, CardInstance, Deck, TokenTemplate } from '../../src/types';
 
 function ArtPopupContent({ card }: { card: CardInstance | null }) {
+  console.log('[ArtPopup] imagePath:', card?.imagePath);
   const [showBack, setShowBack] = useState(false);
   if (!card) return null;
   const uri = showBack && card.backImagePath ? card.backImagePath : card.imagePath;
   return (
     <View style={artPopupStyles.wrap}>
-      <Image source={{ uri }} style={artPopupStyles.img} resizeMode="contain" />
+      <Image
+        source={{ uri }}
+        style={artPopupStyles.img}
+        resizeMode="contain"
+        onError={e => console.log('[ArtPopup] image load error:', JSON.stringify(e?.nativeEvent ?? e))}
+      />
       {!!card.backImagePath && (
         <Pressable onPress={() => setShowBack(v => !v)} style={artPopupStyles.flipBtn}>
           <Text style={artPopupStyles.flipLabel}>{showBack ? '⟵ Front' : 'Back ⟶'}</Text>
@@ -39,7 +45,7 @@ function ArtPopupContent({ card }: { card: CardInstance | null }) {
 }
 
 const artPopupStyles = StyleSheet.create({
-  wrap: { alignItems: 'center', gap: 12 },
+  wrap: { flex: 1, width: '100%', alignItems: 'center', gap: 12 },
   img: { width: '90%', height: '80%' },
   flipBtn: {
     paddingHorizontal: 20,
@@ -353,16 +359,33 @@ export default function InGameScreen() {
     const shuffled = shuffle(lib).map((c, i) => ({ ...c, place: String(i + 1) }));
     const nonLibNonCommander = deckCards.filter(c => c.zone !== 'LIB' && c.place !== 'commander');
 
-    // Reassign sleeve IDs based on new positions. Without this, sleeveId stays
-    // tied to the pre-shuffle card (e.g. Lightning Bolt keeps sleeveId=2 even
-    // though it's no longer at position 1), so beginGame pushes the wrong images.
-    const newCards = assignSleeveIds([...commanderCards, ...nonLibNonCommander, ...shuffled], settings);
+    // Non-LIB cards (hand, battlefield, graveyard, etc.) keep their current sleeveIds.
+    // assignSleeveIds fills in zone-priority order (LIB first), which would clobber
+    // hand card sleeve IDs on every shuffle. Instead, lock non-LIB IDs and only
+    // assign library cards from the remaining available slots. (SAM1-46)
+    const nonLibCards = [...commanderCards, ...nonLibNonCommander];
+    const lockedSleeveIds = new Set(
+      nonLibCards.map(c => c.sleeveId).filter((s): s is number => typeof s === 'number' && s !== null)
+    );
+    console.log('[Shuffle] locked sleeveIds:', JSON.stringify([...lockedSleeveIds].sort((a, b) => a - b)));
 
-    console.log('[DEBUG shuffle] cards after Shuffle:\n' +
-      JSON.stringify(newCards.map(c => ({ name: c.displayName, place: c.place, zone: c.zone, sleeveId: c.sleeveId })), null, 2));
+    const shuffledLib = shuffle(lib).map((c, i) => ({ ...c, place: String(i + 1) }));
 
-    const top5 = newCards
-      .filter(c => c.zone === 'LIB')
+    const totalSleeves = settings.sleeveCount ?? 0;
+    const availableIds: number[] = [];
+    for (let i = 1; i <= totalSleeves; i++) {
+      if (!lockedSleeveIds.has(i)) availableIds.push(i);
+    }
+
+    const finalLib = shuffledLib.map((c, i) => ({ ...c, sleeveId: availableIds[i] ?? null }));
+    const newCards = [...nonLibCards, ...finalLib];
+
+    const sleevedCards = newCards.filter(c => c.sleeveId !== null)
+      .sort((a, b) => (a.sleeveId ?? 0) - (b.sleeveId ?? 0));
+    console.log('[Shuffle] post-shuffle sleeve assignments:',
+      sleevedCards.map(c => `sleeve=${c.sleeveId} ${c.displayName} (${c.zone})`).join(', '));
+
+    const top5 = finalLib
       .sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10))
       .slice(0, 5);
     const debugMsg = top5.map(c => `${c.displayName}  place=${c.place}  sleeve=${c.sleeveId ?? 'null'}`).join('\n');
