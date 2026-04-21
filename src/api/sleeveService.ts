@@ -138,6 +138,25 @@ export function clearMemo(sleeveId?: number): void {
   else lastSentHash.delete(sleeveId);
 }
 
+export async function prefetchCardBacks(): Promise<void> {
+  const t0 = Date.now();
+  let cached = 0;
+  for (const [variant, assetId] of Object.entries(CARD_BACK_ASSETS)) {
+    if (_cardBackCache.has(variant)) { cached++; continue; }
+    try {
+      const src = Image.resolveAssetSource(assetId as number);
+      if (!src?.uri) { console.warn(`[Prefetch] cardBack ${variant}: no URI`); continue; }
+      const resp = await fetch(src.uri);
+      if (!resp.ok) { console.warn(`[Prefetch] cardBack ${variant}: HTTP ${resp.status}`); continue; }
+      _cardBackCache.set(variant, await resp.arrayBuffer());
+      cached++;
+    } catch (e) {
+      console.warn(`[Prefetch] cardBack ${variant} failed:`, e instanceof Error ? e.message : e);
+    }
+  }
+  console.log(`[Prefetch] cardBacks done in ${Date.now() - t0}ms, cached ${cached} variants`);
+}
+
 // ── Core send ────────────────────────────────────────────────────────────────
 
 /**

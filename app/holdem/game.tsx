@@ -83,6 +83,8 @@ const CARD_ASSETS: Record<string, number> = {
   card_KC: require('../../assets/images/playing_cards/card_KC.jpg'),
 };
 
+const _skinCache: Map<string, ArrayBuffer> = new Map();
+
 async function timedFetch(uri: string, timeoutMs = 5000): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -107,13 +109,20 @@ async function getCardBytes(
       const fileKey = skinCardKey(rank, suit);
       const skinAsset = skinAssets[fileKey];
       if (skinAsset) {
+        const cacheKey = `${skin}:${fileKey}`;
+        const cached = _skinCache.get(cacheKey);
+        if (cached) {
+          console.log(`[Holdem] skin cache HIT: ${fileKey} (${skin}) — ${cached.byteLength} bytes`);
+          return { data: cached, source: 'skin' };
+        }
         const skinSrc = Image.resolveAssetSource(skinAsset);
         if (skinSrc?.uri) {
           try {
             const skinResp = await timedFetch(skinSrc.uri);
             if (skinResp.ok) {
               const data = await skinResp.arrayBuffer();
-              console.log(`[Holdem] skin asset HIT: ${fileKey} (${skin}) — ${data.byteLength} bytes`);
+              _skinCache.set(cacheKey, data);
+              console.log(`[Holdem] skin asset fetched: ${fileKey} (${skin}) — ${data.byteLength} bytes`);
               return { data, source: 'skin' };
             }
           } catch {
@@ -126,15 +135,61 @@ async function getCardBytes(
   }
 
   // Fallback: programmatic card assets
-  console.log(`[Holdem] skin asset MISS, using CARD_ASSETS fallback: rank=${rank} suit=${suit} skin=${skin}`);
   const key = `card_${rank}${suit}`;
   if (!CARD_ASSETS[key]) throw new Error(`card asset key not found: ${key}`);
+  const defaultCacheKey = `default:${key}`;
+  const cachedDefault = _skinCache.get(defaultCacheKey);
+  if (cachedDefault) {
+    console.log(`[Holdem] CARD_ASSETS cache HIT: ${key} — ${cachedDefault.byteLength} bytes`);
+    return { data: cachedDefault, source: 'default' };
+  }
+  console.log(`[Holdem] CARD_ASSETS cache MISS: ${key} skin=${skin}`);
   const src = Image.resolveAssetSource(CARD_ASSETS[key]);
   if (!src?.uri) throw new Error(`card asset ${key}: resolveAssetSource returned no URI`);
   const resp = await timedFetch(src.uri);
   if (!resp.ok) throw new Error(`card asset ${key}: HTTP ${resp.status}`);
   const data = await resp.arrayBuffer();
+  _skinCache.set(defaultCacheKey, data);
   return { data, source: 'default' };
+}
+
+export async function prefetchSkin(skinName: string): Promise<void> {
+  const t0 = Date.now();
+  let cached = 0;
+  if (skinName === 'default') {
+    for (const [key, assetId] of Object.entries(CARD_ASSETS)) {
+      const cacheKey = `default:${key}`;
+      if (_skinCache.has(cacheKey)) { cached++; continue; }
+      try {
+        const src = Image.resolveAssetSource(assetId);
+        if (!src?.uri) { console.warn(`[Prefetch] CARD_ASSETS ${key}: no URI`); continue; }
+        const resp = await fetch(src.uri);
+        if (!resp.ok) { console.warn(`[Prefetch] CARD_ASSETS ${key}: HTTP ${resp.status}`); continue; }
+        _skinCache.set(cacheKey, await resp.arrayBuffer());
+        cached++;
+      } catch (e) {
+        console.warn(`[Prefetch] CARD_ASSETS ${key} failed:`, e instanceof Error ? e.message : e);
+      }
+    }
+  } else {
+    const skinAssets = SKIN_ASSETS[skinName];
+    if (!skinAssets) { console.warn(`[Prefetch] skin "${skinName}" not found in registry`); return; }
+    for (const [fileKey, assetId] of Object.entries(skinAssets)) {
+      const cacheKey = `${skinName}:${fileKey}`;
+      if (_skinCache.has(cacheKey)) { cached++; continue; }
+      try {
+        const src = Image.resolveAssetSource(assetId as number);
+        if (!src?.uri) { console.warn(`[Prefetch] skin ${skinName}/${fileKey}: no URI`); continue; }
+        const resp = await fetch(src.uri);
+        if (!resp.ok) { console.warn(`[Prefetch] skin ${skinName}/${fileKey}: HTTP ${resp.status}`); continue; }
+        _skinCache.set(cacheKey, await resp.arrayBuffer());
+        cached++;
+      } catch (e) {
+        console.warn(`[Prefetch] skin ${skinName}/${fileKey} failed:`, e instanceof Error ? e.message : e);
+      }
+    }
+  }
+  console.log(`[Prefetch] skin "${skinName}" done in ${Date.now() - t0}ms, cached ${cached} cards`);
 }
 
 

@@ -1,7 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,7 +12,7 @@ import cahPack from '../../assets/data/cah_pack.json';
 import { createCahGame, allSleeveUpdates } from '../../src/cah/CahGame';
 import { totalCahSleeveCount } from '../../src/cah/CahSleeveLayout';
 import { saveCahGame } from '../../src/storage/cahStorage';
-import { faceDownDescriptor, sendToSleeve, clearMemo, CARD_BACK_ASSETS } from '../../src/api/sleeveService';
+import { faceDownDescriptor, sendToSleeve, clearMemo, prefetchCardBacks } from '../../src/api/sleeveService';
 import { getRegisteredSleeves } from '../../src/api/piServer';
 import { CahBlackCard, CahCard } from '../../src/types/cah';
 
@@ -59,6 +58,10 @@ export default function CahSetupScreen() {
   const [handSize, setHandSize] = useState(7);
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    prefetchCardBacks();
+  }, []);
+
   const sleeveCount = totalCahSleeveCount(playerCount, handSize);
 
   const handleStart = async () => {
@@ -95,11 +98,6 @@ export default function CahSetupScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Offscreen warmup: forces Metro to serve all 4 card back rotation variants
-          before the user taps Start Game so getCardBackBytes never hits a cold Metro. */}
-      {Object.values(CARD_BACK_ASSETS).map((asset, i) => (
-        <Image key={i} source={asset} style={styles.metroWarmup} aria-hidden />
-      ))}
       <View style={styles.header}>
         <Text style={styles.title}>Cards Against Humanity</Text>
         <Text style={styles.packNote}>Pack: Original Starter Pack v1</Text>
@@ -147,7 +145,6 @@ export default function CahSetupScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#060c14' },
   content: { padding: 20, gap: 16, paddingBottom: 40 },
-  metroWarmup: { width: 0, height: 0, opacity: 0, position: 'absolute' },
 
   header: { alignItems: 'center', paddingVertical: 16 },
   title: { color: '#22d3ee', fontSize: 22, fontWeight: '800', letterSpacing: 1 },

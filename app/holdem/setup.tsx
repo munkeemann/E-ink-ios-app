@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { createGame, allSleeveUpdates } from '../../src/holdem/HoldemGame';
 import { saveHoldemGame } from '../../src/storage/holdemStorage';
-import { sendToSleeve, clearMemo, CARD_BACK_ASSETS } from '../../src/api/sleeveService';
+import { sendToSleeve, clearMemo, prefetchCardBacks } from '../../src/api/sleeveService';
+import { prefetchSkin } from './game';
 import { getRegisteredSleeves } from '../../src/api/piServer';
 import { totalSleeveCount } from '../../src/holdem/HoldemSleeveLayout';
 import { SKIN_NAMES } from '../../src/assets/skins/registry';
@@ -14,6 +15,11 @@ export default function HoldemSetupScreen() {
   const [playerCount, setPlayerCount] = useState(2);
   const [cardSkin, setCardSkin] = useState('default');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    prefetchCardBacks();
+    prefetchSkin(cardSkin);
+  }, [cardSkin]);
 
   const handleStart = async () => {
     setLoading(true);
@@ -48,15 +54,6 @@ export default function HoldemSetupScreen() {
       contentContainerStyle={styles.container}
       keyboardShouldPersistTaps="handled"
     >
-      {/* Offscreen warmup: forces Metro to serve all 4 card back rotation variants
-          before the user taps Start Game. card_back.jpg is included because other
-          code paths reference it; the 4 rot variants are what getCardBackBytes
-          actually fetches. Without this, the first sendToSleeve hangs on a cold
-          Metro request for the active variant. */}
-      <Image source={require('../../assets/images/card_back.jpg')} style={styles.metroWarmup} aria-hidden />
-      {Object.values(CARD_BACK_ASSETS).map((asset, i) => (
-        <Image key={i} source={asset} style={styles.metroWarmup} aria-hidden />
-      ))}
       <Text style={styles.title}>Texas Hold'em</Text>
 
       <View style={styles.card}>
@@ -114,7 +111,6 @@ export default function HoldemSetupScreen() {
 
 const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: '#060c14' },
-  metroWarmup: { width: 0, height: 0, opacity: 0, position: 'absolute' },
   container: {
     flexGrow: 1,
     alignItems: 'center',
