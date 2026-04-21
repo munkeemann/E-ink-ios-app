@@ -36,25 +36,38 @@ function captureWithTimeout(p: Promise<ArrayBuffer>): Promise<ArrayBuffer> {
 async function pushUpdates(
   updates: CahSleeveUpdate[],
   rendererRef: React.RefObject<CardRendererRef | null>,
+  t0: number,
 ): Promise<void> {
+  console.log(`[DEAL] step: getRegisteredSleeves (+${Date.now()-t0}ms)`);
   const registered = new Set(await getRegisteredSleeves());
+  console.log(`[DEAL] step done: getRegisteredSleeves — [${[...registered].sort((a,b)=>a-b).join(', ')}] (+${Date.now()-t0}ms)`);
+  console.log(`[DEAL] pushUpdates count=${updates.length}, registered=${registered.size}`);
+
   for (const u of updates) {
     if (!registered.has(u.sleeveId)) {
-      console.log(`[CahDeal] sleeve ${u.sleeveId} not registered — skipping`);
+      console.log(`[DEAL] sleeve ${u.sleeveId} not registered — skipping`);
       continue;
     }
     let imageData: ArrayBuffer | undefined;
     if (u.cardText && rendererRef.current) {
+      console.log(`[DEAL] step: capture sleeve=${u.sleeveId} text="${u.cardText.slice(0, 30)}" (+${Date.now()-t0}ms)`);
       try {
         imageData = await captureWithTimeout(
           rendererRef.current.capture(u.cardText, u.cardScheme ?? 'white'),
         );
+        console.log(`[DEAL] step done: capture sleeve=${u.sleeveId} — ${imageData.byteLength} bytes (+${Date.now()-t0}ms)`);
       } catch (e) {
-        console.warn(`[CahDeal] sleeve ${u.sleeveId} capture failed: ${e instanceof Error ? e.message : e}`);
+        console.warn(`[DEAL] step done: capture sleeve=${u.sleeveId} FAILED — ${e instanceof Error ? e.message : e} (+${Date.now()-t0}ms)`);
       }
     }
-    console.log(`[CahDeal] sleeve ${u.sleeveId} cardText=${u.cardText ? u.cardText.slice(0, 30) + '…' : 'none'} imageData=${imageData?.byteLength ?? 'none'} faceBack=${!!(u.descriptor as any)._useFaceBack}`);
-    await sendToSleeve(u.sleeveId, u.descriptor, imageData).catch(() => {});
+    const faceBack = !!(u.descriptor as any)._useFaceBack;
+    console.log(`[DEAL] step: sendToSleeve sleeve=${u.sleeveId} imageBytes=${imageData?.byteLength ?? 'none'} faceBack=${faceBack} (+${Date.now()-t0}ms)`);
+    try {
+      await sendToSleeve(u.sleeveId, u.descriptor, imageData);
+      console.log(`[DEAL] step done: sendToSleeve sleeve=${u.sleeveId} OK (+${Date.now()-t0}ms)`);
+    } catch (e) {
+      console.warn(`[DEAL] step done: sendToSleeve sleeve=${u.sleeveId} ERROR — ${e instanceof Error ? e.message : e} (+${Date.now()-t0}ms)`);
+    }
   }
 }
 
@@ -91,13 +104,26 @@ export default function CahGameScreen() {
   const handleAdvance = async () => {
     if (busy) return;
     setBusy(true);
+    const t0 = Date.now();
+    console.log(`[DEAL] start — phase=${state.phase} players=${state.playerCount} handSize=${state.handSize}`);
     try {
       if (state.phase === 'winner') clearMemo();
       const { newState, sleeveUpdates } = advanceCah(state);
       setState(newState);
+
+      console.log(`[DEAL] step: saveCahGame (+${Date.now()-t0}ms)`);
       await saveCahGame(newState);
-      await pushUpdates(sleeveUpdates, rendererRef);
+      console.log(`[DEAL] step done: saveCahGame (+${Date.now()-t0}ms)`);
+
+      console.log(`[DEAL] step: pushUpdates count=${sleeveUpdates.length} (+${Date.now()-t0}ms)`);
+      await pushUpdates(sleeveUpdates, rendererRef, t0);
+      console.log(`[DEAL] step done: pushUpdates (+${Date.now()-t0}ms)`);
+
+      console.log(`[DEAL] complete (+${Date.now()-t0}ms)`);
+    } catch (e) {
+      console.error(`[DEAL] ERROR: ${e instanceof Error ? e.message : e} (+${Date.now()-t0}ms)`);
     } finally {
+      console.log(`[DEAL] finally — setBusy(false) (+${Date.now()-t0}ms)`);
       setBusy(false);
     }
   };

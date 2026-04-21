@@ -17,28 +17,45 @@ export const CARD_BACK_VARIANTS = Object.keys(CARD_BACK_ASSETS) as (keyof typeof
 let _cardBackVariant: string = 'rot0';
 const _cardBackCache: Map<string, ArrayBuffer> = new Map();
 
-export function getCardBackVariant(): string { return _cardBackVariant; }
+export function getCardBackVariant(): string {
+  console.log('[SLV] getCardBackVariant enter');
+  console.log('[SLV] getCardBackVariant exit →', _cardBackVariant);
+  return _cardBackVariant;
+}
 
 export function setCardBackVariant(variant: string): void {
-  if (CARD_BACK_ASSETS[variant] === undefined) return;
+  console.log('[SLV] setCardBackVariant enter', { variant });
+  if (CARD_BACK_ASSETS[variant] === undefined) {
+    console.log('[SLV] setCardBackVariant exit — rejected unknown variant');
+    return;
+  }
   _cardBackVariant = variant;
+  console.log('[SLV] setCardBackVariant exit — accepted');
 }
 
 async function getCardBackBytes(): Promise<ArrayBuffer> {
   const v = _cardBackVariant;
+  console.log('[SLV] getCardBackBytes enter', { variant: v, cacheSize: _cardBackCache.size });
   const cached = _cardBackCache.get(v);
   if (cached) {
-    console.log('[CardBack] cache HIT:', v);
+    console.log('[SLV] getCardBackBytes exit — cache HIT', v, cached.byteLength, 'bytes');
     return cached;
   }
   const t0 = Date.now();
   const src = Image.resolveAssetSource(CARD_BACK_ASSETS[v]);
-  console.log('[CardBack] cache MISS — variant:', v, 'uri:', src?.uri ?? 'NULL');
+  console.log('[SLV] getCardBackBytes resolveAssetSource →', src?.uri ?? 'NULL');
+  if (!src?.uri) throw new Error(`getCardBackBytes: no URI for variant ${v}`);
+  console.log('[SLV] getCardBackBytes fetch start');
   const resp = await fetch(src.uri);
-  console.log('[CardBack] fetch done in', Date.now() - t0, 'ms — status:', resp.status);
-  if (!resp.ok) throw new Error(`card_back fetch (${v}): HTTP ${resp.status}`);
+  console.log('[SLV] getCardBackBytes fetch done in', Date.now() - t0, 'ms — status:', resp.status);
+  if (!resp.ok) {
+    console.log('[SLV] getCardBackBytes exit — HTTP error', resp.status);
+    throw new Error(`card_back fetch (${v}): HTTP ${resp.status}`);
+  }
   const bytes = await resp.arrayBuffer();
+  console.log('[SLV] getCardBackBytes arrayBuffer done —', bytes.byteLength, 'bytes');
   _cardBackCache.set(v, bytes);
+  console.log('[SLV] getCardBackBytes exit — fetched OK in', Date.now() - t0, 'ms');
   return bytes;
 }
 
@@ -62,6 +79,7 @@ const MTG_ZONE_ACTIVE: Record<string, number> = {
 };
 
 export function mtgDescriptor(sleeveId: number, zone: string): Descriptor {
+  console.log('[SLV] mtgDescriptor enter', { sleeveId, zone });
   return {
     v: 2,
     primary_label: sleeveId === 1 ? 'Commander' : `Card ${sleeveId - 1}`,
@@ -75,6 +93,7 @@ export function mtgDescriptor(sleeveId: number, zone: string): Descriptor {
 // ── Hold'em descriptors ──────────────────────────────────────────────────────
 
 export function holdemHoleDescriptor(playerNumber: number, cardIndex: 1 | 2): Descriptor {
+  console.log('[SLV] holdemHoleDescriptor enter', { playerNumber, cardIndex });
   return {
     v: 2,
     primary_label: `Player ${playerNumber}`,
@@ -83,6 +102,7 @@ export function holdemHoleDescriptor(playerNumber: number, cardIndex: 1 | 2): De
 }
 
 export function holdemCommunityDescriptor(communityLabel: string): Descriptor {
+  console.log('[SLV] holdemCommunityDescriptor enter', { communityLabel });
   return {
     v: 2,
     primary_label: 'Community',
@@ -91,6 +111,7 @@ export function holdemCommunityDescriptor(communityLabel: string): Descriptor {
 }
 
 export function faceDownDescriptor(primaryLabel?: string, secondaryLabel?: string): Descriptor {
+  console.log('[SLV] faceDownDescriptor enter', { primaryLabel, secondaryLabel });
   const d: Descriptor = { v: 2, _useFaceBack: true };
   if (primaryLabel !== undefined) d.primary_label = primaryLabel;
   if (secondaryLabel !== undefined) d.secondary_label = secondaryLabel;
@@ -100,10 +121,12 @@ export function faceDownDescriptor(primaryLabel?: string, secondaryLabel?: strin
 // ── CAH descriptors ──────────────────────────────────────────────────────────
 
 export function cahBlackCardDescriptor(): Descriptor {
+  console.log('[SLV] cahBlackCardDescriptor enter');
   return { v: 2, primary_label: 'CAH', secondary_label: 'Prompt' };
 }
 
 export function cahWhiteCardDescriptor(playerIdx: number, handSlot: number): Descriptor {
+  console.log('[SLV] cahWhiteCardDescriptor enter', { playerIdx, handSlot });
   return {
     v: 2,
     primary_label: `P${playerIdx + 1}`,
@@ -134,27 +157,39 @@ async function fingerprint(descriptor: Descriptor, imageData?: ArrayBuffer): Pro
 }
 
 export function clearMemo(sleeveId?: number): void {
+  console.log('[SLV] clearMemo enter', { sleeveId, memoSize: lastSentHash.size });
   if (sleeveId === undefined) lastSentHash.clear();
   else lastSentHash.delete(sleeveId);
+  console.log('[SLV] clearMemo exit');
 }
 
 export async function prefetchCardBacks(): Promise<void> {
+  console.log('[SLV] prefetchCardBacks enter', { cacheSize: _cardBackCache.size });
   const t0 = Date.now();
   let cached = 0;
   for (const [variant, assetId] of Object.entries(CARD_BACK_ASSETS)) {
-    if (_cardBackCache.has(variant)) { cached++; continue; }
+    if (_cardBackCache.has(variant)) {
+      console.log('[SLV] prefetchCardBacks', variant, '— already cached, skip');
+      cached++;
+      continue;
+    }
     try {
       const src = Image.resolveAssetSource(assetId as number);
-      if (!src?.uri) { console.warn(`[Prefetch] cardBack ${variant}: no URI`); continue; }
+      if (!src?.uri) { console.warn(`[SLV] prefetchCardBacks ${variant}: no URI`); continue; }
+      const tFetch = Date.now();
+      console.log('[SLV] prefetchCardBacks', variant, 'fetch start —', src.uri);
       const resp = await fetch(src.uri);
-      if (!resp.ok) { console.warn(`[Prefetch] cardBack ${variant}: HTTP ${resp.status}`); continue; }
-      _cardBackCache.set(variant, await resp.arrayBuffer());
+      console.log('[SLV] prefetchCardBacks', variant, 'fetch done in', Date.now() - tFetch, 'ms — status:', resp.status);
+      if (!resp.ok) { console.warn(`[SLV] prefetchCardBacks ${variant}: HTTP ${resp.status}`); continue; }
+      const bytes = await resp.arrayBuffer();
+      console.log('[SLV] prefetchCardBacks', variant, 'arrayBuffer done —', bytes.byteLength, 'bytes');
+      _cardBackCache.set(variant, bytes);
       cached++;
     } catch (e) {
-      console.warn(`[Prefetch] cardBack ${variant} failed:`, e instanceof Error ? e.message : e);
+      console.warn(`[SLV] prefetchCardBacks ${variant} ERROR:`, e instanceof Error ? e.message : e);
     }
   }
-  console.log(`[Prefetch] cardBacks done in ${Date.now() - t0}ms, cached ${cached} variants`);
+  console.log(`[SLV] prefetchCardBacks exit — ${Date.now() - t0}ms, cached ${cached} variants`);
 }
 
 // ── Core send ────────────────────────────────────────────────────────────────
@@ -172,13 +207,32 @@ export async function sendToSleeve(
   imageData?: ArrayBuffer,
   serverUrl: string = PI_SERVER,
 ): Promise<void> {
-  const effectiveImage = (!imageData && descriptor._useFaceBack)
-    ? await getCardBackBytes().catch(() => undefined)
-    : imageData;
+  console.log('[SLV] sendToSleeve enter', {
+    sleeveId,
+    label: descriptor.primary_label,
+    useFaceBack: !!descriptor._useFaceBack,
+    hasImage: !!imageData,
+    imageBytes: imageData?.byteLength ?? 0,
+  });
 
+  let effectiveImage: ArrayBuffer | undefined;
+  if (!imageData && descriptor._useFaceBack) {
+    console.log('[SLV] sendToSleeve step: getCardBackBytes start');
+    effectiveImage = await getCardBackBytes().catch(e => {
+      console.warn('[SLV] sendToSleeve getCardBackBytes ERROR:', e instanceof Error ? e.message : e);
+      return undefined;
+    });
+    console.log('[SLV] sendToSleeve step: getCardBackBytes done —', effectiveImage ? effectiveImage.byteLength + ' bytes' : 'undefined (will send descriptor only)');
+  } else {
+    effectiveImage = imageData;
+  }
+
+  console.log('[SLV] sendToSleeve step: fingerprint start');
   const fp = await fingerprint(descriptor, effectiveImage);
+  console.log('[SLV] sendToSleeve step: fingerprint done —', fp);
+
   if (lastSentHash.get(sleeveId) === fp) {
-    console.debug(`[SleeveService] sleeve ${sleeveId} skipped — identical to last send (${descriptor.primary_label ?? ''})`);
+    console.log('[SLV] sendToSleeve exit — dedup skip, sleeve', sleeveId, descriptor.primary_label ?? '');
     return;
   }
 
@@ -223,10 +277,14 @@ export async function sendToSleeve(
     body.set(b, a.byteLength);
   }
 
-  console.log(`[SleeveService] sleeve ${sleeveId} → ${descriptor.primary_label ?? ''} ${descriptor.secondary_label ?? ''} face_back=${!!descriptor._useFaceBack} has_image=${!!effectiveImage}`.trimEnd());
+  console.log('[SLV] sendToSleeve step: body built —', body.byteLength, 'bytes, hasImage:', !!effectiveImage);
+  console.log('[SLV] sendToSleeve step: POST start → sleeve', sleeveId, serverUrl);
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 10000);
+  const timer = setTimeout(() => {
+    console.warn('[SLV] sendToSleeve TIMEOUT — aborting POST for sleeve', sleeveId);
+    controller.abort();
+  }, 10000);
   let resp: Response;
   try {
     resp = await fetch(`${serverUrl}/display?sleeve_id=${sleeveId}`, {
@@ -235,10 +293,15 @@ export async function sendToSleeve(
       body: body.buffer as ArrayBuffer,
       signal: controller.signal,
     });
+    console.log('[SLV] sendToSleeve step: POST done — status', resp.status, 'sleeve', sleeveId);
   } finally {
     clearTimeout(timer);
   }
 
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  if (!resp.ok) {
+    console.log('[SLV] sendToSleeve exit — HTTP error', resp.status, 'sleeve', sleeveId);
+    throw new Error(`HTTP ${resp.status}`);
+  }
   lastSentHash.set(sleeveId, fp);
+  console.log('[SLV] sendToSleeve exit — OK sleeve', sleeveId);
 }

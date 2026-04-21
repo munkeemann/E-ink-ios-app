@@ -17,8 +17,17 @@ export default function HoldemSetupScreen() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    prefetchCardBacks();
-    prefetchSkin(cardSkin);
+    console.log('[Setup] HoldemSetup mount — cardSkin:', cardSkin);
+    const tCB = Date.now();
+    console.log('[Setup] prefetchCardBacks start');
+    prefetchCardBacks()
+      .then(() => console.log('[Setup] prefetchCardBacks done in', Date.now() - tCB, 'ms'))
+      .catch(e => console.warn('[Setup] prefetchCardBacks ERROR:', e instanceof Error ? e.message : e));
+    const tSkin = Date.now();
+    console.log('[Setup] prefetchSkin start —', cardSkin);
+    prefetchSkin(cardSkin)
+      .then(() => console.log('[Setup] prefetchSkin done in', Date.now() - tSkin, 'ms —', cardSkin))
+      .catch(e => console.warn('[Setup] prefetchSkin ERROR:', e instanceof Error ? e.message : e));
   }, [cardSkin]);
 
   const handleStart = async () => {

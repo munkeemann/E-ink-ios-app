@@ -236,46 +236,55 @@ export default function HoldemGameScreen() {
     if (busy) return;
     setBusy(true);
     const t0 = Date.now();
-    console.log(`[HoldemDeal] button pressed — phase=${state.phase} playerCount=${state.playerCount} skin=${state.cardSkin ?? 'default'}`);
+    console.log(`[DEAL] start — phase=${state.phase} players=${state.playerCount} skin=${state.cardSkin ?? 'default'}`);
     try {
       const { newState, sleeveUpdates } = advance(state);
       setState(newState);
+
+      console.log(`[DEAL] step: saveHoldemGame (+${Date.now()-t0}ms)`);
       await saveHoldemGame(newState);
+      console.log(`[DEAL] step done: saveHoldemGame (+${Date.now()-t0}ms)`);
+
       if (newState.phase === 'pre_deal') clearMemo();
-      console.log(`[HoldemDeal] fetching sleeve registry... (+${Date.now()-t0}ms)`);
+
+      console.log(`[DEAL] step: getRegisteredSleeves (+${Date.now()-t0}ms)`);
       const registered = new Set(await getRegisteredSleeves());
-      console.log(`[HoldemDeal] registry returned: [${[...registered].sort((a,b)=>a-b).join(', ')}] (+${Date.now()-t0}ms)`);
-      console.log(`[HoldemDeal] sleeveUpdates count=${sleeveUpdates.length}`);
+      console.log(`[DEAL] step done: getRegisteredSleeves — [${[...registered].sort((a,b)=>a-b).join(', ')}] (+${Date.now()-t0}ms)`);
+      console.log(`[DEAL] sleeveUpdates count=${sleeveUpdates.length}, registered count=${registered.size}`);
+
       for (const u of sleeveUpdates) {
         if (!registered.has(u.sleeveId)) {
-          console.log(`[HoldemDeal] sleeve ${u.sleeveId} not registered — skipping`);
+          console.log(`[DEAL] sleeve ${u.sleeveId} not registered — skipping`);
           continue;
         }
         let imageData: ArrayBuffer | undefined;
         let imageSource: 'skin' | 'default' | 'none' = 'none';
         if (u.card) {
           const assetKey = `card_${u.card.rank}${u.card.suit}`;
-          console.log(`[HoldemDeal] sleeve ${u.sleeveId}: getCardBytes start — key=${assetKey} skin=${state.cardSkin ?? 'default'} (+${Date.now()-t0}ms)`);
+          console.log(`[DEAL] step: getCardBytes sleeve=${u.sleeveId} key=${assetKey} skin=${state.cardSkin ?? 'default'} (+${Date.now()-t0}ms)`);
           try {
             const result = await getCardBytes(u.card.rank, u.card.suit, state.cardSkin ?? 'default');
             imageData = result.data;
             imageSource = result.source;
-            console.log(`[HoldemDeal] sleeve ${u.sleeveId}: getCardBytes done — ${imageData.byteLength} bytes source=${imageSource} (+${Date.now()-t0}ms)`);
+            console.log(`[DEAL] step done: getCardBytes sleeve=${u.sleeveId} — ${imageData.byteLength} bytes source=${imageSource} (+${Date.now()-t0}ms)`);
           } catch (e) {
-            console.warn(`[HoldemDeal] sleeve ${u.sleeveId}: getCardBytes THREW — ${e instanceof Error ? e.message : e} (+${Date.now()-t0}ms)`);
+            console.warn(`[DEAL] step done: getCardBytes sleeve=${u.sleeveId} THREW — ${e instanceof Error ? e.message : e} (+${Date.now()-t0}ms)`);
           }
         }
-        console.log(`[HoldemDeal] sleeve ${u.sleeveId}: sendToSleeve start — bytes=${imageData?.byteLength ?? 0} source=${imageSource} (+${Date.now()-t0}ms)`);
+        console.log(`[DEAL] step: sendToSleeve sleeve=${u.sleeveId} bytes=${imageData?.byteLength ?? 0} source=${imageSource} (+${Date.now()-t0}ms)`);
         try {
           await sendToSleeve(u.sleeveId, u.descriptor, imageData);
-          console.log(`[HoldemDeal] sleeve ${u.sleeveId}: sendToSleeve OK (+${Date.now()-t0}ms)`);
+          console.log(`[DEAL] step done: sendToSleeve sleeve=${u.sleeveId} OK (+${Date.now()-t0}ms)`);
         } catch (e) {
-          console.warn(`[HoldemDeal] sleeve ${u.sleeveId}: sendToSleeve ERROR — ${e instanceof Error ? e.message : e} (+${Date.now()-t0}ms)`);
+          console.warn(`[DEAL] step done: sendToSleeve sleeve=${u.sleeveId} ERROR — ${e instanceof Error ? e.message : e} (+${Date.now()-t0}ms)`);
         }
       }
-      console.log(`[HoldemDeal] all sleeves done (+${Date.now()-t0}ms)`);
+
+      console.log(`[DEAL] complete — all sleeves done (+${Date.now()-t0}ms)`);
+    } catch (e) {
+      console.error(`[DEAL] ERROR: ${e instanceof Error ? e.message : e} (+${Date.now()-t0}ms)`);
     } finally {
-      console.log(`[HoldemDeal] finally — setBusy(false) (+${Date.now()-t0}ms)`);
+      console.log(`[DEAL] finally — setBusy(false) (+${Date.now()-t0}ms)`);
       setBusy(false);
     }
   };
