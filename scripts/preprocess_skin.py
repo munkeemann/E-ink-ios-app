@@ -6,50 +6,29 @@ Per-image: compute average BT.709 luminance, derive a per-image gamma so
 that the corrected average lands at TARGET_AVG (≈140). Images already at or
 below TARGET_AVG are left unchanged.
 
-Source: ~/avatar-raw-backup/ (originals)
-Output: src/assets/skins/avatar/ (overwrites)
+Usage:
+    python3 scripts/preprocess_skin.py <skin_name>
+
+Reads config from scripts/skins/<skin_name>.py which must define:
+    SRC_DIR       — raw source directory
+    DEST_SUBDIR   — subdir under src/assets/skins/ for output
+    SRC_TEMPLATE  — filename template with '{seq}' placeholder
+    SEQ_TO_CARD   — dict mapping '0001'-style seq keys → card name or None
+                    (None means front-matter; skipped)
+
+Algorithm, constants, and output format are preserved verbatim from the
+pre-SAM1-58 hardcoded Avatar-only version, so rerunning with 'avatar'
+produces byte-identical output to the checked-in src/assets/skins/avatar/.
 """
 
+import importlib.util
 import os
 import sys
-import glob
-import math
 import numpy as np
 from PIL import Image
 
-SRC_DIR  = os.path.expanduser('~/avatar-raw-backup')
-DEST_DIR = os.path.join(os.path.dirname(__file__), '..', 'src', 'assets', 'skins', 'avatar')
 TARGET_AVG = 140.0
 JPEG_QUALITY = 90
-
-# Maps source filename sequence numbers to dest card names (derived from
-# the mapping established when the skin was built).
-# Keys: zero-padded 4-digit index; values: card name stem.
-SEQ_TO_CARD = {
-    '0004': 'ace_of_spades',   '0005': '2_of_spades',   '0006': '3_of_spades',
-    '0007': '4_of_spades',     '0008': '5_of_spades',   '0009': '6_of_spades',
-    '0010': '7_of_spades',     '0011': '8_of_spades',   '0012': '9_of_spades',
-    '0013': '10_of_spades',    '0014': 'jack_of_spades','0015': 'queen_of_spades',
-    '0016': 'king_of_spades',
-
-    '0017': 'ace_of_diamonds', '0018': '2_of_diamonds', '0019': '3_of_diamonds',
-    '0020': '4_of_diamonds',   '0021': '5_of_diamonds', '0022': '6_of_diamonds',
-    '0023': '7_of_diamonds',   '0024': '8_of_diamonds', '0025': '9_of_diamonds',
-    '0026': '10_of_diamonds',  '0027': 'jack_of_diamonds','0028': 'queen_of_diamonds',
-    '0029': 'king_of_diamonds',
-
-    '0030': 'ace_of_clubs',    '0031': '2_of_clubs',    '0032': '3_of_clubs',
-    '0033': '4_of_clubs',      '0034': '5_of_clubs',    '0035': '6_of_clubs',
-    '0036': '7_of_clubs',      '0037': '8_of_clubs',    '0038': '9_of_clubs',
-    '0039': '10_of_clubs',     '0040': 'jack_of_clubs', '0041': 'queen_of_clubs',
-    '0042': 'king_of_clubs',
-
-    '0043': 'ace_of_hearts',   '0044': '2_of_hearts',   '0045': '3_of_hearts',
-    '0046': '4_of_hearts',     '0047': '5_of_hearts',   '0048': '6_of_hearts',
-    '0049': '7_of_hearts',     '0050': '8_of_hearts',   '0051': '9_of_hearts',
-    '0052': '10_of_hearts',    '0053': 'jack_of_hearts','0054': 'queen_of_hearts',
-    '0055': 'king_of_hearts',
-}
 
 
 def avg_lum(arr: np.ndarray) -> float:
@@ -93,13 +72,40 @@ def process(src_path: str, dest_path: str) -> tuple[float, float, float]:
     return before, after, gamma
 
 
-def main():
+def load_config(skin_name: str):
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    config_path = os.path.join(script_dir, 'skins', f'{skin_name}.py')
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(f'no skin config at {config_path}')
+    spec = importlib.util.spec_from_file_location(f'skins.{skin_name}', config_path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    for attr in ('SRC_DIR', 'DEST_SUBDIR', 'SRC_TEMPLATE', 'SEQ_TO_CARD'):
+        if not hasattr(mod, attr):
+            raise AttributeError(f'skin config {skin_name} missing required attribute {attr}')
+    return mod
+
+
+def main() -> int:
+    if len(sys.argv) != 2:
+        print(__doc__, file=sys.stderr)
+        return 2
+    skin_name = sys.argv[1]
+    cfg = load_config(skin_name)
+
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    dest_dir = os.path.join(script_dir, '..', 'src', 'assets', 'skins', cfg.DEST_SUBDIR)
+    os.makedirs(dest_dir, exist_ok=True)
+
     results = []
     missing_src = []
 
-    for seq, card in sorted(SEQ_TO_CARD.items(), key=lambda x: x[1]):
-        src = os.path.join(SRC_DIR, f'Avatar The Last Airbender_{seq} copy.jpg')
-        dest = os.path.join(DEST_DIR, f'{card}.jpg')
+    # Only entries with a non-None card name; sort by card name for stable stdout
+    # (matches pre-refactor iteration order: sorted(SEQ_TO_CARD.items(), key=lambda x: x[1]))
+    entries = [(seq, card) for seq, card in cfg.SEQ_TO_CARD.items() if card is not None]
+    for seq, card in sorted(entries, key=lambda x: x[1]):
+        src = os.path.join(cfg.SRC_DIR, cfg.SRC_TEMPLATE.format(seq=seq))
+        dest = os.path.join(dest_dir, f'{card}.jpg')
         if not os.path.exists(src):
             missing_src.append(src)
             continue
@@ -115,6 +121,8 @@ def main():
 
     for suit in ('spades', 'diamonds', 'clubs', 'hearts'):
         rows = [(c, b, a, g) for c, s, b, a, g in results if s == suit]
+        if not rows:
+            continue
         print(f'── {suit.upper()} ──')
         for card, before, after, gamma in rows:
             stem = card.replace(f'_of_{suit}', '')
@@ -124,10 +132,12 @@ def main():
         print(f'  avg after = {sum(avgs)/len(avgs):.1f}\n')
 
     all_after = [a for _, _, _, a, _ in [(c,s,b,a,g) for c,s,b,a,g in results]]
-    print(f'Overall after-range: {min(all_after):.1f} – {max(all_after):.1f}')
-    in_band = sum(1 for a in all_after if 130 <= a <= 150)
-    print(f'In target band 130-150: {in_band}/{len(all_after)}')
+    if all_after:
+        print(f'Overall after-range: {min(all_after):.1f} – {max(all_after):.1f}')
+        in_band = sum(1 for a in all_after if 130 <= a <= 150)
+        print(f'In target band 130-150: {in_band}/{len(all_after)}')
+    return 0
 
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main())

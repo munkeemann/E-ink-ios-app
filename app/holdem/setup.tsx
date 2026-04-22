@@ -95,7 +95,11 @@ export default function HoldemSetupScreen() {
               style={[styles.skinChip, cardSkin === skin && styles.skinChipActive]}
               onPress={() => setCardSkin(skin)}
             >
-              <Text style={[styles.skinChipText, cardSkin === skin && styles.skinChipTextActive]}>
+              <Text style={[
+                styles.skinChipText,
+                skin === skin.toUpperCase() && styles.skinChipTextUppercase,
+                cardSkin === skin && styles.skinChipTextActive,
+              ]}>
                 {skin}
               </Text>
             </Pressable>
@@ -187,5 +191,6 @@ const styles = StyleSheet.create({
   },
   skinChipActive: { borderColor: '#22d3ee', backgroundColor: '#071e30' },
   skinChipText: { color: '#3a6070', fontSize: 13, fontWeight: '600', textTransform: 'capitalize' },
+  skinChipTextUppercase: { textTransform: 'none' },
   skinChipTextActive: { color: '#22d3ee' },
 });

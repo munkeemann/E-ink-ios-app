@@ -1,4 +1,5 @@
 import { avatarAssets } from './avatar';
+import { lotrAssets } from './lotr';
 
 // Maps internal rank codes to filename rank names
 export const RANK_NAME: Record<string, string> = {
@@ -21,6 +22,7 @@ export function skinCardKey(rank: string, suit: string): string {
 export const SKIN_ASSETS: Record<string, Record<string, number>> = {
   default: {},
   avatar: avatarAssets,
+  LOTR: lotrAssets,
 };
 
 export const SKIN_NAMES: string[] = Object.keys(SKIN_ASSETS);
