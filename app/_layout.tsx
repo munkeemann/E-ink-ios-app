@@ -62,6 +62,18 @@ export default function RootLayout() {
           name="cah/game_maxs"
           options={{ title: "CAH — Max's Rules", contentStyle: { backgroundColor: '#060c14' } }}
         />
+        <Stack.Screen
+          name="dnd/index"
+          options={{ title: 'D&D Decks', contentStyle: { backgroundColor: '#060c14' } }}
+        />
+        <Stack.Screen
+          name="dnd/new"
+          options={{ title: 'New D&D Deck', contentStyle: { backgroundColor: '#060c14' } }}
+        />
+        <Stack.Screen
+          name="dnd/[id]"
+          options={{ title: 'Deck', contentStyle: { backgroundColor: '#060c14' } }}
+        />
         <Stack.Screen name="import" options={{ title: 'Import Deck' }} />
         <Stack.Screen name="deck/[id]" options={{ title: 'Deck Preview' }} />
         <Stack.Screen name="game/[id]" options={{ title: 'In Game' }} />

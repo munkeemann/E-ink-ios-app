@@ -56,10 +56,10 @@ const GAMES: GameDef[] = [
   {
     id: 'dnd',
     title: 'D&D Spell Cards',
-    subtitle: 'Coming soon',
+    subtitle: 'Deck builder & spell browser',
     icon: '🔮',
-    available: false,
-    route: '/coming-soon?game=D%26D+Spell+Cards',
+    available: true,
+    route: '/dnd',
   },
 ];
 
