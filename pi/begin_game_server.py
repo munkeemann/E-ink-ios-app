@@ -106,16 +106,27 @@ def convert_to_baseline(jpeg_bytes: bytes) -> bytes:
     fout_path = fin_path.replace(".jpg", "_baseline.jpg")
 
     try:
-        subprocess.run([
+        result = subprocess.run([
             "convert", fin_path,
             "-resize", "540x760^",
             "-gravity", "North",
             "-extent", "540x760",
+            "-colorspace", "sRGB",
+            "-type", "TrueColor",
+            "-strip",
+            "-sampling-factor", "4:2:0",
             "-level", "10%,100%",
             "-interlace", "none",
             "-quality", "85",
             fout_path
         ], check=True, capture_output=True)
+        if result.stderr:
+            logging.info(f"ImageMagick stderr: {result.stderr.decode().strip()}")
+
+        identify = subprocess.run([
+            "identify", "-format", "%[jpeg:sampling-factor] %[colorspace]", fout_path
+        ], capture_output=True)
+        logging.info(f"JPEG properties: {identify.stdout.decode().strip()}")
 
         with open(fout_path, "rb") as f:
             return f.read()
