@@ -107,7 +107,8 @@ export default function CahGameScreen() {
     const t0 = Date.now();
     console.log(`[DEAL] start — phase=${state.phase} players=${state.playerCount} handSize=${state.handSize}`);
     try {
-      if (state.phase === 'winner') clearMemo();
+      console.log('[SLV] clearMemo called from cah handleAdvance');
+      clearMemo();
       const { newState, sleeveUpdates } = advanceCah(state);
       setState(newState);
 

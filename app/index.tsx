@@ -14,6 +14,7 @@ import { loadCahGame } from '../src/storage/cahStorage';
 import { Deck } from '../src/types';
 import { HoldemGameState } from '../src/types/holdem';
 import { CahGameState } from '../src/types/cah';
+import { clearMemo } from '../src/api/sleeveService';
 import AmbientLayer from '../src/components/AmbientLayer';
 
 type GameDef = {
@@ -128,7 +129,11 @@ export default function GameSelectScreen() {
         item.available ? styles.tileAvailable : styles.tileUnavailable,
         pressed && item.available && styles.tilePressed,
       ]}
-      onPress={() => router.push(item.route as any)}
+      onPress={() => {
+        console.log('[SLV] clearMemo called from game-select onPress');
+        clearMemo();
+        router.push(item.route as any);
+      }}
     >
       <Text style={styles.tileIcon}>{item.icon}</Text>
       <Text style={[styles.tileTitle, !item.available && styles.tileTitleDim]}>

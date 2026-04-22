@@ -513,6 +513,8 @@ export default function InGameScreen() {
       setDeck(updated);
       console.log('[DEBUG keep-hand] cards after Keep Hand:\n' +
         JSON.stringify(finalCards.map(c => ({ name: c.displayName, place: c.place, zone: c.zone, sleeveId: c.sleeveId })), null, 2));
+      console.log('[SLV] clearMemo called from handleKeepHand');
+      clearMemo();
       syncSleeves(finalCards);
       // Update zone strips: HND cards → zone 3, LIB cards → zone 4
       for (const c of finalCards) {
@@ -767,6 +769,8 @@ export default function InGameScreen() {
     const otherCards = deckCards.filter(c => c !== placeCard && c.zone !== 'LIB' && c.place !== 'commander');
     const newCards = assignSleeveIds([...commanderCards, ...newLib, ...otherCards], settings);
 
+    console.log('[SLV] clearMemo called from handlePlaceConfirm');
+    clearMemo();
     // Cascade: push new images to sleeves whose card changed
     pushNewlySleevedImages(deckCards, newCards);
     // Reset zone strips for all sleeved cards (library cards → LIB = 4)
