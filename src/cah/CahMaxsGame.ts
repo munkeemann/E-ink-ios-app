@@ -5,7 +5,7 @@ import {
   CahMaxsSleeveUpdate,
 } from '../types/cah_maxs';
 import { getAllPrompts, getAllResponses } from './CahContent';
-import { cahBlackCardDescriptor, cahWhiteCardDescriptor } from '../api/sleeveService';
+import { cahBlackCardDescriptor, cahMaxsResponseDescriptor } from '../api/sleeveService';
 import { maxsSleeveId } from './CahMaxsLayout';
 
 function shuffle<T>(arr: T[]): T[] {
@@ -152,13 +152,19 @@ export function maxsSleeveUpdates(state: CahMaxsGameState): CahMaxsSleeveUpdate[
     cardText: state.currentPrompt.text,
     cardScheme: 'black',
   });
+  // NOTE: response sleeves use a neutral descriptor — no player/card
+  // identifiers leave the app. Who-played-what is a bluff-mechanic secret;
+  // putting playerIdx/cardIdx in the wire payload would leak to the Pi log.
+  // The app still knows the sleeveId→(p,k) mapping via maxsSleeveId() /
+  // buildMaxsLayout() for scoring and deal logic — secrecy is a render
+  // concern, not a state concern.
   for (let p = 0; p < state.playerCount; p++) {
     for (let k = 0; k < state.K; k++) {
       const card = state.playerHands[p]?.[k];
       if (!card) continue;
       updates.push({
         sleeveId: maxsSleeveId(p, k, state.K),
-        descriptor: cahWhiteCardDescriptor(p, k),
+        descriptor: cahMaxsResponseDescriptor(),
         cardText: card.text,
         cardScheme: 'white',
       });

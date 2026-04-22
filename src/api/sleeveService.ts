@@ -160,6 +160,17 @@ export function cahBlackCardDescriptor(): Descriptor {
   return { v: 2, primary_label: 'CAH', secondary_label: 'Prompt' };
 }
 
+/**
+ * Max's Rules response sleeve descriptor.
+ * Labels are omitted — player/card identity is a bluff-mechanic secret
+ * and MUST NOT leave the app to the wire. The firmware renders a blank
+ * merged region when both labels are absent.
+ */
+export function cahMaxsResponseDescriptor(): Descriptor {
+  console.log('[SLV] cahMaxsResponseDescriptor enter');
+  return { v: 2 };
+}
+
 export function cahWhiteCardDescriptor(playerIdx: number, handSlot: number): Descriptor {
   console.log('[SLV] cahWhiteCardDescriptor enter', { playerIdx, handSlot });
   return {
