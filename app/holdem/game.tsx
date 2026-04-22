@@ -118,6 +118,8 @@ async function getCardBytes(
         const skinSrc = Image.resolveAssetSource(skinAsset);
         if (skinSrc?.uri) {
           try {
+            console.log('[SLV] prefetch warmup', skinSrc.uri);
+            try { await Image.prefetch(skinSrc.uri); } catch { /* best-effort */ }
             const skinResp = await timedFetch(skinSrc.uri);
             if (skinResp.ok) {
               const data = await skinResp.arrayBuffer();
@@ -146,6 +148,8 @@ async function getCardBytes(
   console.log(`[Holdem] CARD_ASSETS cache MISS: ${key} skin=${skin}`);
   const src = Image.resolveAssetSource(CARD_ASSETS[key]);
   if (!src?.uri) throw new Error(`card asset ${key}: resolveAssetSource returned no URI`);
+  console.log('[SLV] prefetch warmup', src.uri);
+  try { await Image.prefetch(src.uri); } catch { /* best-effort */ }
   const resp = await timedFetch(src.uri);
   if (!resp.ok) throw new Error(`card asset ${key}: HTTP ${resp.status}`);
   const data = await resp.arrayBuffer();
@@ -163,7 +167,9 @@ export async function prefetchSkin(skinName: string): Promise<void> {
       try {
         const src = Image.resolveAssetSource(assetId);
         if (!src?.uri) { console.warn(`[Prefetch] CARD_ASSETS ${key}: no URI`); continue; }
-        const resp = await fetch(src.uri);
+        console.log('[SLV] prefetch warmup', src.uri);
+        try { await Image.prefetch(src.uri); } catch { /* best-effort */ }
+        const resp = await timedFetch(src.uri, 5000);
         if (!resp.ok) { console.warn(`[Prefetch] CARD_ASSETS ${key}: HTTP ${resp.status}`); continue; }
         _skinCache.set(cacheKey, await resp.arrayBuffer());
         cached++;
@@ -180,7 +186,9 @@ export async function prefetchSkin(skinName: string): Promise<void> {
       try {
         const src = Image.resolveAssetSource(assetId as number);
         if (!src?.uri) { console.warn(`[Prefetch] skin ${skinName}/${fileKey}: no URI`); continue; }
-        const resp = await fetch(src.uri);
+        console.log('[SLV] prefetch warmup', src.uri);
+        try { await Image.prefetch(src.uri); } catch { /* best-effort */ }
+        const resp = await timedFetch(src.uri, 5000);
         if (!resp.ok) { console.warn(`[Prefetch] skin ${skinName}/${fileKey}: HTTP ${resp.status}`); continue; }
         _skinCache.set(cacheKey, await resp.arrayBuffer());
         cached++;

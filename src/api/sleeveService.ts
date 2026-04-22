@@ -2,6 +2,16 @@ import { Image } from 'react-native';
 
 export const PI_SERVER = 'http://192.168.86.193:5050';
 
+async function timedFetch(uri: string, timeoutMs = 5000): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(uri, { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // ── Card-back asset ──────────────────────────────────────────────────────────
 
 // Metro requires all require() calls to be statically analysable — no dynamic paths.
@@ -45,8 +55,10 @@ async function getCardBackBytes(): Promise<ArrayBuffer> {
   const src = Image.resolveAssetSource(CARD_BACK_ASSETS[v]);
   console.log('[SLV] getCardBackBytes resolveAssetSource →', src?.uri ?? 'NULL');
   if (!src?.uri) throw new Error(`getCardBackBytes: no URI for variant ${v}`);
+  console.log('[SLV] prefetch warmup', src.uri);
+  try { await Image.prefetch(src.uri); } catch { /* best-effort */ }
   console.log('[SLV] getCardBackBytes fetch start');
-  const resp = await fetch(src.uri);
+  const resp = await timedFetch(src.uri, 5000);
   console.log('[SLV] getCardBackBytes fetch done in', Date.now() - t0, 'ms — status:', resp.status);
   if (!resp.ok) {
     console.log('[SLV] getCardBackBytes exit — HTTP error', resp.status);
@@ -176,9 +188,11 @@ export async function prefetchCardBacks(): Promise<void> {
     try {
       const src = Image.resolveAssetSource(assetId as number);
       if (!src?.uri) { console.warn(`[SLV] prefetchCardBacks ${variant}: no URI`); continue; }
+      console.log('[SLV] prefetch warmup', src.uri);
+      try { await Image.prefetch(src.uri); } catch { /* best-effort */ }
       const tFetch = Date.now();
       console.log('[SLV] prefetchCardBacks', variant, 'fetch start —', src.uri);
-      const resp = await fetch(src.uri);
+      const resp = await timedFetch(src.uri, 5000);
       console.log('[SLV] prefetchCardBacks', variant, 'fetch done in', Date.now() - tFetch, 'ms — status:', resp.status);
       if (!resp.ok) { console.warn(`[SLV] prefetchCardBacks ${variant}: HTTP ${resp.status}`); continue; }
       const bytes = await resp.arrayBuffer();
