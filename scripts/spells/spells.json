@@ -1,0 +1,3005 @@
+{
+  "Acid Arrow": {
+    "level": 2,
+    "school": "Evocation",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Melf's Acid Arrow.png"
+  },
+  "Acid Splash": {
+    "level": 0,
+    "school": "Conjuration",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Acid Splash.png"
+  },
+  "Aid": {
+    "level": 2,
+    "school": "Abjuration",
+    "classes": [
+      "Cleric",
+      "Paladin"
+    ],
+    "png_filename": "Aid.png"
+  },
+  "Alarm": {
+    "level": 1,
+    "school": "Abjuration",
+    "classes": [
+      "Ranger",
+      "Wizard"
+    ],
+    "png_filename": "Alarm.png"
+  },
+  "Alter Self": {
+    "level": 2,
+    "school": "Transmutation",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Alter Self.png"
+  },
+  "Animal Friendship": {
+    "level": 1,
+    "school": "Enchantment",
+    "classes": [
+      "Bard",
+      "Druid",
+      "Ranger"
+    ],
+    "png_filename": "Animal Friendship.png"
+  },
+  "Animal Messenger": {
+    "level": 2,
+    "school": "Enchantment",
+    "classes": [
+      "Bard",
+      "Druid",
+      "Ranger"
+    ],
+    "png_filename": "Animal Messenger.png"
+  },
+  "Animal Shapes": {
+    "level": 8,
+    "school": "Transmutation",
+    "classes": [
+      "Druid"
+    ],
+    "png_filename": "Animal Shapes.png"
+  },
+  "Animate Dead": {
+    "level": 3,
+    "school": "Necromancy",
+    "classes": [
+      "Cleric",
+      "Wizard"
+    ],
+    "png_filename": "Animate Dead.png"
+  },
+  "Animate Objects": {
+    "level": 5,
+    "school": "Transmutation",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Animate Objects.png"
+  },
+  "Antilife Shell": {
+    "level": 5,
+    "school": "Abjuration",
+    "classes": [
+      "Druid"
+    ],
+    "png_filename": "Antilife Shell.png"
+  },
+  "Antimagic Field": {
+    "level": 8,
+    "school": "Abjuration",
+    "classes": [
+      "Cleric",
+      "Wizard"
+    ],
+    "png_filename": "Antimagic Field.png"
+  },
+  "Antipathy/Sympathy": {
+    "level": 8,
+    "school": "Enchantment",
+    "classes": [
+      "Druid",
+      "Wizard"
+    ],
+    "png_filename": "Antipathy_Sympathy.png"
+  },
+  "Arcane Eye": {
+    "level": 4,
+    "school": "Divination",
+    "classes": [
+      "Cleric",
+      "Wizard"
+    ],
+    "png_filename": "Arcane Eye.png"
+  },
+  "Arcane Hand": {
+    "level": 5,
+    "school": "Evocation",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Bigby's Hand.png"
+  },
+  "Arcane Lock": {
+    "level": 2,
+    "school": "Abjuration",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Arcane Lock.png"
+  },
+  "Arcane Sword": {
+    "level": 7,
+    "school": "Evocation",
+    "classes": [
+      "Bard",
+      "Wizard"
+    ],
+    "png_filename": "Mordenkainen's Sword.png"
+  },
+  "Arcanist's Magic Aura": {
+    "level": 2,
+    "school": "Illusion",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Nystul's Magic Aura.png"
+  },
+  "Astral Projection": {
+    "level": 9,
+    "school": "Necromancy",
+    "classes": [
+      "Cleric",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Astral Projection.png"
+  },
+  "Augury": {
+    "level": 2,
+    "school": "Divination",
+    "classes": [
+      "Cleric"
+    ],
+    "png_filename": "Augury.png"
+  },
+  "Awaken": {
+    "level": 5,
+    "school": "Transmutation",
+    "classes": [
+      "Bard",
+      "Druid"
+    ],
+    "png_filename": "Awaken.png"
+  },
+  "Bane": {
+    "level": 1,
+    "school": "Enchantment",
+    "classes": [
+      "Bard",
+      "Cleric"
+    ],
+    "png_filename": "Bane.png"
+  },
+  "Banishment": {
+    "level": 4,
+    "school": "Abjuration",
+    "classes": [
+      "Cleric",
+      "Paladin",
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Banishment.png"
+  },
+  "Barkskin": {
+    "level": 2,
+    "school": "Transmutation",
+    "classes": [
+      "Druid",
+      "Ranger"
+    ],
+    "png_filename": "Barkskin.png"
+  },
+  "Beacon of Hope": {
+    "level": 3,
+    "school": "Abjuration",
+    "classes": [
+      "Cleric"
+    ],
+    "png_filename": "Beacon of Hope.png"
+  },
+  "Bestow Curse": {
+    "level": 3,
+    "school": "Necromancy",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Wizard"
+    ],
+    "png_filename": "Bestow Curse.png"
+  },
+  "Black Tentacles": {
+    "level": 4,
+    "school": "Conjuration",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Evard's Black Tentacles.png"
+  },
+  "Blade Barrier": {
+    "level": 6,
+    "school": "Evocation",
+    "classes": [
+      "Cleric"
+    ],
+    "png_filename": "Blade Barrier.png"
+  },
+  "Bless": {
+    "level": 1,
+    "school": "Enchantment",
+    "classes": [
+      "Cleric",
+      "Paladin"
+    ],
+    "png_filename": "Bless.png"
+  },
+  "Blight": {
+    "level": 4,
+    "school": "Necromancy",
+    "classes": [
+      "Druid",
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Blight.png"
+  },
+  "Blindness/Deafness": {
+    "level": 2,
+    "school": "Necromancy",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Blindness_Deafness.png"
+  },
+  "Blink": {
+    "level": 3,
+    "school": "Transmutation",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Blink.png"
+  },
+  "Blur": {
+    "level": 2,
+    "school": "Illusion",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Blur.png"
+  },
+  "Burning Hands": {
+    "level": 1,
+    "school": "Evocation",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Burning Hands.png"
+  },
+  "Call Lightning": {
+    "level": 3,
+    "school": "Conjuration",
+    "classes": [
+      "Druid"
+    ],
+    "png_filename": "Call Lightning.png"
+  },
+  "Calm Emotions": {
+    "level": 2,
+    "school": "Enchantment",
+    "classes": [
+      "Bard",
+      "Cleric"
+    ],
+    "png_filename": "Calm Emotions.png"
+  },
+  "Chain Lightning": {
+    "level": 6,
+    "school": "Evocation",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Chain Lightning.png"
+  },
+  "Charm Person": {
+    "level": 1,
+    "school": "Enchantment",
+    "classes": [
+      "Bard",
+      "Druid",
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Charm Person.png"
+  },
+  "Chill Touch": {
+    "level": 0,
+    "school": "Necromancy",
+    "classes": [
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Chill Touch.png"
+  },
+  "Circle of Death": {
+    "level": 6,
+    "school": "Necromancy",
+    "classes": [
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Circle of Death.png"
+  },
+  "Clairvoyance": {
+    "level": 3,
+    "school": "Divination",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Clairvoyance.png"
+  },
+  "Clone": {
+    "level": 8,
+    "school": "Necromancy",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Clone.png"
+  },
+  "Cloudkill": {
+    "level": 5,
+    "school": "Conjuration",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Cloudkill.png"
+  },
+  "Color Spray": {
+    "level": 1,
+    "school": "Illusion",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Color Spray.png"
+  },
+  "Command": {
+    "level": 1,
+    "school": "Enchantment",
+    "classes": [
+      "Cleric",
+      "Paladin"
+    ],
+    "png_filename": "Command.png"
+  },
+  "Commune": {
+    "level": 5,
+    "school": "Divination",
+    "classes": [
+      "Cleric"
+    ],
+    "png_filename": "Commune.png"
+  },
+  "Commune With Nature": {
+    "level": 5,
+    "school": "Divination",
+    "classes": [
+      "Druid",
+      "Ranger"
+    ],
+    "png_filename": "Commune with Nature.png"
+  },
+  "Comprehend Languages": {
+    "level": 1,
+    "school": "Divination",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Comprehend Languages.png"
+  },
+  "Compulsion": {
+    "level": 4,
+    "school": "Enchantment",
+    "classes": [
+      "Bard"
+    ],
+    "png_filename": "Compulsion.png"
+  },
+  "Cone of Cold": {
+    "level": 5,
+    "school": "Evocation",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Cone of Cold.png"
+  },
+  "Confusion": {
+    "level": 4,
+    "school": "Enchantment",
+    "classes": [
+      "Bard",
+      "Druid",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Confusion.png"
+  },
+  "Conjure Animals": {
+    "level": 3,
+    "school": "Conjuration",
+    "classes": [
+      "Druid",
+      "Ranger"
+    ],
+    "png_filename": "Conjure Animals.png"
+  },
+  "Conjure Celestial": {
+    "level": 7,
+    "school": "Conjuration",
+    "classes": [
+      "Cleric"
+    ],
+    "png_filename": "Conjure Celestial.png"
+  },
+  "Conjure Elemental": {
+    "level": 5,
+    "school": "Conjuration",
+    "classes": [
+      "Druid",
+      "Wizard"
+    ],
+    "png_filename": "Conjure Elemental.png"
+  },
+  "Conjure Fey": {
+    "level": 6,
+    "school": "Conjuration",
+    "classes": [
+      "Druid",
+      "Warlock"
+    ],
+    "png_filename": "Conjure Fey.png"
+  },
+  "Conjure Minor Elementals": {
+    "level": 4,
+    "school": "Conjuration",
+    "classes": [
+      "Druid",
+      "Wizard"
+    ],
+    "png_filename": "Conjure Minor Elementals.png"
+  },
+  "Conjure Woodland Beings": {
+    "level": 4,
+    "school": "Conjuration",
+    "classes": [
+      "Druid",
+      "Ranger"
+    ],
+    "png_filename": "Conjure Woodland Beings.png"
+  },
+  "Contact Other Plane": {
+    "level": 5,
+    "school": "Divination",
+    "classes": [
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Contact Other Plane.png"
+  },
+  "Contagion": {
+    "level": 5,
+    "school": "Necromancy",
+    "classes": [
+      "Cleric",
+      "Druid"
+    ],
+    "png_filename": "Contagion.png"
+  },
+  "Contingency": {
+    "level": 6,
+    "school": "Evocation",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Contingency.png"
+  },
+  "Continual Flame": {
+    "level": 2,
+    "school": "Evocation",
+    "classes": [
+      "Cleric",
+      "Wizard"
+    ],
+    "png_filename": "Continual Flame.png"
+  },
+  "Control Water": {
+    "level": 4,
+    "school": "Transmutation",
+    "classes": [
+      "Cleric",
+      "Druid",
+      "Wizard"
+    ],
+    "png_filename": "Control Water.png"
+  },
+  "Control Weather": {
+    "level": 8,
+    "school": "Transmutation",
+    "classes": [
+      "Cleric",
+      "Druid",
+      "Wizard"
+    ],
+    "png_filename": "Control Weather.png"
+  },
+  "Counterspell": {
+    "level": 3,
+    "school": "Abjuration",
+    "classes": [
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Counterspell.png"
+  },
+  "Create Food and Water": {
+    "level": 3,
+    "school": "Conjuration",
+    "classes": [
+      "Cleric",
+      "Druid",
+      "Paladin"
+    ],
+    "png_filename": "Create Food and Water.png"
+  },
+  "Create Undead": {
+    "level": 6,
+    "school": "Necromancy",
+    "classes": [
+      "Cleric",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Create Undead.png"
+  },
+  "Create or Destroy Water": {
+    "level": 1,
+    "school": "Transmutation",
+    "classes": [
+      "Cleric",
+      "Druid"
+    ],
+    "png_filename": "Create or Destroy Water.png"
+  },
+  "Creation": {
+    "level": 5,
+    "school": "Illusion",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Creation.png"
+  },
+  "Cure Wounds": {
+    "level": 1,
+    "school": "Evocation",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Druid",
+      "Paladin",
+      "Ranger"
+    ],
+    "png_filename": "Cure Wounds.png"
+  },
+  "Dancing Lights": {
+    "level": 0,
+    "school": "Evocation",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Dancing Lights.png"
+  },
+  "Darkness": {
+    "level": 2,
+    "school": "Evocation",
+    "classes": [
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Darkness.png"
+  },
+  "Darkvision": {
+    "level": 2,
+    "school": "Transmutation",
+    "classes": [
+      "Druid",
+      "Ranger",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Darkvision.png"
+  },
+  "Daylight": {
+    "level": 3,
+    "school": "Evocation",
+    "classes": [
+      "Cleric",
+      "Druid",
+      "Paladin",
+      "Ranger",
+      "Sorcerer"
+    ],
+    "png_filename": "Daylight.png"
+  },
+  "Death Ward": {
+    "level": 4,
+    "school": "Abjuration",
+    "classes": [
+      "Cleric",
+      "Paladin"
+    ],
+    "png_filename": "Death Ward.png"
+  },
+  "Delayed Blast Fireball": {
+    "level": 7,
+    "school": "Evocation",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Delayed Blast Fireball.png"
+  },
+  "Demiplane": {
+    "level": 8,
+    "school": "Conjuration",
+    "classes": [
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Demiplane.png"
+  },
+  "Detect Evil and Good": {
+    "level": 1,
+    "school": "Divination",
+    "classes": [
+      "Cleric",
+      "Paladin"
+    ],
+    "png_filename": "Detect Evil and Good.png"
+  },
+  "Detect Magic": {
+    "level": 1,
+    "school": "Divination",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Druid",
+      "Paladin",
+      "Ranger",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Detect Magic.png"
+  },
+  "Detect Poison and Disease": {
+    "level": 1,
+    "school": "Divination",
+    "classes": [
+      "Cleric",
+      "Druid",
+      "Paladin",
+      "Ranger"
+    ],
+    "png_filename": "Detect Poison and Disease.png"
+  },
+  "Detect Thoughts": {
+    "level": 2,
+    "school": "Divination",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Detect Thoughts.png"
+  },
+  "Dimension Door": {
+    "level": 4,
+    "school": "Conjuration",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Dimension Door.png"
+  },
+  "Disguise Self": {
+    "level": 1,
+    "school": "Illusion",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Disguise Self.png"
+  },
+  "Disintegrate": {
+    "level": 6,
+    "school": "Transmutation",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Disintegrate.png"
+  },
+  "Dispel Evil and Good": {
+    "level": 5,
+    "school": "Abjuration",
+    "classes": [
+      "Cleric",
+      "Paladin"
+    ],
+    "png_filename": "Dispel Evil and Good.png"
+  },
+  "Dispel Magic": {
+    "level": 3,
+    "school": "Abjuration",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Druid",
+      "Paladin",
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Dispel Magic.png"
+  },
+  "Divination": {
+    "level": 4,
+    "school": "Divination",
+    "classes": [
+      "Druid"
+    ],
+    "png_filename": "Divination.png"
+  },
+  "Divine Favor": {
+    "level": 1,
+    "school": "Evocation",
+    "classes": [
+      "Paladin"
+    ],
+    "png_filename": "Divine Favor.png"
+  },
+  "Divine Word": {
+    "level": 7,
+    "school": "Evocation",
+    "classes": [
+      "Cleric"
+    ],
+    "png_filename": "Divine Word.png"
+  },
+  "Dominate Beast": {
+    "level": 4,
+    "school": "Enchantment",
+    "classes": [
+      "Druid",
+      "Sorcerer"
+    ],
+    "png_filename": "Dominate Beast.png"
+  },
+  "Dominate Monster": {
+    "level": 8,
+    "school": "Enchantment",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Dominate Monster.png"
+  },
+  "Dominate Person": {
+    "level": 5,
+    "school": "Enchantment",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Dominate Person.png"
+  },
+  "Dream": {
+    "level": 5,
+    "school": "Illusion",
+    "classes": [
+      "Bard",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Dream.png"
+  },
+  "Druidcraft": {
+    "level": 0,
+    "school": "Transmutation",
+    "classes": [
+      "Druid"
+    ],
+    "png_filename": "Druidcraft.png"
+  },
+  "Earthquake": {
+    "level": 8,
+    "school": "Evocation",
+    "classes": [
+      "Cleric",
+      "Druid",
+      "Sorcerer"
+    ],
+    "png_filename": "Earthquake.png"
+  },
+  "Eldritch Blast": {
+    "level": 0,
+    "school": "Evocation",
+    "classes": [
+      "Warlock"
+    ],
+    "png_filename": "Eldritch Blast.png"
+  },
+  "Enhance Ability": {
+    "level": 2,
+    "school": "Transmutation",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Druid",
+      "Sorcerer"
+    ],
+    "png_filename": "Enhance Ability.png"
+  },
+  "Enlarge/Reduce": {
+    "level": 2,
+    "school": "Transmutation",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Enlarge_Reduce.png"
+  },
+  "Entangle": {
+    "level": 1,
+    "school": "Conjuration",
+    "classes": [
+      "Druid"
+    ],
+    "png_filename": "Entangle.png"
+  },
+  "Enthrall": {
+    "level": 2,
+    "school": "Enchantment",
+    "classes": [
+      "Bard",
+      "Warlock"
+    ],
+    "png_filename": "Enthrall.png"
+  },
+  "Etherealness": {
+    "level": 7,
+    "school": "Transmutation",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Etherealness.png"
+  },
+  "Expeditious Retreat": {
+    "level": 1,
+    "school": "Transmutation",
+    "classes": [
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Expeditious Retreat.png"
+  },
+  "Eyebite": {
+    "level": 6,
+    "school": "Necromancy",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Eyebite.png"
+  },
+  "Fabricate": {
+    "level": 4,
+    "school": "Transmutation",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Fabricate.png"
+  },
+  "Faerie Fire": {
+    "level": 1,
+    "school": "Evocation",
+    "classes": [
+      "Druid"
+    ],
+    "png_filename": "Faerie Fire.png"
+  },
+  "Faithful Hound": {
+    "level": 4,
+    "school": "Conjuration",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Mordenkainen's Faithful Hound.png"
+  },
+  "False Life": {
+    "level": 1,
+    "school": "Necromancy",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "False Life.png"
+  },
+  "Fear": {
+    "level": 3,
+    "school": "Illusion",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Fear.png"
+  },
+  "Feather Fall": {
+    "level": 1,
+    "school": "Transmutation",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Feather Fall.png"
+  },
+  "Feeblemind": {
+    "level": 8,
+    "school": "Enchantment",
+    "classes": [
+      "Bard",
+      "Druid",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Feeblemind.png"
+  },
+  "Find Familiar": {
+    "level": 1,
+    "school": "Conjuration",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Find Familiar.png"
+  },
+  "Find Steed": {
+    "level": 2,
+    "school": "Conjuration",
+    "classes": [
+      "Paladin"
+    ],
+    "png_filename": "Find Steed.png"
+  },
+  "Find Traps": {
+    "level": 2,
+    "school": "Divination",
+    "classes": [
+      "Cleric",
+      "Druid",
+      "Ranger"
+    ],
+    "png_filename": "Find Traps.png"
+  },
+  "Find the Path": {
+    "level": 6,
+    "school": "Divination",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Druid"
+    ],
+    "png_filename": "Find the Path.png"
+  },
+  "Finger of Death": {
+    "level": 7,
+    "school": "Necromancy",
+    "classes": [
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Finger of Death.png"
+  },
+  "Fire Bolt": {
+    "level": 0,
+    "school": "Evocation",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Fire Bolt.png"
+  },
+  "Fire Shield": {
+    "level": 4,
+    "school": "Evocation",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Fire Shield.png"
+  },
+  "Fire Storm": {
+    "level": 7,
+    "school": "Evocation",
+    "classes": [
+      "Cleric",
+      "Druid",
+      "Sorcerer"
+    ],
+    "png_filename": "Fire Storm.png"
+  },
+  "Fireball": {
+    "level": 3,
+    "school": "Evocation",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Fireball.png"
+  },
+  "Flame Blade": {
+    "level": 2,
+    "school": "Evocation",
+    "classes": [
+      "Druid"
+    ],
+    "png_filename": "Flame Blade.png"
+  },
+  "Flame Strike": {
+    "level": 5,
+    "school": "Evocation",
+    "classes": [
+      "Cleric"
+    ],
+    "png_filename": "Flame Strike.png"
+  },
+  "Flaming Sphere": {
+    "level": 2,
+    "school": "Conjuration",
+    "classes": [
+      "Druid",
+      "Wizard"
+    ],
+    "png_filename": "Flaming Sphere.png"
+  },
+  "Flesh to Stone": {
+    "level": 6,
+    "school": "Transmutation",
+    "classes": [
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Flesh to Stone.png"
+  },
+  "Floating Disk": {
+    "level": 1,
+    "school": "Conjuration",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Tenser's Floating Disk.png"
+  },
+  "Fly": {
+    "level": 3,
+    "school": "Transmutation",
+    "classes": [
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Fly.png"
+  },
+  "Fog Cloud": {
+    "level": 1,
+    "school": "Conjuration",
+    "classes": [
+      "Druid",
+      "Ranger",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Fog Cloud.png"
+  },
+  "Forbiddance": {
+    "level": 6,
+    "school": "Abjuration",
+    "classes": [
+      "Cleric"
+    ],
+    "png_filename": "Forbiddance.png"
+  },
+  "Forcecage": {
+    "level": 7,
+    "school": "Evocation",
+    "classes": [
+      "Bard",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Forcecage.png"
+  },
+  "Foresight": {
+    "level": 9,
+    "school": "Divination",
+    "classes": [
+      "Bard",
+      "Druid",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Foresight.png"
+  },
+  "Freedom of Movement": {
+    "level": 4,
+    "school": "Abjuration",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Druid",
+      "Ranger"
+    ],
+    "png_filename": "Freedom of Movement.png"
+  },
+  "Freezing Sphere": {
+    "level": 6,
+    "school": "Evocation",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Otiluke's Freezing Sphere.png"
+  },
+  "Gaseous Form": {
+    "level": 3,
+    "school": "Transmutation",
+    "classes": [
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Gaseous Form.png"
+  },
+  "Gate": {
+    "level": 9,
+    "school": "Conjuration",
+    "classes": [
+      "Cleric",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Gate.png"
+  },
+  "Geas": {
+    "level": 5,
+    "school": "Enchantment",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Druid",
+      "Paladin",
+      "Wizard"
+    ],
+    "png_filename": "Geas.png"
+  },
+  "Gentle Repose": {
+    "level": 2,
+    "school": "Necromancy",
+    "classes": [
+      "Cleric",
+      "Wizard"
+    ],
+    "png_filename": "Gentle Repose.png"
+  },
+  "Giant Insect": {
+    "level": 4,
+    "school": "Transmutation",
+    "classes": [
+      "Druid"
+    ],
+    "png_filename": "Giant Insect.png"
+  },
+  "Glibness": {
+    "level": 8,
+    "school": "Transmutation",
+    "classes": [
+      "Bard",
+      "Warlock"
+    ],
+    "png_filename": "Glibness.png"
+  },
+  "Globe of Invulnerability": {
+    "level": 6,
+    "school": "Abjuration",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Globe of Invulnerability.png"
+  },
+  "Glyph of Warding": {
+    "level": 3,
+    "school": "Abjuration",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Wizard"
+    ],
+    "png_filename": "Glyph of Warding.png"
+  },
+  "Goodberry": {
+    "level": 1,
+    "school": "Transmutation",
+    "classes": [
+      "Druid",
+      "Ranger"
+    ],
+    "png_filename": "Goodberry.png"
+  },
+  "Grease": {
+    "level": 1,
+    "school": "Conjuration",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Grease.png"
+  },
+  "Greater Invisibility": {
+    "level": 4,
+    "school": "Illusion",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Greater Invisibility.png"
+  },
+  "Greater Restoration": {
+    "level": 5,
+    "school": "Abjuration",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Druid"
+    ],
+    "png_filename": "Greater Restoration.png"
+  },
+  "Guardian of Faith": {
+    "level": 4,
+    "school": "Conjuration",
+    "classes": [
+      "Cleric"
+    ],
+    "png_filename": "Guardian of Faith.png"
+  },
+  "Guards and Wards": {
+    "level": 6,
+    "school": "Abjuration",
+    "classes": [
+      "Bard",
+      "Wizard"
+    ],
+    "png_filename": "Guards and Wards.png"
+  },
+  "Guidance": {
+    "level": 0,
+    "school": "Divination",
+    "classes": [
+      "Cleric",
+      "Druid"
+    ],
+    "png_filename": "Guidance.png"
+  },
+  "Guiding Bolt": {
+    "level": 1,
+    "school": "Evocation",
+    "classes": [
+      "Cleric"
+    ],
+    "png_filename": "Guiding Bolt.png"
+  },
+  "Gust of Wind": {
+    "level": 2,
+    "school": "Evocation",
+    "classes": [
+      "Druid",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Gust of Wind.png"
+  },
+  "Hallow": {
+    "level": 5,
+    "school": "Evocation",
+    "classes": [
+      "Cleric"
+    ],
+    "png_filename": "Hallow.png"
+  },
+  "Hallucinatory Terrain": {
+    "level": 4,
+    "school": "Illusion",
+    "classes": [
+      "Bard",
+      "Druid",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Hallucinatory Terrain.png"
+  },
+  "Harm": {
+    "level": 6,
+    "school": "Necromancy",
+    "classes": [
+      "Cleric"
+    ],
+    "png_filename": "Harm.png"
+  },
+  "Haste": {
+    "level": 3,
+    "school": "Transmutation",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Haste.png"
+  },
+  "Heal": {
+    "level": 6,
+    "school": "Evocation",
+    "classes": [
+      "Cleric",
+      "Druid"
+    ],
+    "png_filename": "Heal.png"
+  },
+  "Healing Word": {
+    "level": 1,
+    "school": "Evocation",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Druid"
+    ],
+    "png_filename": "Healing Word.png"
+  },
+  "Heat Metal": {
+    "level": 2,
+    "school": "Transmutation",
+    "classes": [
+      "Bard",
+      "Druid"
+    ],
+    "png_filename": "Heat Metal.png"
+  },
+  "Hellish Rebuke": {
+    "level": 1,
+    "school": "Evocation",
+    "classes": [
+      "Warlock"
+    ],
+    "png_filename": "Hellish Rebuke.png"
+  },
+  "Heroes' Feast": {
+    "level": 6,
+    "school": "Conjuration",
+    "classes": [
+      "Cleric",
+      "Druid"
+    ],
+    "png_filename": "Heroes' Feast.png"
+  },
+  "Heroism": {
+    "level": 1,
+    "school": "Enchantment",
+    "classes": [
+      "Bard",
+      "Paladin"
+    ],
+    "png_filename": "Heroism.png"
+  },
+  "Hideous Laughter": {
+    "level": 1,
+    "school": "Enchantment",
+    "classes": [
+      "Bard",
+      "Wizard"
+    ],
+    "png_filename": "Tasha's Hideous Laughter.png"
+  },
+  "Hold Monster": {
+    "level": 5,
+    "school": "Enchantment",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Hold Monster.png"
+  },
+  "Hold Person": {
+    "level": 2,
+    "school": "Enchantment",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Druid",
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Hold Person.png"
+  },
+  "Holy Aura": {
+    "level": 8,
+    "school": "Abjuration",
+    "classes": [
+      "Cleric"
+    ],
+    "png_filename": "Holy Aura.png"
+  },
+  "Hunter's Mark": {
+    "level": 1,
+    "school": "Divination",
+    "classes": [
+      "Ranger"
+    ],
+    "png_filename": "Hunter's Mark.png"
+  },
+  "Hypnotic Pattern": {
+    "level": 3,
+    "school": "Illusion",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Hypnotic Pattern.png"
+  },
+  "Ice Storm": {
+    "level": 4,
+    "school": "Evocation",
+    "classes": [
+      "Druid",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Ice Storm.png"
+  },
+  "Identify": {
+    "level": 1,
+    "school": "Divination",
+    "classes": [
+      "Bard",
+      "Wizard"
+    ],
+    "png_filename": "Identify.png"
+  },
+  "Illusory Script": {
+    "level": 1,
+    "school": "Illusion",
+    "classes": [
+      "Bard",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Illusory Script.png"
+  },
+  "Imprisonment": {
+    "level": 9,
+    "school": "Abjuration",
+    "classes": [
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Imprisonment.png"
+  },
+  "Incendiary Cloud": {
+    "level": 8,
+    "school": "Conjuration",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Incendiary Cloud.png"
+  },
+  "Inflict Wounds": {
+    "level": 1,
+    "school": "Necromancy",
+    "classes": [
+      "Cleric"
+    ],
+    "png_filename": "Inflict Wounds.png"
+  },
+  "Insect Plague": {
+    "level": 5,
+    "school": "Conjuration",
+    "classes": [
+      "Cleric",
+      "Druid",
+      "Sorcerer"
+    ],
+    "png_filename": "Insect Plague.png"
+  },
+  "Instant Summons": {
+    "level": 6,
+    "school": "Conjuration",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Drawmij's Instant Summons.png"
+  },
+  "Invisibility": {
+    "level": 2,
+    "school": "Illusion",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Invisibility.png"
+  },
+  "Irresistible Dance": {
+    "level": 6,
+    "school": "Enchantment",
+    "classes": [
+      "Bard",
+      "Wizard"
+    ],
+    "png_filename": "Otto's Irresistible Dance.png"
+  },
+  "Jump": {
+    "level": 1,
+    "school": "Transmutation",
+    "classes": [
+      "Druid",
+      "Ranger",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Jump.png"
+  },
+  "Knock": {
+    "level": 2,
+    "school": "Transmutation",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Knock.png"
+  },
+  "Legend Lore": {
+    "level": 5,
+    "school": "Divination",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Wizard"
+    ],
+    "png_filename": "Legend Lore.png"
+  },
+  "Lesser Restoration": {
+    "level": 2,
+    "school": "Abjuration",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Druid",
+      "Paladin",
+      "Ranger"
+    ],
+    "png_filename": "Lesser Restoration.png"
+  },
+  "Levitate": {
+    "level": 2,
+    "school": "Transmutation",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Levitate.png"
+  },
+  "Light": {
+    "level": 0,
+    "school": "Evocation",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Light.png"
+  },
+  "Lightning Bolt": {
+    "level": 3,
+    "school": "Evocation",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Lightning Bolt.png"
+  },
+  "Locate Animals or Plants": {
+    "level": 2,
+    "school": "Divination",
+    "classes": [
+      "Bard",
+      "Druid",
+      "Ranger"
+    ],
+    "png_filename": "Locate Animals or Plants.png"
+  },
+  "Locate Creature": {
+    "level": 4,
+    "school": "Divination",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Druid",
+      "Paladin",
+      "Ranger",
+      "Wizard"
+    ],
+    "png_filename": "Locate Creature.png"
+  },
+  "Locate Object": {
+    "level": 2,
+    "school": "Divination",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Druid",
+      "Paladin",
+      "Ranger",
+      "Wizard"
+    ],
+    "png_filename": "Locate Object.png"
+  },
+  "Longstrider": {
+    "level": 1,
+    "school": "Transmutation",
+    "classes": [
+      "Bard",
+      "Druid",
+      "Ranger",
+      "Wizard"
+    ],
+    "png_filename": "Longstrider.png"
+  },
+  "Mage Armor": {
+    "level": 1,
+    "school": "Abjuration",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Mage Armor.png"
+  },
+  "Mage Hand": {
+    "level": 0,
+    "school": "Conjuration",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Mage Hand.png"
+  },
+  "Magic Circle": {
+    "level": 3,
+    "school": "Abjuration",
+    "classes": [
+      "Cleric",
+      "Paladin",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Magic Circle.png"
+  },
+  "Magic Jar": {
+    "level": 6,
+    "school": "Necromancy",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Magic Jar.png"
+  },
+  "Magic Missile": {
+    "level": 1,
+    "school": "Evocation",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Magic Missile.png"
+  },
+  "Magic Mouth": {
+    "level": 2,
+    "school": "Illusion",
+    "classes": [
+      "Bard",
+      "Wizard"
+    ],
+    "png_filename": "Magic Mouth.png"
+  },
+  "Magic Weapon": {
+    "level": 2,
+    "school": "Transmutation",
+    "classes": [
+      "Paladin",
+      "Wizard"
+    ],
+    "png_filename": "Magic Weapon.png"
+  },
+  "Magnificent Mansion": {
+    "level": 7,
+    "school": "Conjuration",
+    "classes": [
+      "Bard",
+      "Wizard"
+    ],
+    "png_filename": "Mordenkainen's Magnificent Mansion.png"
+  },
+  "Major Image": {
+    "level": 3,
+    "school": "Illusion",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Major Image.png"
+  },
+  "Mass Cure Wounds": {
+    "level": 5,
+    "school": "Conjuration",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Druid"
+    ],
+    "png_filename": "Mass Cure Wounds.png"
+  },
+  "Mass Heal": {
+    "level": 9,
+    "school": "Conjuration",
+    "classes": [
+      "Cleric"
+    ],
+    "png_filename": "Mass Heal.png"
+  },
+  "Mass Healing Word": {
+    "level": 3,
+    "school": "Evocation",
+    "classes": [
+      "Cleric"
+    ],
+    "png_filename": "Mass Healing Word.png"
+  },
+  "Mass Suggestion": {
+    "level": 6,
+    "school": "Enchantment",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Mass Suggestion.png"
+  },
+  "Maze": {
+    "level": 8,
+    "school": "Conjuration",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Maze.png"
+  },
+  "Meld Into Stone": {
+    "level": 3,
+    "school": "Transmutation",
+    "classes": [
+      "Cleric"
+    ],
+    "png_filename": "Meld into Stone.png"
+  },
+  "Mending": {
+    "level": 0,
+    "school": "Transmutation",
+    "classes": [
+      "Cleric",
+      "Bard",
+      "Druid",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Mending.png"
+  },
+  "Message": {
+    "level": 0,
+    "school": "Transmutation",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Message.png"
+  },
+  "Meteor Swarm": {
+    "level": 9,
+    "school": "Evocation",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Meteor Swarm.png"
+  },
+  "Mind Blank": {
+    "level": 8,
+    "school": "Abjuration",
+    "classes": [
+      "Bard",
+      "Wizard"
+    ],
+    "png_filename": "Mind Blank.png"
+  },
+  "Minor Illusion": {
+    "level": 0,
+    "school": "Illusion",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Minor Illusion.png"
+  },
+  "Mirage Arcane": {
+    "level": 7,
+    "school": "Illusion",
+    "classes": [
+      "Bard",
+      "Druid",
+      "Wizard"
+    ],
+    "png_filename": "Mirage Arcane.png"
+  },
+  "Mirror Image": {
+    "level": 2,
+    "school": "Illusion",
+    "classes": [
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Mirror Image.png"
+  },
+  "Mislead": {
+    "level": 5,
+    "school": "Illusion",
+    "classes": [
+      "Bard",
+      "Wizard"
+    ],
+    "png_filename": "Mislead.png"
+  },
+  "Misty Step": {
+    "level": 2,
+    "school": "Conjuration",
+    "classes": [
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Misty Step.png"
+  },
+  "Modify Memory": {
+    "level": 5,
+    "school": "Enchantment",
+    "classes": [
+      "Bard",
+      "Wizard"
+    ],
+    "png_filename": "Modify Memory.png"
+  },
+  "Moonbeam": {
+    "level": 2,
+    "school": "Evocation",
+    "classes": [
+      "Druid"
+    ],
+    "png_filename": "Moonbeam.png"
+  },
+  "Move Earth": {
+    "level": 6,
+    "school": "Transmutation",
+    "classes": [
+      "Druid",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Move Earth.png"
+  },
+  "Nondetection": {
+    "level": 3,
+    "school": "Abjuration",
+    "classes": [
+      "Bard",
+      "Ranger",
+      "Wizard"
+    ],
+    "png_filename": "Nondetection.png"
+  },
+  "Pass Without Trace": {
+    "level": 2,
+    "school": "Abjuration",
+    "classes": [
+      "Druid",
+      "Ranger"
+    ],
+    "png_filename": "Pass without Trace.png"
+  },
+  "Passwall": {
+    "level": 5,
+    "school": "Transmutation",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Passwall.png"
+  },
+  "Phantasmal Killer": {
+    "level": 4,
+    "school": "Illusion",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Phantasmal Killer.png"
+  },
+  "Phantom Steed": {
+    "level": 3,
+    "school": "Illusion",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Phantom Steed.png"
+  },
+  "Planar Ally": {
+    "level": 6,
+    "school": "Conjuration",
+    "classes": [
+      "Cleric"
+    ],
+    "png_filename": "Planar Ally.png"
+  },
+  "Planar Binding": {
+    "level": 5,
+    "school": "Abjuration",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Druid",
+      "Wizard"
+    ],
+    "png_filename": "Planar Binding.png"
+  },
+  "Plane Shift": {
+    "level": 7,
+    "school": "Conjuration",
+    "classes": [
+      "Cleric",
+      "Druid",
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Plane Shift.png"
+  },
+  "Plant Growth": {
+    "level": 3,
+    "school": "Transmutation",
+    "classes": [
+      "Bard",
+      "Druid",
+      "Ranger"
+    ],
+    "png_filename": "Plant Growth.png"
+  },
+  "Poison Spray": {
+    "level": 0,
+    "school": "Conjuration",
+    "classes": [
+      "Sorcerer",
+      "Warlock",
+      "Wizard",
+      "Druid"
+    ],
+    "png_filename": "Poison Spray.png"
+  },
+  "Polymorph": {
+    "level": 4,
+    "school": "Transmutation",
+    "classes": [
+      "Bard",
+      "Druid",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Polymorph.png"
+  },
+  "Power Word Kill": {
+    "level": 9,
+    "school": "Enchantment",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Power Word Kill.png"
+  },
+  "Power Word Stun": {
+    "level": 8,
+    "school": "Enchantment",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Power Word Stun.png"
+  },
+  "Prayer of Healing": {
+    "level": 2,
+    "school": "Evocation",
+    "classes": [
+      "Cleric"
+    ],
+    "png_filename": "Prayer of Healing.png"
+  },
+  "Prestidigitation": {
+    "level": 0,
+    "school": "Transmutation",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Prestidigitation.png"
+  },
+  "Prismatic Spray": {
+    "level": 7,
+    "school": "Evocation",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Prismatic Spray.png"
+  },
+  "Prismatic Wall": {
+    "level": 9,
+    "school": "Abjuration",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Prismatic Wall.png"
+  },
+  "Private Sanctum": {
+    "level": 4,
+    "school": "Abjuration",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Mordenkainen's Private Sanctum.png"
+  },
+  "Produce Flame": {
+    "level": 0,
+    "school": "Conjuration",
+    "classes": [
+      "Druid"
+    ],
+    "png_filename": "Produce Flame.png"
+  },
+  "Programmed Illusion": {
+    "level": 6,
+    "school": "Illusion",
+    "classes": [
+      "Bard",
+      "Wizard"
+    ],
+    "png_filename": "Programmed Illusion.png"
+  },
+  "Project Image": {
+    "level": 7,
+    "school": "Illusion",
+    "classes": [
+      "Bard",
+      "Wizard"
+    ],
+    "png_filename": "Project Image.png"
+  },
+  "Protection From Energy": {
+    "level": 3,
+    "school": "Abjuration",
+    "classes": [
+      "Cleric",
+      "Druid",
+      "Ranger",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Protection from Energy.png"
+  },
+  "Protection from Evil and Good": {
+    "level": 1,
+    "school": "Abjuration",
+    "classes": [
+      "Cleric",
+      "Paladin",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Protection from Evil and Good.png"
+  },
+  "Protection from Poison": {
+    "level": 2,
+    "school": "Abjuration",
+    "classes": [
+      "Cleric",
+      "Druid",
+      "Paladin",
+      "Ranger"
+    ],
+    "png_filename": "Protection from Poison.png"
+  },
+  "Purify Food and Drink": {
+    "level": 1,
+    "school": "Transmutation",
+    "classes": [
+      "Cleric",
+      "Druid",
+      "Paladin"
+    ],
+    "png_filename": "Purify Food and Drink.png"
+  },
+  "Raise Dead": {
+    "level": 5,
+    "school": "Necromancy",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Paladin"
+    ],
+    "png_filename": "Raise Dead.png"
+  },
+  "Ray of Enfeeblement": {
+    "level": 2,
+    "school": "Necromancy",
+    "classes": [
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Ray of Enfeeblement.png"
+  },
+  "Ray of Frost": {
+    "level": 0,
+    "school": "Evocation",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Ray of Frost.png"
+  },
+  "Regenerate": {
+    "level": 7,
+    "school": "Transmutation",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Druid"
+    ],
+    "png_filename": "Regenerate.png"
+  },
+  "Reincarnate": {
+    "level": 5,
+    "school": "Transmutation",
+    "classes": [
+      "Druid"
+    ],
+    "png_filename": "Reincarnate.png"
+  },
+  "Remove Curse": {
+    "level": 3,
+    "school": "Abjuration",
+    "classes": [
+      "Cleric",
+      "Paladin",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Remove Curse.png"
+  },
+  "Resilient Sphere": {
+    "level": 4,
+    "school": "Evocation",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Otiluke's Resilient Sphere.png"
+  },
+  "Resistance": {
+    "level": 0,
+    "school": "Abjuration",
+    "classes": [
+      "Cleric",
+      "Druid"
+    ],
+    "png_filename": "Resistance.png"
+  },
+  "Resurrection": {
+    "level": 7,
+    "school": "Necromancy",
+    "classes": [
+      "Bard",
+      "Cleric"
+    ],
+    "png_filename": "Resurrection.png"
+  },
+  "Reverse Gravity": {
+    "level": 7,
+    "school": "Transmutation",
+    "classes": [
+      "Druid",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Reverse Gravity.png"
+  },
+  "Revivify": {
+    "level": 3,
+    "school": "Conjuration",
+    "classes": [
+      "Cleric",
+      "Paladin"
+    ],
+    "png_filename": "Revivify.png"
+  },
+  "Rope Trick": {
+    "level": 2,
+    "school": "Transmutation",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Rope Trick.png"
+  },
+  "Sacred Flame": {
+    "level": 0,
+    "school": "Evocation",
+    "classes": [
+      "Cleric"
+    ],
+    "png_filename": "Sacred Flame.png"
+  },
+  "Sanctuary": {
+    "level": 1,
+    "school": "Abjuration",
+    "classes": [
+      "Cleric"
+    ],
+    "png_filename": "Sanctuary.png"
+  },
+  "Scorching Ray": {
+    "level": 2,
+    "school": "Evocation",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Scorching Ray.png"
+  },
+  "Scrying": {
+    "level": 5,
+    "school": "Divination",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Druid",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Scrying.png"
+  },
+  "Secret Chest": {
+    "level": 4,
+    "school": "Conjuration",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Leomund's Secret Chest.png"
+  },
+  "See Invisibility": {
+    "level": 2,
+    "school": "Divination",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "See Invisibility.png"
+  },
+  "Seeming": {
+    "level": 5,
+    "school": "Illusion",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Seeming.png"
+  },
+  "Sending": {
+    "level": 3,
+    "school": "Evocation",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Wizard"
+    ],
+    "png_filename": "Sending.png"
+  },
+  "Sequester": {
+    "level": 7,
+    "school": "Transmutation",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Sequester.png"
+  },
+  "Shapechange": {
+    "level": 9,
+    "school": "Transmutation",
+    "classes": [
+      "Druid",
+      "Wizard"
+    ],
+    "png_filename": "Shapechange.png"
+  },
+  "Shatter": {
+    "level": 2,
+    "school": "Evocation",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Shatter.png"
+  },
+  "Shield": {
+    "level": 1,
+    "school": "Abjuration",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Shield.png"
+  },
+  "Shield of Faith": {
+    "level": 1,
+    "school": "Abjuration",
+    "classes": [
+      "Cleric",
+      "Paladin"
+    ],
+    "png_filename": "Shield of Faith.png"
+  },
+  "Shillelagh": {
+    "level": 0,
+    "school": "Transmutation",
+    "classes": [
+      "Druid"
+    ],
+    "png_filename": "Shillelagh.png"
+  },
+  "Shocking Grasp": {
+    "level": 0,
+    "school": "Evocation",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Shocking Grasp.png"
+  },
+  "Silence": {
+    "level": 2,
+    "school": "Illusion",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Ranger"
+    ],
+    "png_filename": "Silence.png"
+  },
+  "Silent Image": {
+    "level": 1,
+    "school": "Illusion",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Silent Image.png"
+  },
+  "Simulacrum": {
+    "level": 7,
+    "school": "Illusion",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Simulacrum.png"
+  },
+  "Sleep": {
+    "level": 1,
+    "school": "Enchantment",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Sleep.png"
+  },
+  "Sleet Storm": {
+    "level": 3,
+    "school": "Conjuration",
+    "classes": [
+      "Druid",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Sleet Storm.png"
+  },
+  "Slow": {
+    "level": 3,
+    "school": "Transmutation",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Slow.png"
+  },
+  "Spare the Dying": {
+    "level": 0,
+    "school": "Necromancy",
+    "classes": [
+      "Cleric"
+    ],
+    "png_filename": "Spare the Dying.png"
+  },
+  "Speak with Animals": {
+    "level": 1,
+    "school": "Divination",
+    "classes": [
+      "Bard",
+      "Druid",
+      "Ranger"
+    ],
+    "png_filename": "Speak with Animals.png"
+  },
+  "Speak with Dead": {
+    "level": 3,
+    "school": "Necromancy",
+    "classes": [
+      "Bard",
+      "Cleric"
+    ],
+    "png_filename": "Speak with Dead.png"
+  },
+  "Speak with Plants": {
+    "level": 3,
+    "school": "Transmutation",
+    "classes": [
+      "Bard",
+      "Druid",
+      "Ranger"
+    ],
+    "png_filename": "Speak with Plants.png"
+  },
+  "Spider Climb": {
+    "level": 2,
+    "school": "Transmutation",
+    "classes": [
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Spider Climb.png"
+  },
+  "Spike Growth": {
+    "level": 2,
+    "school": "Transmutation",
+    "classes": [
+      "Druid",
+      "Ranger"
+    ],
+    "png_filename": "Spike Growth.png"
+  },
+  "Spirit Guardians": {
+    "level": 3,
+    "school": "Conjuration",
+    "classes": [
+      "Cleric"
+    ],
+    "png_filename": "Spirit Guardians.png"
+  },
+  "Spiritual Weapon": {
+    "level": 2,
+    "school": "Evocation",
+    "classes": [
+      "Cleric"
+    ],
+    "png_filename": "Spiritual Weapon.png"
+  },
+  "Stinking Cloud": {
+    "level": 3,
+    "school": "Conjuration",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Stinking Cloud.png"
+  },
+  "Stone Shape": {
+    "level": 4,
+    "school": "Transmutation",
+    "classes": [
+      "Cleric",
+      "Druid",
+      "Wizard"
+    ],
+    "png_filename": "Stone Shape.png"
+  },
+  "Stoneskin": {
+    "level": 4,
+    "school": "Abjuration",
+    "classes": [
+      "Druid",
+      "Ranger",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Stoneskin.png"
+  },
+  "Storm of Vengeance": {
+    "level": 9,
+    "school": "Conjuration",
+    "classes": [
+      "Druid"
+    ],
+    "png_filename": "Storm of Vengeance.png"
+  },
+  "Suggestion": {
+    "level": 2,
+    "school": "Enchantment",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Suggestion.png"
+  },
+  "Sunbeam": {
+    "level": 6,
+    "school": "Evocation",
+    "classes": [
+      "Druid",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Sunbeam.png"
+  },
+  "Sunburst": {
+    "level": 8,
+    "school": "Evocation",
+    "classes": [
+      "Druid",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Sunburst.png"
+  },
+  "Symbol": {
+    "level": 7,
+    "school": "Abjuration",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Wizard"
+    ],
+    "png_filename": "Symbol.png"
+  },
+  "Telekinesis": {
+    "level": 5,
+    "school": "Transmutation",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Telekinesis.png"
+  },
+  "Telepathic Bond": {
+    "level": 5,
+    "school": "Divination",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Rary's Telepathic Bond.png"
+  },
+  "Teleport": {
+    "level": 7,
+    "school": "Conjuration",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Teleport.png"
+  },
+  "Teleportation Circle": {
+    "level": 5,
+    "school": "Conjuration",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Teleportation Circle.png"
+  },
+  "Thaumaturgy": {
+    "level": 0,
+    "school": "Transmutation",
+    "classes": [
+      "Cleric"
+    ],
+    "png_filename": "Thaumaturgy.png"
+  },
+  "Thunderwave": {
+    "level": 1,
+    "school": "Evocation",
+    "classes": [
+      "Bard",
+      "Druid",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Thunderwave.png"
+  },
+  "Time Stop": {
+    "level": 9,
+    "school": "Transmutation",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Time Stop.png"
+  },
+  "Tiny Hut": {
+    "level": 3,
+    "school": "Evocation",
+    "classes": [
+      "Bard",
+      "Wizard"
+    ],
+    "png_filename": "Leomund's Tiny Hut.png"
+  },
+  "Tongues": {
+    "level": 3,
+    "school": "Divination",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Tongues.png"
+  },
+  "Transport via Plants": {
+    "level": 6,
+    "school": "Conjuration",
+    "classes": [
+      "Druid"
+    ],
+    "png_filename": "Transport via Plants.png"
+  },
+  "Tree Stride": {
+    "level": 5,
+    "school": "Conjuration",
+    "classes": [
+      "Druid",
+      "Ranger"
+    ],
+    "png_filename": "Tree Stride.png"
+  },
+  "True Polymorph": {
+    "level": 9,
+    "school": "Transmutation",
+    "classes": [
+      "Bard",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "True Polymorph.png"
+  },
+  "True Resurrection": {
+    "level": 9,
+    "school": "Necromancy",
+    "classes": [
+      "Cleric",
+      "Druid"
+    ],
+    "png_filename": "True Resurrection.png"
+  },
+  "True Seeing": {
+    "level": 6,
+    "school": "Divination",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "True Seeing.png"
+  },
+  "True Strike": {
+    "level": 0,
+    "school": "Divination",
+    "classes": [
+      "Bard",
+      "Sorcerer",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "True Strike.png"
+  },
+  "Unseen Servant": {
+    "level": 1,
+    "school": "Conjuration",
+    "classes": [
+      "Bard",
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Unseen Servant.png"
+  },
+  "Vampiric Touch": {
+    "level": 3,
+    "school": "Necromancy",
+    "classes": [
+      "Warlock",
+      "Wizard"
+    ],
+    "png_filename": "Vampiric Touch.png"
+  },
+  "Vicious Mockery": {
+    "level": 0,
+    "school": "Enchantment",
+    "classes": [
+      "Bard"
+    ],
+    "png_filename": "Vicious Mockery.png"
+  },
+  "Wall of Fire": {
+    "level": 4,
+    "school": "Evocation",
+    "classes": [
+      "Druid",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Wall of Fire.png"
+  },
+  "Wall of Force": {
+    "level": 5,
+    "school": "Evocation",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Wall of Force.png"
+  },
+  "Wall of Ice": {
+    "level": 6,
+    "school": "Evocation",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Wall of Ice.png"
+  },
+  "Wall of Stone": {
+    "level": 5,
+    "school": "Evocation",
+    "classes": [
+      "Druid",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Wall of Stone.png"
+  },
+  "Wall of Thorns": {
+    "level": 6,
+    "school": "Conjuration",
+    "classes": [
+      "Druid"
+    ],
+    "png_filename": "Wall of Thorns.png"
+  },
+  "Warding Bond": {
+    "level": 2,
+    "school": "Abjuration",
+    "classes": [
+      "Cleric"
+    ],
+    "png_filename": "Warding Bond.png"
+  },
+  "Water Breathing": {
+    "level": 3,
+    "school": "Transmutation",
+    "classes": [
+      "Druid",
+      "Ranger",
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Water Breathing.png"
+  },
+  "Water Walk": {
+    "level": 3,
+    "school": "Transmutation",
+    "classes": [
+      "Cleric",
+      "Druid",
+      "Ranger",
+      "Sorcerer"
+    ],
+    "png_filename": "Water Walk.png"
+  },
+  "Web": {
+    "level": 2,
+    "school": "Conjuration",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Web.png"
+  },
+  "Weird": {
+    "level": 9,
+    "school": "Illusion",
+    "classes": [
+      "Wizard"
+    ],
+    "png_filename": "Weird.png"
+  },
+  "Wind Walk": {
+    "level": 6,
+    "school": "Transmutation",
+    "classes": [
+      "Druid"
+    ],
+    "png_filename": "Wind Walk.png"
+  },
+  "Wind Wall": {
+    "level": 3,
+    "school": "Evocation",
+    "classes": [
+      "Druid",
+      "Ranger"
+    ],
+    "png_filename": "Wind Wall.png"
+  },
+  "Wish": {
+    "level": 9,
+    "school": "Conjuration",
+    "classes": [
+      "Sorcerer",
+      "Wizard"
+    ],
+    "png_filename": "Wish.png"
+  },
+  "Word of Recall": {
+    "level": 6,
+    "school": "Conjuration",
+    "classes": [
+      "Cleric"
+    ],
+    "png_filename": "Word of Recall.png"
+  },
+  "Zone of Truth": {
+    "level": 2,
+    "school": "Enchantment",
+    "classes": [
+      "Bard",
+      "Cleric",
+      "Paladin"
+    ],
+    "png_filename": "Zone of Truth.png"
+  }
+}
