@@ -1,6 +1,9 @@
 import { Image } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const PI_SERVER = 'http://192.168.86.193:5050';
+
+const CARD_BACK_VARIANT_KEY = '@mtgsleeves/cardBackVariant';
 
 async function timedFetch(uri: string, timeoutMs = 5000): Promise<Response> {
   const controller = new AbortController();
@@ -36,11 +39,31 @@ export function getCardBackVariant(): string {
 export function setCardBackVariant(variant: string): void {
   console.log('[SLV] setCardBackVariant enter', { variant });
   if (CARD_BACK_ASSETS[variant] === undefined) {
-    console.log('[SLV] setCardBackVariant exit — rejected unknown variant');
+    console.warn('[SLV] setCardBackVariant — rejected unknown variant:', variant);
     return;
   }
   _cardBackVariant = variant;
+  console.log('[SLV] setCardBackVariant — in-memory set, persisting');
+  AsyncStorage.setItem(CARD_BACK_VARIANT_KEY, variant)
+    .then(() => console.log('[SLV] setCardBackVariant — persisted', variant))
+    .catch(e => console.warn('[SLV] setCardBackVariant — persist failed:', e instanceof Error ? e.message : e));
   console.log('[SLV] setCardBackVariant exit — accepted');
+}
+
+export async function initCardBackVariant(): Promise<void> {
+  console.log('[SLV] initCardBackVariant enter');
+  try {
+    const stored = await AsyncStorage.getItem(CARD_BACK_VARIANT_KEY);
+    console.log('[SLV] initCardBackVariant — storage read →', stored);
+    if (stored !== null && CARD_BACK_ASSETS[stored] !== undefined) {
+      _cardBackVariant = stored;
+      console.log('[SLV] initCardBackVariant exit — applied', stored);
+      return;
+    }
+    console.log('[SLV] initCardBackVariant exit — keeping default', _cardBackVariant);
+  } catch (e) {
+    console.warn('[SLV] initCardBackVariant — read failed, keeping default:', e instanceof Error ? e.message : e);
+  }
 }
 
 async function getCardBackBytes(): Promise<ArrayBuffer> {
