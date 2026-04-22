@@ -4,12 +4,10 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { loadSettings } from '../src/storage/deckStorage';
 import { configurePiDebug } from '../src/api/piServer';
-import { initCardBackVariant } from '../src/api/sleeveService';
 
 export default function RootLayout() {
   useEffect(() => {
     loadSettings().then(s => configurePiDebug(s.devMode && s.piDebugAlerts));
-    initCardBackVariant();
   }, []);
 
   return (

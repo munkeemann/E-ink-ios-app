@@ -26,8 +26,6 @@ export function createMaxsGame(playerCount: number, K: number): CahMaxsGameState
     playerCount,
     K,
     round: 0,
-    czarIndex: 0,
-    scores: Array(playerCount).fill(0),
     promptDeck: prompts,
     promptDiscard: [],
     responseDeck: responses,
@@ -35,7 +33,6 @@ export function createMaxsGame(playerCount: number, K: number): CahMaxsGameState
     currentPrompt: null,
     playerHands: Array.from({ length: playerCount }, () => []),
     phase: 'pre_deal',
-    roundWinner: null,
     startedAt: Date.now(),
   };
 }
@@ -68,19 +65,29 @@ function drawResponse(state: CahMaxsGameState): ResponseDraw {
 }
 
 /**
- * Deal a new round: draw 1 prompt + P*K responses, set phase='dealt'.
- * Called from 'pre_deal' (first deal) or 'judging' (next round).
- * Does NOT advance czarIndex — that happens in pickWinner.
+ * Deal a new round: discard current prompt + all hands (if any), then draw
+ * 1 fresh prompt + P*K responses. Sets phase='dealt'. Works from either
+ * 'pre_deal' (first deal, nothing to discard) or 'dealt' (next round).
+ * Scoring and judge rotation happen physically at the table — not tracked
+ * in app state.
  */
 export function advanceMaxs(state: CahMaxsGameState): CahMaxsGameState {
-  if (state.phase === 'dealt') {
-    console.warn('[CAH-MAXS] advanceMaxs called while phase=dealt — no-op');
-    return state;
-  }
   let next = state;
+
+  // Discard the outgoing round's cards before dealing anew.
+  if (state.currentPrompt) {
+    next = { ...next, promptDiscard: [...next.promptDiscard, state.currentPrompt] };
+  }
+  const flatHand = state.playerHands.flat();
+  if (flatHand.length > 0) {
+    next = { ...next, responseDiscard: [...next.responseDiscard, ...flatHand] };
+  }
+
+  // Draw fresh prompt
   const promptDraw = drawPrompt(next);
   next = { ...promptDraw.next, currentPrompt: promptDraw.card };
 
+  // Deal K responses to each player
   const hands: CahMaxsResponse[][] = Array.from({ length: state.playerCount }, () => []);
   for (let p = 0; p < state.playerCount; p++) {
     for (let k = 0; k < state.K; k++) {
@@ -90,58 +97,18 @@ export function advanceMaxs(state: CahMaxsGameState): CahMaxsGameState {
     }
   }
   const newRound = state.round + 1;
-  console.log(`[CAH-MAXS] advanceMaxs → round=${newRound}  czar=P${state.czarIndex + 1}  prompt="${promptDraw.card.text.slice(0, 60)}"`);
+  console.log(`[CAH-MAXS] advanceMaxs → round=${newRound}  prompt="${promptDraw.card.text.slice(0, 60)}"`);
   return {
     ...next,
     playerHands: hands,
     phase: 'dealt',
     round: newRound,
-    roundWinner: null,
-  };
-}
-
-/**
- * Award 1 point to winnerIdx, discard current prompt + all dealt hands,
- * rotate czar, set phase='judging'. From 'judging', the next advanceMaxs
- * call deals the next round.
- */
-export function pickWinner(state: CahMaxsGameState, winnerIdx: number): CahMaxsGameState {
-  if (state.phase !== 'dealt') {
-    console.warn(`[CAH-MAXS] pickWinner ignored — phase=${state.phase}`);
-    return state;
-  }
-  if (winnerIdx < 0 || winnerIdx >= state.playerCount) {
-    console.warn(`[CAH-MAXS] pickWinner ignored — invalid winnerIdx=${winnerIdx}`);
-    return state;
-  }
-
-  const scores = [...state.scores];
-  scores[winnerIdx] += 1;
-
-  const promptDiscard = state.currentPrompt
-    ? [...state.promptDiscard, state.currentPrompt]
-    : state.promptDiscard;
-  const flatHand = state.playerHands.flat();
-  const responseDiscard = [...state.responseDiscard, ...flatHand];
-  const nextCzar = (state.czarIndex + 1) % state.playerCount;
-
-  console.log(`[CAH-MAXS] pickWinner → P${winnerIdx + 1} wins round ${state.round}  scores=[${scores.join(',')}]  nextCzar=P${nextCzar + 1}`);
-  return {
-    ...state,
-    scores,
-    promptDiscard,
-    responseDiscard,
-    currentPrompt: null,
-    playerHands: Array.from({ length: state.playerCount }, () => []),
-    czarIndex: nextCzar,
-    roundWinner: winnerIdx,
-    phase: 'judging',
   };
 }
 
 /**
  * Full sleeve push for the current dealt state: 1 prompt + P*K responses.
- * Call from 'dealt' phase only (pre_deal/judging have no cards to show).
+ * Call from 'dealt' phase only (pre_deal has no cards to show).
  */
 export function maxsSleeveUpdates(state: CahMaxsGameState): CahMaxsSleeveUpdate[] {
   if (state.phase !== 'dealt' || !state.currentPrompt) return [];
@@ -156,8 +123,8 @@ export function maxsSleeveUpdates(state: CahMaxsGameState): CahMaxsSleeveUpdate[
   // identifiers leave the app. Who-played-what is a bluff-mechanic secret;
   // putting playerIdx/cardIdx in the wire payload would leak to the Pi log.
   // The app still knows the sleeveId→(p,k) mapping via maxsSleeveId() /
-  // buildMaxsLayout() for scoring and deal logic — secrecy is a render
-  // concern, not a state concern.
+  // buildMaxsLayout() for deal logic — secrecy is a render concern, not a
+  // state concern.
   for (let p = 0; p < state.playerCount; p++) {
     for (let k = 0; k < state.K; k++) {
       const card = state.playerHands[p]?.[k];

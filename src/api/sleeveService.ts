@@ -1,9 +1,6 @@
 import { Image } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const PI_SERVER = 'http://192.168.86.193:5050';
-
-const CARD_BACK_VARIANT_KEY = '@mtgsleeves/cardBackVariant';
 
 async function timedFetch(uri: string, timeoutMs = 5000): Promise<Response> {
   const controller = new AbortController();
@@ -18,66 +15,20 @@ async function timedFetch(uri: string, timeoutMs = 5000): Promise<Response> {
 // ── Card-back asset ──────────────────────────────────────────────────────────
 
 // Metro requires all require() calls to be statically analysable — no dynamic paths.
-export const CARD_BACK_ASSETS: Record<string, number> = {
-  rot0:     require('../../assets/images/card_back_rot0.jpg')     as number,
-  rot90cw:  require('../../assets/images/card_back_rot90cw.jpg')  as number,
-  rot90ccw: require('../../assets/images/card_back_rot90ccw.jpg') as number,
-  rot180:   require('../../assets/images/card_back_rot180.jpg')   as number,
-};
+const CARD_BACK_ASSET: number = require('../../assets/images/card_back.jpg') as number;
 
-export const CARD_BACK_VARIANTS = Object.keys(CARD_BACK_ASSETS) as (keyof typeof CARD_BACK_ASSETS)[];
-
-let _cardBackVariant: string = 'rot0';
-const _cardBackCache: Map<string, ArrayBuffer> = new Map();
-
-export function getCardBackVariant(): string {
-  console.log('[SLV] getCardBackVariant enter');
-  console.log('[SLV] getCardBackVariant exit →', _cardBackVariant);
-  return _cardBackVariant;
-}
-
-export function setCardBackVariant(variant: string): void {
-  console.log('[SLV] setCardBackVariant enter', { variant });
-  if (CARD_BACK_ASSETS[variant] === undefined) {
-    console.warn('[SLV] setCardBackVariant — rejected unknown variant:', variant);
-    return;
-  }
-  _cardBackVariant = variant;
-  console.log('[SLV] setCardBackVariant — in-memory set, persisting');
-  AsyncStorage.setItem(CARD_BACK_VARIANT_KEY, variant)
-    .then(() => console.log('[SLV] setCardBackVariant — persisted', variant))
-    .catch(e => console.warn('[SLV] setCardBackVariant — persist failed:', e instanceof Error ? e.message : e));
-  console.log('[SLV] setCardBackVariant exit — accepted');
-}
-
-export async function initCardBackVariant(): Promise<void> {
-  console.log('[SLV] initCardBackVariant enter');
-  try {
-    const stored = await AsyncStorage.getItem(CARD_BACK_VARIANT_KEY);
-    console.log('[SLV] initCardBackVariant — storage read →', stored);
-    if (stored !== null && CARD_BACK_ASSETS[stored] !== undefined) {
-      _cardBackVariant = stored;
-      console.log('[SLV] initCardBackVariant exit — applied', stored);
-      return;
-    }
-    console.log('[SLV] initCardBackVariant exit — keeping default', _cardBackVariant);
-  } catch (e) {
-    console.warn('[SLV] initCardBackVariant — read failed, keeping default:', e instanceof Error ? e.message : e);
-  }
-}
+let _cardBackCache: ArrayBuffer | null = null;
 
 async function getCardBackBytes(): Promise<ArrayBuffer> {
-  const v = _cardBackVariant;
-  console.log('[SLV] getCardBackBytes enter', { variant: v, cacheSize: _cardBackCache.size });
-  const cached = _cardBackCache.get(v);
-  if (cached) {
-    console.log('[SLV] getCardBackBytes exit — cache HIT', v, cached.byteLength, 'bytes');
-    return cached;
+  console.log('[SLV] getCardBackBytes enter', { cached: _cardBackCache !== null });
+  if (_cardBackCache) {
+    console.log('[SLV] getCardBackBytes exit — cache HIT', _cardBackCache.byteLength, 'bytes');
+    return _cardBackCache;
   }
   const t0 = Date.now();
-  const src = Image.resolveAssetSource(CARD_BACK_ASSETS[v]);
+  const src = Image.resolveAssetSource(CARD_BACK_ASSET);
   console.log('[SLV] getCardBackBytes resolveAssetSource →', src?.uri ?? 'NULL');
-  if (!src?.uri) throw new Error(`getCardBackBytes: no URI for variant ${v}`);
+  if (!src?.uri) throw new Error('getCardBackBytes: no URI for card_back.jpg');
   console.log('[SLV] prefetch warmup', src.uri);
   try { await Image.prefetch(src.uri); } catch { /* best-effort */ }
   console.log('[SLV] getCardBackBytes fetch start');
@@ -85,11 +36,11 @@ async function getCardBackBytes(): Promise<ArrayBuffer> {
   console.log('[SLV] getCardBackBytes fetch done in', Date.now() - t0, 'ms — status:', resp.status);
   if (!resp.ok) {
     console.log('[SLV] getCardBackBytes exit — HTTP error', resp.status);
-    throw new Error(`card_back fetch (${v}): HTTP ${resp.status}`);
+    throw new Error(`card_back fetch: HTTP ${resp.status}`);
   }
   const bytes = await resp.arrayBuffer();
   console.log('[SLV] getCardBackBytes arrayBuffer done —', bytes.byteLength, 'bytes');
-  _cardBackCache.set(v, bytes);
+  _cardBackCache = bytes;
   console.log('[SLV] getCardBackBytes exit — fetched OK in', Date.now() - t0, 'ms');
   return bytes;
 }
@@ -171,15 +122,6 @@ export function cahMaxsResponseDescriptor(): Descriptor {
   return { v: 2 };
 }
 
-export function cahWhiteCardDescriptor(playerIdx: number, handSlot: number): Descriptor {
-  console.log('[SLV] cahWhiteCardDescriptor enter', { playerIdx, handSlot });
-  return {
-    v: 2,
-    primary_label: `P${playerIdx + 1}`,
-    secondary_label: `Card ${handSlot + 1}`,
-  };
-}
-
 // ── Dedup memo ───────────────────────────────────────────────────────────────
 
 const lastSentHash = new Map<number, string>();
@@ -210,34 +152,28 @@ export function clearMemo(sleeveId?: number): void {
 }
 
 export async function prefetchCardBacks(): Promise<void> {
-  console.log('[SLV] prefetchCardBacks enter', { cacheSize: _cardBackCache.size });
-  const t0 = Date.now();
-  let cached = 0;
-  for (const [variant, assetId] of Object.entries(CARD_BACK_ASSETS)) {
-    if (_cardBackCache.has(variant)) {
-      console.log('[SLV] prefetchCardBacks', variant, '— already cached, skip');
-      cached++;
-      continue;
-    }
-    try {
-      const src = Image.resolveAssetSource(assetId as number);
-      if (!src?.uri) { console.warn(`[SLV] prefetchCardBacks ${variant}: no URI`); continue; }
-      console.log('[SLV] prefetch warmup', src.uri);
-      try { await Image.prefetch(src.uri); } catch { /* best-effort */ }
-      const tFetch = Date.now();
-      console.log('[SLV] prefetchCardBacks', variant, 'fetch start —', src.uri);
-      const resp = await timedFetch(src.uri, 5000);
-      console.log('[SLV] prefetchCardBacks', variant, 'fetch done in', Date.now() - tFetch, 'ms — status:', resp.status);
-      if (!resp.ok) { console.warn(`[SLV] prefetchCardBacks ${variant}: HTTP ${resp.status}`); continue; }
-      const bytes = await resp.arrayBuffer();
-      console.log('[SLV] prefetchCardBacks', variant, 'arrayBuffer done —', bytes.byteLength, 'bytes');
-      _cardBackCache.set(variant, bytes);
-      cached++;
-    } catch (e) {
-      console.warn(`[SLV] prefetchCardBacks ${variant} ERROR:`, e instanceof Error ? e.message : e);
-    }
+  console.log('[SLV] prefetchCardBacks enter', { cached: _cardBackCache !== null });
+  if (_cardBackCache) {
+    console.log('[SLV] prefetchCardBacks — already cached, skip');
+    return;
   }
-  console.log(`[SLV] prefetchCardBacks exit — ${Date.now() - t0}ms, cached ${cached} variants`);
+  const t0 = Date.now();
+  try {
+    const src = Image.resolveAssetSource(CARD_BACK_ASSET);
+    if (!src?.uri) { console.warn('[SLV] prefetchCardBacks: no URI'); return; }
+    console.log('[SLV] prefetch warmup', src.uri);
+    try { await Image.prefetch(src.uri); } catch { /* best-effort */ }
+    console.log('[SLV] prefetchCardBacks fetch start —', src.uri);
+    const resp = await timedFetch(src.uri, 5000);
+    console.log('[SLV] prefetchCardBacks fetch done in', Date.now() - t0, 'ms — status:', resp.status);
+    if (!resp.ok) { console.warn(`[SLV] prefetchCardBacks: HTTP ${resp.status}`); return; }
+    const bytes = await resp.arrayBuffer();
+    console.log('[SLV] prefetchCardBacks arrayBuffer done —', bytes.byteLength, 'bytes');
+    _cardBackCache = bytes;
+  } catch (e) {
+    console.warn('[SLV] prefetchCardBacks ERROR:', e instanceof Error ? e.message : e);
+  }
+  console.log(`[SLV] prefetchCardBacks exit — ${Date.now() - t0}ms`);
 }
 
 // ── Core send ────────────────────────────────────────────────────────────────

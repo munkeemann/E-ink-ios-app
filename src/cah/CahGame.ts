@@ -66,12 +66,16 @@ function blackCardDescriptor(): Descriptor {
   return { v: 2, primary_label: 'CAH', secondary_label: 'Prompt' };
 }
 
-function whiteCardDescriptor(playerIdx: number, handSlot: number): Descriptor {
-  return {
-    v: 2,
-    primary_label: `P${playerIdx + 1}`,
-    secondary_label: `Card ${handSlot + 1}`,
-  };
+/**
+ * White (response) card descriptor — labels intentionally omitted.
+ * Player and card identifiers would defeat the bluff mechanic if rendered
+ * on the physical sleeve; identity is tracked app-side only. The firmware
+ * renders a blank merged region when both labels are absent.
+ * The (playerIdx, handSlot) args are kept in the signature so callers
+ * don't need to change; they're no longer used to build the descriptor.
+ */
+function whiteCardDescriptor(_playerIdx: number, _handSlot: number): Descriptor {
+  return { v: 2 };
 }
 
 // ── Sleeve update helpers ────────────────────────────────────────────────────

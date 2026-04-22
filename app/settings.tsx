@@ -11,12 +11,6 @@ import {
 import { router, useFocusEffect } from 'expo-router';
 import { loadSettings, saveSettings } from '../src/storage/deckStorage';
 import { configurePiDebug } from '../src/api/piServer';
-import {
-  CARD_BACK_VARIANTS,
-  getCardBackVariant,
-  setCardBackVariant,
-  clearMemo,
-} from '../src/api/sleeveService';
 import { AppSettings } from '../src/types';
 
 const ZONE_OPTIONS: { id: string; label: string; note?: string }[] = [
@@ -35,8 +29,6 @@ export default function SettingsScreen() {
     devMode: false,
     piDebugAlerts: false,
   });
-  const [cardBackVariant, setCardBackVariantState] = useState(getCardBackVariant);
-
   useFocusEffect(
     useCallback(() => {
       loadSettings().then(setSettings);
@@ -186,27 +178,6 @@ export default function SettingsScreen() {
                 trackColor={{ false: '#4a4f55', true: '#6650a4' }}
                 thumbColor={settings.piDebugAlerts ? '#D0BCFF' : '#9ca3af'}
               />
-            </View>
-          )}
-          {settings.devMode && (
-            <View style={[styles.toggleRow, styles.toggleRowBorder, styles.subToggleRow]}>
-              <View style={styles.toggleInfo}>
-                <Text style={styles.toggleLabel}>Card Back Variant</Text>
-                <Text style={styles.toggleNote}>Cycles 4 rotation variants for A/B test on sleeve</Text>
-              </View>
-              <Pressable
-                style={styles.variantBtn}
-                onPress={() => {
-                  const idx = CARD_BACK_VARIANTS.indexOf(cardBackVariant as typeof CARD_BACK_VARIANTS[number]);
-                  const next = CARD_BACK_VARIANTS[(idx + 1) % CARD_BACK_VARIANTS.length];
-                  setCardBackVariant(next);
-                  clearMemo();
-                  setCardBackVariantState(next);
-                }}
-              >
-                <Text style={styles.variantBtnText}>{cardBackVariant}</Text>
-                <Text style={styles.variantBtnArrow}>›</Text>
-              </Pressable>
             </View>
           )}
         </View>
