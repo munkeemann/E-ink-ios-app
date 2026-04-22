@@ -60,6 +60,10 @@ export default function RootLayout() {
           name="cah/game"
           options={{ title: 'Cards Against Humanity', contentStyle: { backgroundColor: '#060c14' } }}
         />
+        <Stack.Screen
+          name="cah/game_maxs"
+          options={{ title: "CAH — Max's Rules", contentStyle: { backgroundColor: '#060c14' } }}
+        />
         <Stack.Screen name="import" options={{ title: 'Import Deck' }} />
         <Stack.Screen name="deck/[id]" options={{ title: 'Deck Preview' }} />
         <Stack.Screen name="game/[id]" options={{ title: 'In Game' }} />

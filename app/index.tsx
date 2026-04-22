@@ -11,9 +11,11 @@ import { router, useFocusEffect } from 'expo-router';
 import { loadDecks } from '../src/storage/deckStorage';
 import { loadHoldemGame } from '../src/storage/holdemStorage';
 import { loadCahGame } from '../src/storage/cahStorage';
+import { loadMaxsGame } from '../src/storage/cahMaxsStorage';
 import { Deck } from '../src/types';
 import { HoldemGameState } from '../src/types/holdem';
 import { CahGameState } from '../src/types/cah';
+import { CahMaxsGameState } from '../src/types/cah_maxs';
 import { clearMemo } from '../src/api/sleeveService';
 import AmbientLayer from '../src/components/AmbientLayer';
 
@@ -64,7 +66,8 @@ const GAMES: GameDef[] = [
 type ResumeTarget =
   | { kind: 'mtg'; deck: Deck; ts: number }
   | { kind: 'holdem'; game: HoldemGameState; ts: number }
-  | { kind: 'cah'; game: CahGameState; ts: number };
+  | { kind: 'cah'; game: CahGameState; ts: number }
+  | { kind: 'cah_maxs'; game: CahMaxsGameState; ts: number };
 
 export default function GameSelectScreen() {
   const [resume, setResume] = useState<ResumeTarget | null>(null);
@@ -98,8 +101,13 @@ export default function GameSelectScreen() {
             ? ({ kind: 'cah', game, ts: game.startedAt } as ResumeTarget)
             : null,
         ),
-      ]).then(([mtg, holdem, cah]) => {
-        const candidates = [mtg, holdem, cah].filter((c): c is ResumeTarget => c !== null);
+        loadMaxsGame().then(game =>
+          game
+            ? ({ kind: 'cah_maxs', game, ts: game.startedAt } as ResumeTarget)
+            : null,
+        ),
+      ]).then(([mtg, holdem, cah, cahMaxs]) => {
+        const candidates = [mtg, holdem, cah, cahMaxs].filter((c): c is ResumeTarget => c !== null);
         if (candidates.length === 0) { setResume(null); return; }
         setResume(candidates.reduce((best, c) => (c.ts > best.ts ? c : best)));
       });
@@ -110,6 +118,7 @@ export default function GameSelectScreen() {
     if (!resume) return;
     if (resume.kind === 'mtg') router.push(`/game/${resume.deck.id}` as any);
     else if (resume.kind === 'holdem') router.push('/holdem/game');
+    else if (resume.kind === 'cah_maxs') router.push('/cah/game_maxs');
     else router.push('/cah/game');
   };
 
@@ -120,7 +129,9 @@ export default function GameSelectScreen() {
         ? `Hold'em — ${resume.game.playerCount} players`
         : resume?.kind === 'cah'
           ? `CAH — ${resume.game.playerCount} players`
-          : null;
+          : resume?.kind === 'cah_maxs'
+            ? `CAH Max's — ${resume.game.playerCount} players`
+            : null;
 
   const renderGame = ({ item }: { item: GameDef }) => (
     <Pressable
