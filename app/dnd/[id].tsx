@@ -37,33 +37,71 @@ async function timedFetch(uri: string, timeoutMs = 5000): Promise<Response> {
 
 const _spellCache: Map<string, ArrayBuffer> = new Map();
 
-async function getSpellBytes(name: string): Promise<ArrayBuffer | null> {
+type DiagFn = (line: string, level?: 'log' | 'warn') => void;
+
+async function getSpellBytes(name: string, diag?: DiagFn): Promise<ArrayBuffer | null> {
+  const emit = (line: string, level: 'log' | 'warn' = 'log') => {
+    if (diag) { diag(line, level); return; }
+    if (level === 'warn') console.warn(line); else console.log(line);
+  };
+  const tag = JSON.stringify(name);
+
   const cached = _spellCache.get(name);
-  if (cached) return cached;
+  if (cached) {
+    emit(`[DND][spellbytes] ${tag} cache HIT (${cached.byteLength} bytes)`);
+    return cached;
+  }
+  emit(`[DND][spellbytes] ${tag} cache MISS — resolving chain`);
+
   const asset = (spellImages as Record<string, number | undefined>)[name];
+  emit(`[DND][spellbytes] ${tag} step1 spellImages[name]: type=${typeof asset} value=${JSON.stringify(asset)}`);
   if (asset === undefined) {
-    console.warn(`[DND] no asset for spell: ${name}`);
+    emit(`[DND][spellbytes] ${tag} ABORT: asset undefined`, 'warn');
     return null;
   }
+
   const src = Image.resolveAssetSource(asset);
+  emit(`[DND][spellbytes] ${tag} step2 resolveAssetSource: ${JSON.stringify(src)}`);
   if (!src?.uri) {
-    console.warn(`[DND] resolveAssetSource returned no URI for: ${name}`);
+    emit(`[DND][spellbytes] ${tag} ABORT: no uri from resolveAssetSource`, 'warn');
     return null;
   }
+  emit(`[DND][spellbytes] ${tag} step3 src.uri=${src.uri}`);
+
+  const tPre = Date.now();
   try {
-    try { await Image.prefetch(src.uri); } catch { /* best-effort */ }
-    const resp = await timedFetch(src.uri);
-    if (!resp.ok) {
-      console.warn(`[DND] spell fetch HTTP ${resp.status} for: ${name}`);
-      return null;
-    }
-    const data = await resp.arrayBuffer();
-    _spellCache.set(name, data);
-    return data;
+    await Image.prefetch(src.uri);
+    emit(`[DND][spellbytes] ${tag} step4 Image.prefetch resolved in ${Date.now() - tPre}ms`);
   } catch (e) {
-    console.warn(`[DND] spell fetch ERROR for ${name}: ${e instanceof Error ? e.message : e}`);
+    emit(`[DND][spellbytes] ${tag} step4 Image.prefetch threw (non-fatal) in ${Date.now() - tPre}ms: ${e instanceof Error ? e.message : e}`);
+  }
+
+  const tFetch = Date.now();
+  let resp: Response;
+  try {
+    resp = await timedFetch(src.uri);
+    emit(`[DND][spellbytes] ${tag} step5 fetch resolved in ${Date.now() - tFetch}ms — status=${resp.status} ok=${resp.ok}`);
+  } catch (e) {
+    emit(`[DND][spellbytes] ${tag} ABORT: fetch threw in ${Date.now() - tFetch}ms: ${e instanceof Error ? e.message : e}`, 'warn');
     return null;
   }
+  if (!resp.ok) {
+    emit(`[DND][spellbytes] ${tag} ABORT: HTTP ${resp.status}`, 'warn');
+    return null;
+  }
+
+  const tBuf = Date.now();
+  let data: ArrayBuffer;
+  try {
+    data = await resp.arrayBuffer();
+    emit(`[DND][spellbytes] ${tag} step6 arrayBuffer: ${data.byteLength} bytes in ${Date.now() - tBuf}ms`);
+  } catch (e) {
+    emit(`[DND][spellbytes] ${tag} ABORT: arrayBuffer threw in ${Date.now() - tBuf}ms: ${e instanceof Error ? e.message : e}`, 'warn');
+    return null;
+  }
+  _spellCache.set(name, data);
+  emit(`[DND][spellbytes] ${tag} OK — cached ${data.byteLength} bytes`);
+  return data;
 }
 
 async function prefetchDeckSpells(names: string[]): Promise<void> {
@@ -175,7 +213,7 @@ export default function DndDeckViewScreen() {
         const regMatch = registeredSet.has(sleeveId);
         diag(`[DND][diag] iter ${i}: name=${JSON.stringify(name)} sleeve=${sleeveId} assetPresent=${assetPresent} regMatch=${regMatch ? 'y' : 'n'}`);
         const level = SPELLS[name]?.level ?? 0;
-        const bytes = await getSpellBytes(name);
+        const bytes = await getSpellBytes(name, diag);
         if (!bytes) {
           diag(`[DND][diag] iter ${i}: no bytes — skipping (sleeve=${sleeveId} name=${JSON.stringify(name)})`, 'warn');
           bumpSkip('no_bytes');
