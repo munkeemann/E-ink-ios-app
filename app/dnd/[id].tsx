@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import {
   Alert,
   ActivityIndicator,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,6 +14,8 @@ import { getDeck, deleteDeck } from '../../src/storage/dndStorage';
 import { DndDeck } from '../../src/types/dnd';
 import rawSpells from '../../src/assets/dnd/spells.json';
 import spellImages from '../../src/assets/dnd/spells';
+import { sendToSleeve, clearMemo, dndSpellDescriptor } from '../../src/api/sleeveService';
+import { getRegisteredSleeves } from '../../src/api/piServer';
 
 interface SpellMeta {
   level: number;
@@ -22,10 +25,63 @@ interface SpellMeta {
 }
 const SPELLS = rawSpells as Record<string, SpellMeta>;
 
+async function timedFetch(uri: string, timeoutMs = 5000): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(uri, { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const _spellCache: Map<string, ArrayBuffer> = new Map();
+
+async function getSpellBytes(name: string): Promise<ArrayBuffer | null> {
+  const cached = _spellCache.get(name);
+  if (cached) return cached;
+  const asset = (spellImages as Record<string, number | undefined>)[name];
+  if (asset === undefined) {
+    console.warn(`[DND] no asset for spell: ${name}`);
+    return null;
+  }
+  const src = Image.resolveAssetSource(asset);
+  if (!src?.uri) {
+    console.warn(`[DND] resolveAssetSource returned no URI for: ${name}`);
+    return null;
+  }
+  try {
+    try { await Image.prefetch(src.uri); } catch { /* best-effort */ }
+    const resp = await timedFetch(src.uri);
+    if (!resp.ok) {
+      console.warn(`[DND] spell fetch HTTP ${resp.status} for: ${name}`);
+      return null;
+    }
+    const data = await resp.arrayBuffer();
+    _spellCache.set(name, data);
+    return data;
+  } catch (e) {
+    console.warn(`[DND] spell fetch ERROR for ${name}: ${e instanceof Error ? e.message : e}`);
+    return null;
+  }
+}
+
+async function prefetchDeckSpells(names: string[]): Promise<void> {
+  const t0 = Date.now();
+  let warmed = 0;
+  for (const name of names) {
+    if (_spellCache.has(name)) { warmed++; continue; }
+    const bytes = await getSpellBytes(name);
+    if (bytes) warmed++;
+  }
+  console.log(`[DND] prefetchDeckSpells done in ${Date.now() - t0}ms — warmed ${warmed}/${names.length}`);
+}
+
 export default function DndDeckViewScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [deck, setDeck] = useState<DndDeck | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -33,6 +89,7 @@ export default function DndDeckViewScreen() {
       getDeck(id).then(d => {
         setDeck(d);
         setLoaded(true);
+        if (d) prefetchDeckSpells(d.spells);
       });
     }, [id]),
   );
@@ -55,6 +112,58 @@ export default function DndDeckViewScreen() {
       </View>
     );
   }
+
+  const handlePlay = async () => {
+    if (busy || !deck) return;
+    setBusy(true);
+    const t0 = Date.now();
+    console.log(`[DND] handlePlay start — deck="${deck.name}" spells=${deck.spells.length}`);
+    try {
+      clearMemo();
+
+      // Build push list in level-asc-then-alpha order (matches on-screen grouping).
+      const byLevel = new Map<number, string[]>();
+      for (const name of deck.spells) {
+        const lv = SPELLS[name]?.level ?? -1;
+        if (!byLevel.has(lv)) byLevel.set(lv, []);
+        byLevel.get(lv)!.push(name);
+      }
+      byLevel.forEach(arr => arr.sort((a, b) => a.localeCompare(b)));
+      const sorted: string[] = [];
+      for (const lv of [...byLevel.keys()].sort((a, b) => a - b)) {
+        sorted.push(...byLevel.get(lv)!);
+      }
+
+      const registered = (await getRegisteredSleeves()).sort((a, b) => a - b);
+      console.log(`[DND] registered sleeves: [${registered.join(', ')}]`);
+      if (sorted.length > registered.length) {
+        console.warn(`[DND] ${sorted.length - registered.length} spell(s) exceed registered sleeves — truncating`);
+      }
+
+      // Compact pairing: sorted[i] → registered[i].
+      const pairCount = Math.min(sorted.length, registered.length);
+      for (let i = 0; i < pairCount; i++) {
+        const name = sorted[i];
+        const sleeveId = registered[i];
+        const level = SPELLS[name]?.level ?? 0;
+        const bytes = await getSpellBytes(name);
+        if (!bytes) {
+          console.warn(`[DND] sleeve=${sleeveId} skipping ${name} — no bytes`);
+          continue;
+        }
+        try {
+          await sendToSleeve(sleeveId, dndSpellDescriptor(name, level), bytes);
+        } catch (e) {
+          console.warn(`[DND] sendToSleeve ERROR sleeve=${sleeveId} ${name}: ${e instanceof Error ? e.message : e}`);
+        }
+      }
+      console.log(`[DND] handlePlay complete in ${Date.now() - t0}ms`);
+    } catch (e) {
+      console.error(`[DND] handlePlay ERROR: ${e instanceof Error ? e.message : e}`);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const handleDelete = () => {
     Alert.alert('Delete Deck', `Delete "${deck.name}"?`, [
@@ -129,9 +238,20 @@ export default function DndDeckViewScreen() {
       )}
 
       <View style={styles.footer}>
-        <Pressable style={styles.playBtn} disabled>
-          <Text style={styles.playBtnLabel}>Play</Text>
-          <Text style={styles.playBtnNote}>Coming in next update</Text>
+        <Pressable
+          style={({ pressed }) => [
+            styles.playBtn,
+            (pressed || busy) && styles.playBtnPressed,
+            deck.spells.length === 0 && styles.playBtnDisabled,
+          ]}
+          onPress={handlePlay}
+          disabled={busy || deck.spells.length === 0}
+        >
+          {busy ? (
+            <ActivityIndicator color="#060c14" />
+          ) : (
+            <Text style={styles.playBtnLabel}>Play</Text>
+          )}
         </Pressable>
         <Pressable style={styles.deleteBtn} onPress={handleDelete}>
           <Text style={styles.deleteBtnLabel}>Delete Deck</Text>
@@ -186,15 +306,13 @@ const styles = StyleSheet.create({
   playBtn: {
     height: 56,
     borderRadius: 10,
-    backgroundColor: '#071a2a',
-    borderWidth: 1,
-    borderColor: '#0e7490',
+    backgroundColor: '#22d3ee',
     alignItems: 'center',
     justifyContent: 'center',
-    opacity: 0.5,
   },
-  playBtnLabel: { color: '#64b5c8', fontSize: 17, fontWeight: '800' },
-  playBtnNote: { color: '#f59e0b', fontSize: 11, marginTop: 2 },
+  playBtnPressed: { opacity: 0.7 },
+  playBtnDisabled: { backgroundColor: '#0a2c3d' },
+  playBtnLabel: { color: '#060c14', fontSize: 18, fontWeight: '800', letterSpacing: 0.5 },
 
   deleteBtn: {
     height: 44,

@@ -104,6 +104,17 @@ export function faceDownDescriptor(primaryLabel?: string, secondaryLabel?: strin
   return d;
 }
 
+// ── D&D descriptor ───────────────────────────────────────────────────────────
+
+export function dndSpellDescriptor(spellName: string, level: number): Descriptor {
+  console.log('[SLV] dndSpellDescriptor enter', { spellName, level });
+  return {
+    v: 2,
+    primary_label: spellName,
+    secondary_label: level === 0 ? 'Cantrip' : `Level ${level}`,
+  };
+}
+
 // ── CAH descriptors ──────────────────────────────────────────────────────────
 
 export function cahBlackCardDescriptor(): Descriptor {
