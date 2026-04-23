@@ -17,8 +17,8 @@ import {
   maxSpellLevel,
 } from '../../src/dnd/casterTables';
 import { saveDeck } from '../../src/storage/dndStorage';
-import rawSpells from '../../src/assets/dnd/spells.json';
-import spellImages from '../../src/assets/dnd/spells';
+import spellMeta from '../../src/assets/dnd/spells.json';
+import spellImages from '../../src/assets/dnd/spells/index';
 
 interface SpellMeta {
   level: number;
@@ -26,7 +26,7 @@ interface SpellMeta {
   classes: string[];
   png_filename: string | null;
 }
-const SPELLS = rawSpells as Record<string, SpellMeta>;
+const SPELL_META = spellMeta as Record<string, SpellMeta>;
 
 const MIN_LEVEL = 1;
 const MAX_LEVEL = 20;
@@ -292,7 +292,7 @@ function Step4SpellBrowser({
   const { cantripSelected, spellSelected } = useMemo(() => {
     let c = 0, s = 0;
     selected.forEach(name => {
-      const m = SPELLS[name];
+      const m = SPELL_META[name];
       if (!m) return;
       if (m.level === 0) c++; else s++;
     });
@@ -301,7 +301,7 @@ function Step4SpellBrowser({
 
   const grouped = useMemo(() => {
     const byLevel = new Map<number, string[]>();
-    Object.entries(SPELLS).forEach(([name, info]) => {
+    Object.entries(SPELL_META).forEach(([name, info]) => {
       if (!showAll) {
         if (!info.classes.includes(className)) return;
         if (info.level > maxLvl) return;
@@ -363,7 +363,7 @@ function Step4SpellBrowser({
               {lv === 0 ? 'Cantrips' : `Level ${lv}`}
             </Text>
             {list.map(name => {
-              const info = SPELLS[name];
+              const info = SPELL_META[name];
               const hasArt = (spellImages as Record<string, unknown>)[name] !== undefined
                 && info.png_filename !== null;
               const isSel = selected.has(name);

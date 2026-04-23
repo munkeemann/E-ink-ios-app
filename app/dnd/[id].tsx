@@ -12,8 +12,8 @@ import {
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { getDeck, deleteDeck } from '../../src/storage/dndStorage';
 import { DndDeck } from '../../src/types/dnd';
-import rawSpells from '../../src/assets/dnd/spells.json';
-import spellImages from '../../src/assets/dnd/spells';
+import spellMeta from '../../src/assets/dnd/spells.json';
+import spellImages from '../../src/assets/dnd/spells/index';
 import { sendToSleeve, clearMemo, dndSpellDescriptor, PI_SERVER } from '../../src/api/sleeveService';
 import { getRegisteredSleeves } from '../../src/api/piServer';
 
@@ -23,7 +23,7 @@ interface SpellMeta {
   classes: string[];
   png_filename: string | null;
 }
-const SPELLS = rawSpells as Record<string, SpellMeta>;
+const SPELL_META = spellMeta as Record<string, SpellMeta>;
 
 async function timedFetch(uri: string, timeoutMs = 5000): Promise<Response> {
   const controller = new AbortController();
@@ -178,7 +178,7 @@ export default function DndDeckViewScreen() {
       // Build push list in level-asc-then-alpha order (matches on-screen grouping).
       const byLevel = new Map<number, string[]>();
       for (const name of deck.spells) {
-        const lv = SPELLS[name]?.level ?? -1;
+        const lv = SPELL_META[name]?.level ?? -1;
         if (!byLevel.has(lv)) byLevel.set(lv, []);
         byLevel.get(lv)!.push(name);
       }
@@ -212,7 +212,7 @@ export default function DndDeckViewScreen() {
         const assetPresent = (spellImages as Record<string, unknown>)[name] !== undefined;
         const regMatch = registeredSet.has(sleeveId);
         diag(`[DND][diag] iter ${i}: name=${JSON.stringify(name)} sleeve=${sleeveId} assetPresent=${assetPresent} regMatch=${regMatch ? 'y' : 'n'}`);
-        const level = SPELLS[name]?.level ?? 0;
+        const level = SPELL_META[name]?.level ?? 0;
         const bytes = await getSpellBytes(name, diag);
         if (!bytes) {
           diag(`[DND][diag] iter ${i}: no bytes — skipping (sleeve=${sleeveId} name=${JSON.stringify(name)})`, 'warn');
@@ -267,7 +267,7 @@ export default function DndDeckViewScreen() {
   // Group spells by level.
   const byLevel = new Map<number, string[]>();
   for (const name of deck.spells) {
-    const info = SPELLS[name];
+    const info = SPELL_META[name];
     const lv = info?.level ?? -1;
     if (!byLevel.has(lv)) byLevel.set(lv, []);
     byLevel.get(lv)!.push(name);
@@ -303,7 +303,7 @@ export default function DndDeckViewScreen() {
                 {lv === -1 ? 'Unknown' : lv === 0 ? 'Cantrips' : `Level ${lv}`}
               </Text>
               {list.map(name => {
-                const info = SPELLS[name];
+                const info = SPELL_META[name];
                 const hasArt = (spellImages as Record<string, unknown>)[name] !== undefined
                   && info?.png_filename !== null;
                 return (
