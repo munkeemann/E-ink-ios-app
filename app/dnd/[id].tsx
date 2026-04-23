@@ -117,7 +117,13 @@ export default function DndDeckViewScreen() {
     if (busy || !deck) return;
     setBusy(true);
     const t0 = Date.now();
-    console.log(`[DND] handlePlay start — deck="${deck.name}" spells=${deck.spells.length}`);
+    console.log(`[DND][diag] handlePlay entry — deck="${deck.name}" spells.length=${deck.spells.length}`);
+    console.log(`[DND][diag] first 5 deck.spells: ${JSON.stringify(deck.spells.slice(0, 5))}`);
+
+    let pushed = 0;
+    const skipReasons: Record<string, number> = {};
+    const bumpSkip = (reason: string) => { skipReasons[reason] = (skipReasons[reason] ?? 0) + 1; };
+
     try {
       clearMemo();
 
@@ -133,30 +139,52 @@ export default function DndDeckViewScreen() {
       for (const lv of [...byLevel.keys()].sort((a, b) => a - b)) {
         sorted.push(...byLevel.get(lv)!);
       }
+      console.log(`[DND][diag] sorted push list (len=${sorted.length}): ${JSON.stringify(sorted)}`);
 
-      const registered = (await getRegisteredSleeves()).sort((a, b) => a - b);
-      console.log(`[DND] registered sleeves: [${registered.join(', ')}]`);
+      const rawRegistered = await getRegisteredSleeves();
+      const firstType = Array.isArray(rawRegistered) && rawRegistered.length > 0 ? typeof rawRegistered[0] : 'n/a';
+      console.log(`[DND][diag] getRegisteredSleeves returned: ${JSON.stringify(rawRegistered)} (isArray=${Array.isArray(rawRegistered)}, len=${rawRegistered?.length ?? 'n/a'}, firstElemType=${firstType})`);
+      const registered = rawRegistered.sort((a, b) => a - b);
+      const registeredSet = new Set(registered);
+      console.log(`[DND][diag] registered sleeves sorted: [${registered.join(', ')}] (setSize=${registeredSet.size})`);
       if (sorted.length > registered.length) {
         console.warn(`[DND] ${sorted.length - registered.length} spell(s) exceed registered sleeves — truncating`);
       }
 
       // Compact pairing: sorted[i] → registered[i].
       const pairCount = Math.min(sorted.length, registered.length);
+      console.log(`[DND][diag] entering push loop — pairCount=${pairCount} (sorted=${sorted.length} registered=${registered.length})`);
+      if (pairCount === 0) {
+        if (sorted.length === 0) bumpSkip('empty_sorted');
+        if (registered.length === 0) bumpSkip('no_registered');
+      }
       for (let i = 0; i < pairCount; i++) {
         const name = sorted[i];
         const sleeveId = registered[i];
+        const assetPresent = (spellImages as Record<string, unknown>)[name] !== undefined;
+        const regMatch = registeredSet.has(sleeveId);
+        console.log(`[DND][diag] iter ${i}: name=${JSON.stringify(name)} sleeve=${sleeveId} assetPresent=${assetPresent} regMatch=${regMatch ? 'y' : 'n'}`);
         const level = SPELLS[name]?.level ?? 0;
         const bytes = await getSpellBytes(name);
         if (!bytes) {
-          console.warn(`[DND] sleeve=${sleeveId} skipping ${name} — no bytes`);
+          console.warn(`[DND][diag] iter ${i}: no bytes — skipping (sleeve=${sleeveId} name=${JSON.stringify(name)})`);
+          bumpSkip('no_bytes');
           continue;
         }
+        console.log(`[DND][diag] iter ${i}: calling sendToSleeve sleeve=${sleeveId} bytes=${bytes.byteLength} level=${level}`);
         try {
           await sendToSleeve(sleeveId, dndSpellDescriptor(name, level), bytes);
+          pushed++;
+          console.log(`[DND][diag] iter ${i}: sendToSleeve returned OK (sleeve=${sleeveId})`);
         } catch (e) {
-          console.warn(`[DND] sendToSleeve ERROR sleeve=${sleeveId} ${name}: ${e instanceof Error ? e.message : e}`);
+          console.warn(`[DND][diag] iter ${i}: sendToSleeve ERROR sleeve=${sleeveId} ${name}: ${e instanceof Error ? e.message : e}`);
+          bumpSkip('send_error');
         }
       }
+
+      const skipTotal = Object.values(skipReasons).reduce((a, b) => a + b, 0);
+      const skipBreakdown = Object.entries(skipReasons).map(([k, v]) => `${k}=${v}`).join(', ') || 'none';
+      console.log(`[DND][diag] handlePlay summary — pushed=${pushed} skipped=${skipTotal} (${skipBreakdown}) sorted=${sorted.length} registered=${registered.length}`);
       console.log(`[DND] handlePlay complete in ${Date.now() - t0}ms`);
     } catch (e) {
       console.error(`[DND] handlePlay ERROR: ${e instanceof Error ? e.message : e}`);
