@@ -13,7 +13,7 @@ import {
   View,
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { assignSleeveIds, beginGame, getRegisteredSleeves } from '../../src/api/piServer';
+import { assignSleeveIds, beginGame, getRegisteredSleeves, pushZoneUpdateViaPi } from '../../src/api/piServer';
 import { clearMemo } from '../../src/api/sleeveService';
 import { fetchPrintings, ScryfallPrinting } from '../../src/api/scryfall';
 import { getDeck, loadSettings, saveDeck } from '../../src/storage/deckStorage';
@@ -143,6 +143,8 @@ export default function DeckPreviewScreen() {
       const sleeves = await getRegisteredSleeves();
       clearMemo();
       await beginGame(newCards, sleeves, (sent, total) => setSendProgress({ sent, total }), undefined, settings);
+      // SAM1-68: park sleeve 1's strip on the CMD cell at game start. Requires firmware ZONE_COUNT=6.
+      pushZoneUpdateViaPi(1, 'CMD').catch(() => {});
       router.push(`/game/${deck.id}?freshStart=true`);
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : String(e));

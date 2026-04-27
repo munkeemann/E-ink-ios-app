@@ -57,11 +57,11 @@ export type Descriptor = {
 
 // ── MTG descriptor ───────────────────────────────────────────────────────────
 
-const MTG_ZONE_CELLS = ['LIB', 'HND', 'BTFLD', 'GRV', 'EXL'];
+const MTG_ZONE_CELLS = ['LIB', 'HND', 'BTFLD', 'GRV', 'EXL', 'CMD'];
 
-// index 0=LIB 1=HND 2=BTFLD 3=GRV 4=EXL  (confirmed from firmware source)
+// index 0=LIB 1=HND 2=BTFLD 3=GRV 4=EXL 5=CMD  (confirmed from firmware source — CMD pending firmware update SAM1-68)
 const MTG_ZONE_ACTIVE: Record<string, number> = {
-  LIB: 0, HND: 1, BTFLD: 2, TKN: 2, CMD: 2, GRV: 3, EXL: 4,
+  LIB: 0, HND: 1, BTFLD: 2, TKN: 2, GRV: 3, EXL: 4, CMD: 5,
 };
 
 export function mtgDescriptor(sleeveId: number, zone: string): Descriptor {

@@ -84,8 +84,10 @@ export async function clearSleeve(sid: number, serverUrl: string = PI_SERVER): P
 /** @deprecated Use clearSleeve instead */
 export const sendToGraveyard = clearSleeve;
 
+// SAM1-68: requires firmware ZONE_COUNT=6. CMD is appended at the end of
+// MTG_ZONE_CELLS (index 5); strips will silently drop zone=5 until firmware ships.
 const ZONE_INDEX: Record<string, number> = {
-  LIB: 4, HND: 3, BTFLD: 2, TKN: 2, GRV: 1, EXL: 0, CMD: 2,
+  LIB: 4, HND: 3, BTFLD: 2, TKN: 2, GRV: 1, EXL: 0, CMD: 5,
 };
 
 /**
@@ -118,7 +120,7 @@ export async function getSleeveIpMap(serverUrl: string = PI_SERVER): Promise<Rec
 
 /**
  * POSTs a zone-index update to the sleeve's own HTTP server.
- * Zone index mapping: LIB=4, HND=3, BTFLD/TKN/CMD=2, GRV=1, EXL=0.
+ * Zone index mapping: LIB=4, HND=3, BTFLD/TKN=2, GRV=1, EXL=0, CMD=5.
  * No-ops silently if the sleeve IP is not in ipMap or the sleeve is offline.
  */
 export async function pushZoneUpdate(
@@ -161,7 +163,7 @@ async function getCachedRegistered(serverUrl: string): Promise<Set<number>> {
 /**
  * Routes a zone-index update through the Pi server (POST /set_zone).
  * Parameters are sent as URL query params: /set_zone?sleeve_id=N&zone=N
- * Zone index mapping: LIB=4, HND=3, BTFLD/TKN/CMD=2, GRV=1, EXL=0.
+ * Zone index mapping: LIB=4, HND=3, BTFLD/TKN=2, GRV=1, EXL=0, CMD=5.
  */
 export async function pushZoneUpdateViaPi(
   sleeveId: number,
