@@ -17,7 +17,15 @@ import { saveMaxsGame } from '../../src/storage/cahMaxsStorage';
 import { faceDownDescriptor, sendToSleeve, clearMemo, prefetchCardBacks } from '../../src/api/sleeveService';
 import { getRegisteredSleeves } from '../../src/api/piServer';
 import { CahBlackCard, CahCard } from '../../src/types/cah';
-import { listPackChips, DEFAULT_ACTIVE_PACK_IDS, PackChip } from '../../src/cah/packGroups';
+import {
+  listPackChips,
+  DEFAULT_ACTIVE_PACK_IDS,
+  PackChip,
+  chipsByCategory,
+  CATEGORY_ORDER,
+  CATEGORY_LABELS,
+  PackCategory,
+} from '../../src/cah/packGroups';
 import { loadActivePacks, saveActivePacks } from '../../src/storage/cahPacksStorage';
 import { getPromptsForPacks, getResponsesForPacks } from '../../src/cah/CahContent';
 
@@ -83,6 +91,8 @@ export default function CahSetupScreen() {
 
   const [activePackIds, setActivePackIds] = useState<string[]>(DEFAULT_ACTIVE_PACK_IDS);
   const [packsLoaded, setPacksLoaded] = useState(false);
+  // SAM1-73: accordion expanded state per category. All collapsed by default.
+  const [expandedCats, setExpandedCats] = useState<Set<PackCategory>>(new Set());
 
   useEffect(() => {
     prefetchCardBacks();
@@ -120,6 +130,15 @@ export default function CahSetupScreen() {
   }, []);
 
   const chips = useMemo(() => listPackChips(), []);
+  const chipsByCat = useMemo(() => chipsByCategory(), []);
+
+  const toggleCategory = (cat: PackCategory) => {
+    setExpandedCats(prev => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat); else next.add(cat);
+      return next;
+    });
+  };
   const activePackSet = useMemo(() => new Set(activePackIds), [activePackIds]);
   const filteredPrompts = useMemo(() => getPromptsForPacks(activePackIds), [activePackIds]);
   const filteredResponses = useMemo(() => getResponsesForPacks(activePackIds), [activePackIds]);
@@ -257,36 +276,6 @@ export default function CahSetupScreen() {
         ))}
       </View>
 
-      {/* Pack selector */}
-      <View style={styles.packsSection}>
-        <Text style={styles.sectionLabel}>Packs</Text>
-        <View style={styles.packChipRow}>
-          {chips.map(chip => {
-            const active = isChipActive(chip);
-            const badge = packBadgeText(chip);
-            return (
-              <Pressable
-                key={chip.id}
-                style={[styles.packChip, active && styles.packChipActive]}
-                onPress={() => toggleChip(chip)}
-              >
-                <Text style={[styles.packChipText, active && styles.packChipTextActive]}>
-                  {chip.label}
-                </Text>
-                {badge ? (
-                  <Text style={[styles.packChipBadge, active && styles.packChipBadgeActive]}>
-                    {badge}
-                  </Text>
-                ) : null}
-              </Pressable>
-            );
-          })}
-        </View>
-        <Text style={[styles.packHint, (emptySelection || (ruleset === 'maxs' ? !maxsPoolOK : !officialPoolOK)) && styles.packHintWarn]}>
-          {packHint}
-        </Text>
-      </View>
-
       {ruleset === 'official' ? (
         <>
           <View style={styles.card}>
@@ -344,6 +333,61 @@ export default function CahSetupScreen() {
           </View>
         </>
       )}
+
+      {/* Pack selector — categorized accordion (SAM1-73). Repositioned below
+          ruleset-specific config so primary setup controls aren't pushed down. */}
+      <View style={styles.packsSection}>
+        <View style={styles.packsHeaderRow}>
+          <Text style={styles.sectionLabel}>Packs</Text>
+          <Text style={styles.packsSummary}>
+            {chips.filter(isChipActive).length} / {chips.length} selected
+          </Text>
+        </View>
+        <Text style={[styles.packHint, (emptySelection || (ruleset === 'maxs' ? !maxsPoolOK : !officialPoolOK)) && styles.packHintWarn]}>
+          {packHint}
+        </Text>
+        {CATEGORY_ORDER.map(cat => {
+          const catChips = chipsByCat[cat];
+          if (catChips.length === 0) return null;
+          const expanded = expandedCats.has(cat);
+          const activeCount = catChips.filter(isChipActive).length;
+          return (
+            <View key={cat} style={styles.categoryBlock}>
+              <Pressable style={styles.categoryHeader} onPress={() => toggleCategory(cat)}>
+                <Text style={styles.categoryHeaderLabel}>{CATEGORY_LABELS[cat]}</Text>
+                <Text style={styles.categoryHeaderCount}>
+                  {activeCount} / {catChips.length}
+                </Text>
+                <Text style={styles.categoryHeaderChevron}>{expanded ? '▾' : '▸'}</Text>
+              </Pressable>
+              {expanded && (
+                <View style={[styles.packChipRow, styles.categoryBody]}>
+                  {catChips.map(chip => {
+                    const active = isChipActive(chip);
+                    const badge = packBadgeText(chip);
+                    return (
+                      <Pressable
+                        key={chip.id}
+                        style={[styles.packChip, active && styles.packChipActive]}
+                        onPress={() => toggleChip(chip)}
+                      >
+                        <Text style={[styles.packChipText, active && styles.packChipTextActive]}>
+                          {chip.label}
+                        </Text>
+                        {badge ? (
+                          <Text style={[styles.packChipBadge, active && styles.packChipBadgeActive]}>
+                            {badge}
+                          </Text>
+                        ) : null}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          );
+        })}
+      </View>
 
       <Pressable
         style={({ pressed }) => [
@@ -426,7 +470,29 @@ const styles = StyleSheet.create({
   rulesetChipTextActive: { color: '#22d3ee' },
 
   packsSection: { gap: 8 },
+  packsHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  packsSummary: { color: '#3a6070', fontSize: 12, fontWeight: '600' },
   sectionLabel: { color: '#e0f7ff', fontSize: 13, fontWeight: '700', letterSpacing: 0.5 },
+
+  categoryBlock: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#0a2c3d',
+    backgroundColor: '#040d16',
+    overflow: 'hidden',
+  },
+  categoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 10,
+  },
+  categoryHeaderLabel: { flex: 1, color: '#e0f7ff', fontSize: 14, fontWeight: '700' },
+  categoryHeaderCount: { color: '#3a6070', fontSize: 12, fontWeight: '600' },
+  categoryHeaderChevron: { color: '#22d3ee', fontSize: 14, fontWeight: '700', minWidth: 14, textAlign: 'right' },
+  categoryBody: { paddingHorizontal: 12, paddingTop: 4, paddingBottom: 12 },
+
   packChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   packChip: {
     paddingHorizontal: 12,

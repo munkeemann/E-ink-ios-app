@@ -25,12 +25,53 @@ const GROUPS: PackGroup[] = [
 
 const DEFAULT_GROUP_IDS = ['main_deck'];
 
+// SAM1-73: category metadata for the accordion UI. Categories are derived per-pack-id
+// via categoryForPackId(); ambiguous packs default to 'Other' per ticket guidance.
+export type PackCategory =
+  | 'Official'
+  | 'FamilyEdition'
+  | 'Holiday'
+  | 'International'
+  | 'Procedural'
+  | 'Other';
+
+export const CATEGORY_ORDER: PackCategory[] = [
+  'Official',
+  'FamilyEdition',
+  'Holiday',
+  'International',
+  'Procedural',
+  'Other',
+];
+
+export const CATEGORY_LABELS: Record<PackCategory, string> = {
+  Official: 'Official Cards Against Humanity',
+  FamilyEdition: 'Family Edition',
+  Holiday: 'Holiday Specials',
+  International: 'International Variants',
+  Procedural: 'Procedurally-Generated / AI',
+  Other: 'Other',
+};
+
+function categoryForPackId(packId: string): PackCategory {
+  if (packId === 'CAH Base Set' || packId === 'CAH Main Deck') return 'Official';
+  if (/^CAH (First|Second|Third|Fourth|Fifth|Sixth) Expansion$/.test(packId)) return 'Official';
+  if (/Box Expansion$/.test(packId)) return 'Official';
+  if (/Hidden Compartment|Hidden Gems Bundle|Nerd Bundle|Retail (Mini|Product) Pack|Picture Card Pack|Reject Pack/.test(packId)) return 'Official';
+  if (/Family Edition/.test(packId)) return 'FamilyEdition';
+  if (/Holiday Pack|Hanukkah|Seasons Greetings/.test(packId)) return 'Holiday';
+  if (/Conversion Kit/.test(packId)) return 'International';
+  if (/A\.I\. Pack|Procedurally-Generated/.test(packId)) return 'Procedural';
+  return 'Other';
+}
+
 export interface PackChip {
   id: string;
   label: string;
   packIds: string[];
   promptCount: number;
   responseCount: number;
+  category: PackCategory;
 }
 
 let _chips: PackChip[] | null = null;
@@ -46,7 +87,14 @@ export function listPackChips(): PackChip[] {
       const pack = cahContent.packs[pid];
       if (pack) { p += pack.prompts.length; r += pack.responses.length; }
     }
-    chips.push({ id: g.id, label: g.label, packIds: [...g.packIds], promptCount: p, responseCount: r });
+    chips.push({
+      id: g.id,
+      label: g.label,
+      packIds: [...g.packIds],
+      promptCount: p,
+      responseCount: r,
+      category: categoryForPackId(g.packIds[0]),
+    });
   }
 
   const standalone = Object.entries(cahContent.packs)
@@ -59,11 +107,27 @@ export function listPackChips(): PackChip[] {
       packIds: [pid],
       promptCount: pack.prompts.length,
       responseCount: pack.responses.length,
+      category: categoryForPackId(pid),
     });
   }
 
   _chips = chips;
   return chips;
+}
+
+export function chipsByCategory(): Record<PackCategory, PackChip[]> {
+  const out: Record<PackCategory, PackChip[]> = {
+    Official: [],
+    FamilyEdition: [],
+    Holiday: [],
+    International: [],
+    Procedural: [],
+    Other: [],
+  };
+  for (const chip of listPackChips()) {
+    out[chip.category].push(chip);
+  }
+  return out;
 }
 
 export const DEFAULT_ACTIVE_PACK_IDS: string[] = (() => {
