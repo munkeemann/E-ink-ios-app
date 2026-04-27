@@ -19,6 +19,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { fetchZones, assignSleeveIds, beginGame, getRegisteredSleeves, pushCardToSleeve, pushZoneUpdateViaPi } from '../../src/api/piServer';
 import { fetchTokenImage } from '../../src/api/scryfall';
 import { clearMemo } from '../../src/api/sleeveService';
+import { applyZoneTransition, TransitionResult } from '../../src/mtg/zoneTransition';
 import { getDeck, loadSettings, saveDeck } from '../../src/storage/deckStorage';
 import { AppSettings, CardInstance, Deck, TokenTemplate } from '../../src/types';
 
@@ -256,6 +257,7 @@ export default function InGameScreen() {
             .filter(c => c.place === 'commander' && c.sleeveId !== null)
             .map(c => c.sleeveId as number),
         );
+        const commanderSleeveCount = commanderSleeveIds.size || 1;
 
         for (const [idStr, zoneState] of Object.entries(zoneMap)) {
           const sleeveId = Number(idStr);
@@ -285,55 +287,32 @@ export default function InGameScreen() {
           if (card.zone === destZone) continue;
           console.log(`[ZonePoll] sleeve ${sleeveId} (${card.displayName}): ${card.zone} → ${destZone}`);
 
-          const isHndExit = card.zone === 'HND' && (destZone === 'GRV' || destZone === 'EXL' || destZone === 'BTFLD');
+          // SAM1-72: route every observed transition through the unified handler.
+          // Bug B: physical→physical (e.g. HND→BTFLD) updates place + strip, no advance.
+          // Bug A: physical→digital advances freed sleeve to next library card with LIB strip.
+          // Bug C: card stays bound to its sleeve on physical→physical, including LIB→HND draw.
+          const result = applyZoneTransition(workingDeck.cards, card, destZone);
+          if (result.newCards === workingDeck.cards) continue; // no-op (out-of-scope dest)
 
-          if (isHndExit) {
-            // SAM1-71 HND-exit reassignment: pop top of library into the freed sleeve.
-            const libCards = workingDeck.cards
-              .filter(c => c.zone === 'LIB' && c.place !== 'commander')
-              .sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10));
-            const top = libCards[0];
-
-            if (!top) {
-              // Library empty — leave the moved card on the sleeve, just update its zone.
-              const newCards = workingDeck.cards.map((c, i) => i === idx ? { ...c, zone: destZone } : c);
-              workingDeck = { ...workingDeck, cards: newCards };
-              changed = true;
+          if (destZone === 'GRV' || destZone === 'EXL') {
+            const newPhysLib = result.newCards.some(c => c.zone === 'LIB' && c.sleeveId === sleeveId);
+            if (!newPhysLib) {
+              // Library empty — let the user know we couldn't advance.
               Alert.alert('Library empty', `Sleeve ${sleeveId} stays as-is.`);
-              continue;
             }
+          }
 
-            // 4-step reassignment per SAM1-71 spec:
-            // 1. Update moved card's zone (sleeve freed by null-ing sleeveId).
-            // 2. Pop top of library: zone='HND', sleeveId = freed sleeve.
-            // 3. clearMemo(freedSleeve).
-            // 4. Push new card image + descriptor to the freed sleeve.
-            const movedCard = card;
-            const drawnCard: CardInstance = { ...top, zone: 'HND' as Zone, sleeveId };
+          workingDeck = { ...workingDeck, cards: result.newCards };
+          changed = true;
 
-            // Renumber remaining LIB cards (excluding the drawn one) so place=1 is the new top.
-            let libRank = 0;
-            const newCards = workingDeck.cards.map(c => {
-              if (c === movedCard) return { ...c, zone: destZone, sleeveId: null };
-              if (c === top) return drawnCard;
-              if (c.zone === 'LIB' && c.place !== 'commander') {
-                libRank++;
-                return { ...c, place: String(libRank) };
-              }
-              return c;
-            });
-
-            workingDeck = { ...workingDeck, cards: newCards };
-            changed = true;
-
-            clearMemo(sleeveId);
-            pushCardToSleeve(drawnCard).catch(() => {});
-            pushZoneUpdateViaPi(sleeveId, 'HND').catch(() => {});
-          } else {
-            // Plain zone update — no sleeve reassignment, no library draw.
-            const newCards = workingDeck.cards.map((c, i) => i === idx ? { ...c, zone: destZone } : c);
-            workingDeck = { ...workingDeck, cards: newCards };
-            changed = true;
+          for (const sid of result.freedSleeves) clearMemo(sid);
+          for (const e of result.effects) {
+            if (e.type === 'strip') {
+              pushZoneUpdateViaPi(e.sleeveId, e.zone).catch(() => {});
+            } else if (e.type === 'image' && e.card) {
+              pushCardToSleeve(e.card, commanderSleeveCount).catch(() => {});
+              pushZoneUpdateViaPi(e.sleeveId, e.card.zone).catch(() => {});
+            }
           }
         }
 
@@ -433,6 +412,27 @@ export default function InGameScreen() {
         pushZoneUpdateViaPi(c.sleeveId, c.zone).catch(() => {});
       }
     }
+  };
+
+  // ─── SAM1-72 transition-result applier ────────────────────────────────────
+  // Used by both handleMoveCard and handleMoveSelected so the side-effect plumbing
+  // (clearMemo + image/strip pushes + saveDeck/setDeck) lives in one place.
+  const applyTransitionResult = async (result: TransitionResult, oldCards: CardInstance[]) => {
+    if (!deck) return;
+    if (result.newCards === oldCards) return;
+    const cmdCount = oldCards.filter(c => c.place === 'commander').length || 1;
+    for (const sid of result.freedSleeves) clearMemo(sid);
+    for (const e of result.effects) {
+      if (e.type === 'strip') {
+        pushZoneUpdateViaPi(e.sleeveId, e.zone).catch(() => {});
+      } else if (e.type === 'image' && e.card) {
+        pushCardToSleeve(e.card, cmdCount).catch(() => {});
+        pushZoneUpdateViaPi(e.sleeveId, e.card.zone).catch(() => {});
+      }
+    }
+    const newDeck = { ...deck, cards: result.newCards };
+    await saveDeck(newDeck);
+    setDeck(newDeck);
   };
 
   // ─── Cast commander from command zone ─────────────────────────────────────
@@ -665,33 +665,31 @@ export default function InGameScreen() {
       return;
     }
 
-    // Only GRV/EXL free a physical sleeve — cascade the library to fill the gap.
-    // For HND, BTFLD, CMD and all other destinations the card keeps its current sleeve;
-    // only the zone strip needs updating.
-    if (destZone === 'GRV' || destZone === 'EXL') {
-      const withMove = deckCards.map(c => c === card ? { ...c, zone: destZone } : c);
-      const commanderCards = withMove.filter(c => c.place === 'commander');
-      const libCards = withMove
-        .filter(c => c.zone === 'LIB' && c.place !== 'commander')
-        .map((c, i) => ({ ...c, place: String(i + 1) }));
-      const otherCards = withMove.filter(c => c.zone !== 'LIB' && c.place !== 'commander');
-      const newCards = assignSleeveIds([...commanderCards, ...libCards, ...otherCards], settings);
-      for (const c of newCards) {
-        if (c.sleeveId !== null) pushZoneUpdateViaPi(c.sleeveId, c.zone).catch(() => {});
-      }
-      pushNewlySleevedImages(deckCards, newCards);
+    // SAM1-72: route non-token, non-CMD-dest moves through the unified zone-transition handler.
+    // Commander cards (place === 'commander') stay on their fixed sleeves (1, partner=2);
+    // SAM1-68/69 own their strip pushes via pushZoneUpdateViaPi after the data update.
+    if (card.place === 'commander') {
+      const newCards = deckCards.map(c => c === card ? { ...c, zone: destZone } : c);
+      if (card.sleeveId !== null) pushZoneUpdateViaPi(card.sleeveId, destZone).catch(() => {});
       const newDeck = { ...deck, cards: newCards };
       await saveDeck(newDeck);
       setDeck(newDeck);
-    } else {
-      // Card keeps its sleeve — just move the zone flag and update the strip.
+      return;
+    }
+
+    if (destZone === 'TKN' || destZone === 'CMD') {
+      // Out-of-scope dest for the SAM1-72 handler — preserve old behavior (just zone update).
       const key = cardKey(card);
       const newCards = deckCards.map(c => cardKey(c) === key ? { ...c, zone: destZone } : c);
       if (card.sleeveId !== null) pushZoneUpdateViaPi(card.sleeveId, destZone).catch(() => {});
       const newDeck = { ...deck, cards: newCards };
       await saveDeck(newDeck);
       setDeck(newDeck);
+      return;
     }
+
+    const result = applyZoneTransition(deckCards, card, destZone);
+    await applyTransitionResult(result, deckCards);
   };
 
   // ─── Move selected cards ──────────────────────────────────────────────────
@@ -718,49 +716,69 @@ export default function InGameScreen() {
     setActiveZone(null);
     setSelectedCards(new Set());
 
-    const isDestPhysical = destZone === 'TKN'
-      ? settings.physicalZones.includes('BTFLD')
-      : settings.physicalZones.includes(destZone);
+    // SAM1-72: apply transitions sequentially through the unified handler so each
+    // physical→digital advance sees the working state from prior moves in the batch.
+    // Tokens leaving the battlefield are still deleted entirely (special case below).
+    const selected = deckCards.filter(c =>
+      keys.has(cardKey(c)) && (c.zone === sourceZone || (sourceZone === 'BTFLD' && c.zone === 'TKN'))
+    );
 
-    // Build updated card array: move selected cards, remove tokens leaving battlefield
-    const withMove = deckCards.reduce<CardInstance[]>((acc, c) => {
-      const isSelected = keys.has(cardKey(c)) && (c.zone === sourceZone || (sourceZone === 'BTFLD' && c.zone === 'TKN'));
-      if (!isSelected) { acc.push(c); return acc; }
-      // Tokens leaving the battlefield are deleted, not moved
-      if (c.isToken && destZone !== 'BTFLD' && destZone !== 'TKN') return acc;
-      const finalZone = commanderRedirects.get(c) ?? destZone;
-      acc.push({ ...c, zone: finalZone });
-      return acc;
-    }, []);
+    let working: CardInstance[] = deckCards;
+    const allEffects: import('../../src/mtg/zoneTransition').TransitionEffect[] = [];
+    const allFreed: number[] = [];
 
-    // Only GRV/EXL free physical sleeves — cascade the library to fill the gap.
-    // For all other destinations cards keep their sleeves; just update zone strips.
-    if (destZone === 'GRV' || destZone === 'EXL') {
-      const commanderCards = withMove.filter(c => c.place === 'commander');
-      const libCards = withMove
-        .filter(c => c.zone === 'LIB' && c.place !== 'commander')
-        .map((c, i) => ({ ...c, place: String(i + 1) }));
-      const otherCards = withMove.filter(c => c.zone !== 'LIB' && c.place !== 'commander');
-      const newCards = assignSleeveIds([...commanderCards, ...libCards, ...otherCards], settings);
-      for (const c of newCards) {
-        if (c.sleeveId !== null) pushZoneUpdateViaPi(c.sleeveId, c.zone).catch(() => {});
+    for (const sel of selected) {
+      // Locate the current incarnation of this card in `working` (it may have been
+      // re-created by a previous transition's spread).
+      const currentSel = working.find(c => cardKey(c) === cardKey(sel)) ?? sel;
+      const finalZone = commanderRedirects.get(currentSel) ?? destZone;
+
+      // Tokens leaving the battlefield are deleted, not zoned.
+      if (currentSel.isToken && finalZone !== 'BTFLD' && finalZone !== 'TKN') {
+        working = working.filter(c => c !== currentSel);
+        if (currentSel.sleeveId !== null) allFreed.push(currentSel.sleeveId);
+        continue;
       }
-      pushNewlySleevedImages(deckCards, newCards);
-      const newDeck = { ...deck, cards: newCards };
-      await saveDeck(newDeck);
-      setDeck(newDeck);
-    } else {
-      // Cards keep their sleeves — push zone strips only for selected cards that have one.
-      for (const c of deckCards) {
-        const isSelected = keys.has(cardKey(c)) && (c.zone === sourceZone || (sourceZone === 'BTFLD' && c.zone === 'TKN'));
-        if (isSelected && !c.isToken && c.sleeveId !== null) {
-          pushZoneUpdateViaPi(c.sleeveId, destZone).catch(() => {});
+
+      // Commander zone updates stay on their fixed sleeves (SAM1-68/69 own them).
+      if (currentSel.place === 'commander') {
+        working = working.map(c => c === currentSel ? { ...c, zone: finalZone } : c);
+        if (currentSel.sleeveId !== null) {
+          allEffects.push({ type: 'strip', sleeveId: currentSel.sleeveId, zone: finalZone });
         }
+        continue;
       }
-      const newDeck = { ...deck, cards: withMove };
-      await saveDeck(newDeck);
-      setDeck(newDeck);
+
+      if (finalZone === 'CMD' || finalZone === 'TKN') {
+        // Out-of-scope dest for the SAM1-72 handler — preserve as plain zone update.
+        working = working.map(c => c === currentSel ? { ...c, zone: finalZone } : c);
+        if (currentSel.sleeveId !== null) {
+          allEffects.push({ type: 'strip', sleeveId: currentSel.sleeveId, zone: finalZone });
+        }
+        continue;
+      }
+
+      const result = applyZoneTransition(working, currentSel, finalZone);
+      working = result.newCards;
+      allEffects.push(...result.effects);
+      allFreed.push(...result.freedSleeves);
     }
+
+    if (working === deckCards) return;
+
+    const cmdCount = working.filter(c => c.place === 'commander').length || 1;
+    for (const sid of allFreed) clearMemo(sid);
+    for (const e of allEffects) {
+      if (e.type === 'strip') {
+        pushZoneUpdateViaPi(e.sleeveId, e.zone).catch(() => {});
+      } else if (e.type === 'image' && e.card) {
+        pushCardToSleeve(e.card, cmdCount).catch(() => {});
+        pushZoneUpdateViaPi(e.sleeveId, e.card.zone).catch(() => {});
+      }
+    }
+    const newDeck = { ...deck, cards: working };
+    await saveDeck(newDeck);
+    setDeck(newDeck);
   };
 
   const openMoveSelectedPicker = () => {
