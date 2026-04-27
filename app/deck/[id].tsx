@@ -116,12 +116,13 @@ export default function DeckPreviewScreen() {
     setSending(true);
     setSendProgress({ sent: 0, total: 0 });
     try {
-      // Reset all cards: non-commanders back to LIB, commander back to BTFLD
-      // Tokens (isToken: true) are discarded entirely on reset
+      // Reset all cards: non-commanders back to LIB, commander to CMD with castCount=0.
+      // Tokens (isToken: true) are discarded entirely on reset.
+      // SAM1-69: when partner commanders land, reset each commander's castCount independently.
       const resetCards = deck.cards
         .filter(c => !c.isToken)
         .map(c => c.place === 'commander'
-          ? { ...c, zone: 'BTFLD' as const }
+          ? { ...c, zone: 'CMD' as const, castCount: 0 }
           : { ...c, zone: 'LIB' as const });
 
       // Shuffle LIB cards and reassign places

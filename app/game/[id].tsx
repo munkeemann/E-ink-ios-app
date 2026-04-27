@@ -95,8 +95,24 @@ function reassignLibraryPlaces(cards: CardInstance[]): CardInstance[] {
   return [...commander, ...library];
 }
 
-function normalizeCommanderZone(cards: CardInstance[]): CardInstance[] {
-  return cards.map(c => c.place === 'commander' ? { ...c, zone: 'CMD' } : c);
+function commanderCastCost(commander: CardInstance | undefined): number | null {
+  if (!commander || typeof commander.manaValue !== 'number') return null;
+  const tax = 2 * (commander.castCount ?? 0);
+  return commander.manaValue + tax;
+}
+
+function confirmCommanderRedirect(destZone: 'GRV' | 'EXL'): Promise<'CMD' | 'GRV' | 'EXL'> {
+  return new Promise(resolve => {
+    Alert.alert(
+      'Commander would die',
+      `Send to command zone instead of the ${destZone === 'GRV' ? 'graveyard' : 'exile zone'}?`,
+      [
+        { text: 'No', onPress: () => resolve(destZone) },
+        { text: 'Yes', style: 'default', onPress: () => resolve('CMD') },
+      ],
+      { cancelable: false },
+    );
+  });
 }
 
 export default function InGameScreen() {
@@ -156,8 +172,7 @@ export default function InGameScreen() {
       if (id) {
         getDeck(id).then(d => {
           if (!d) return;
-          const normalized = normalizeCommanderZone(Array.isArray(d.cards) ? d.cards : []);
-          setDeck({ ...d, cards: normalized });
+          setDeck({ ...d, cards: Array.isArray(d.cards) ? d.cards : [] });
           // Show mulligan sheet exactly once — only on the initial freshStart navigation.
           // Done here (inside the deck-load callback) so it never fires from setDeck()
           // calls made by shuffle, tutor, or any other in-game action.
@@ -351,6 +366,25 @@ export default function InGameScreen() {
     }
   };
 
+  // ─── Cast commander from command zone ─────────────────────────────────────
+  const handleCastCommander = async () => {
+    if (!deck) return;
+    const cmdr = deck.cards.find(c => c.place === 'commander');
+    if (!cmdr || cmdr.zone !== 'CMD') return;
+    const newCast: CardInstance = {
+      ...cmdr,
+      zone: 'BTFLD',
+      castCount: (cmdr.castCount ?? 0) + 1,
+    };
+    const newCards = deck.cards.map(c => c === cmdr ? newCast : c);
+    const newDeck = { ...deck, cards: newCards };
+    await saveDeck(newDeck);
+    setDeck(newDeck);
+    if (newCast.sleeveId !== null) {
+      pushZoneUpdateViaPi(newCast.sleeveId, 'BTFLD').catch(() => {});
+    }
+  };
+
   // ─── Shuffle ──────────────────────────────────────────────────────────────
   const handleShuffle = async () => {
     const deckCards = Array.isArray(deck?.cards) ? deck!.cards : [];
@@ -532,6 +566,11 @@ export default function InGameScreen() {
   // ─── Move card (single) ───────────────────────────────────────────────────
   const handleMoveCard = async (card: CardInstance, destZone: Zone) => {
     if (!deck) return;
+    // Commander replacement effect: GRV/EXL → optionally redirect to CMD.
+    if (card.place === 'commander' && (destZone === 'GRV' || destZone === 'EXL')) {
+      const choice = await confirmCommanderRedirect(destZone);
+      destZone = choice;
+    }
     const deckCards = Array.isArray(deck.cards) ? deck.cards : [];
     const isDestPhysical = destZone === 'TKN'
       ? settings.physicalZones.includes('BTFLD')
@@ -590,10 +629,21 @@ export default function InGameScreen() {
   const handleMoveSelected = async (destZone: Zone) => {
     if (!deck || selectedCards.size === 0) return;
     const sourceZone = activeZone;
-    setActiveZone(null);
-    setSelectedCards(new Set());
     const keys = new Set(selectedCards);
     const deckCards = Array.isArray(deck.cards) ? deck.cards : [];
+
+    // Commander replacement effect: if commander is selected and dest is GRV/EXL, prompt.
+    let commanderRedirect: Zone | null = null;
+    if (destZone === 'GRV' || destZone === 'EXL') {
+      const commanderSelected = deckCards.some(c => {
+        if (c.place !== 'commander') return false;
+        return keys.has(cardKey(c)) && (c.zone === sourceZone || (sourceZone === 'BTFLD' && c.zone === 'TKN'));
+      });
+      if (commanderSelected) commanderRedirect = await confirmCommanderRedirect(destZone);
+    }
+
+    setActiveZone(null);
+    setSelectedCards(new Set());
 
     const isDestPhysical = destZone === 'TKN'
       ? settings.physicalZones.includes('BTFLD')
@@ -605,7 +655,8 @@ export default function InGameScreen() {
       if (!isSelected) { acc.push(c); return acc; }
       // Tokens leaving the battlefield are deleted, not moved
       if (c.isToken && destZone !== 'BTFLD' && destZone !== 'TKN') return acc;
-      acc.push({ ...c, zone: destZone });
+      const finalZone = c.place === 'commander' && commanderRedirect ? commanderRedirect : destZone;
+      acc.push({ ...c, zone: finalZone });
       return acc;
     }, []);
 
@@ -958,7 +1009,17 @@ export default function InGameScreen() {
       {/* Deck info bar */}
       <View style={styles.header}>
         <Text style={styles.deckName}>{deck.name}</Text>
-        <Text style={styles.commanderName}>⚔ {commander?.displayName ?? '—'}</Text>
+        <View style={styles.commanderRow}>
+          <Text style={styles.commanderName}>⚔ {commander?.displayName ?? '—'}</Text>
+          {commander?.zone === 'CMD' && (
+            <Text style={styles.cmdZoneBadge}>CMD ZONE</Text>
+          )}
+          {(commander?.castCount ?? 0) > 0 && (
+            <Text style={styles.castTaxText}>
+              Cast {commander!.castCount}× — next: +{2 * (commander!.castCount ?? 0)}
+            </Text>
+          )}
+        </View>
         <View style={styles.headerMeta}>
           <Text style={[
             styles.sleeveStatus,
@@ -1002,21 +1063,44 @@ export default function InGameScreen() {
       {/* Zone grid — 2 rows × 3 cols */}
       <View style={styles.zoneGrid}>
         <View style={styles.zoneGridRow}>
-          {ZONE_CONFIG.slice(0, 3).map(zone => (
-            <Pressable
-              key={zone.id}
-              style={[styles.zoneBtn, { borderColor: zone.color }]}
-              onPress={() => { setSelectedCards(new Set()); setActiveZone(zone.id); }}
-            >
-              <Text style={[styles.zoneBtnLabel, { color: zone.color }]}>{zone.label}</Text>
-              {zone.id === 'CMD'
-                ? <Text style={[styles.zoneBtnCommander, { color: zone.color }]} numberOfLines={1}>
-                    {commander?.displayName ?? '—'}
-                  </Text>
-                : <Text style={[styles.zoneBtnCount, { color: zone.color }]}>{zoneCounts[zone.id]}</Text>
-              }
-            </Pressable>
-          ))}
+          {ZONE_CONFIG.slice(0, 3).map(zone => {
+            if (zone.id === 'CMD') {
+              const inCmd = commander?.zone === 'CMD';
+              const cost = commanderCastCost(commander);
+              const onPress = inCmd
+                ? handleCastCommander
+                : () => { setSelectedCards(new Set()); setActiveZone(zone.id); };
+              return (
+                <Pressable
+                  key={zone.id}
+                  style={[styles.zoneBtn, { borderColor: zone.color }, busy && styles.btnDisabled]}
+                  onPress={onPress}
+                  disabled={busy}
+                >
+                  <Text style={[styles.zoneBtnLabel, { color: zone.color }]}>{zone.label}</Text>
+                  {inCmd ? (
+                    <Text style={[styles.zoneBtnCast, { color: zone.color }]} numberOfLines={1}>
+                      Cast ({cost === null ? '?' : cost})
+                    </Text>
+                  ) : (
+                    <Text style={[styles.zoneBtnCommander, { color: zone.color }]} numberOfLines={1}>
+                      {commander?.displayName ?? '—'}
+                    </Text>
+                  )}
+                </Pressable>
+              );
+            }
+            return (
+              <Pressable
+                key={zone.id}
+                style={[styles.zoneBtn, { borderColor: zone.color }]}
+                onPress={() => { setSelectedCards(new Set()); setActiveZone(zone.id); }}
+              >
+                <Text style={[styles.zoneBtnLabel, { color: zone.color }]}>{zone.label}</Text>
+                <Text style={[styles.zoneBtnCount, { color: zone.color }]}>{zoneCounts[zone.id]}</Text>
+              </Pressable>
+            );
+          })}
         </View>
         <View style={styles.zoneGridRow}>
           {ZONE_CONFIG.slice(3, 6).map(zone => (
@@ -1554,7 +1638,20 @@ const styles = StyleSheet.create({
     borderColor: '#625b71',
   },
   deckName: { color: '#D0BCFF', fontSize: 18, fontWeight: '800' },
-  commanderName: { color: '#CCC2DC', fontSize: 13, marginTop: 2 },
+  commanderRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 2 },
+  commanderName: { color: '#CCC2DC', fontSize: 13 },
+  cmdZoneBadge: {
+    color: '#f59e0b',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#f59e0b',
+  },
+  castTaxText: { color: '#9ca3af', fontSize: 11, fontWeight: '600' },
   headerMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
   headerMetaRight: { alignItems: 'flex-end', gap: 4 },
   sleeveStatus: { color: '#6ee7b7', fontSize: 11 },
@@ -1577,6 +1674,7 @@ const styles = StyleSheet.create({
   zoneBtnLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
   zoneBtnCount: { fontSize: 22, fontWeight: '800', marginTop: 4 },
   zoneBtnCommander: { fontSize: 8, fontWeight: '700', marginTop: 4, textAlign: 'center', paddingHorizontal: 2 },
+  zoneBtnCast: { fontSize: 16, fontWeight: '800', marginTop: 4, letterSpacing: 0.3 },
 
   actionGrid: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 14, gap: 8 },
   actionRow: { flexDirection: 'row', gap: 8 },

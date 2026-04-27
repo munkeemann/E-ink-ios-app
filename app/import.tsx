@@ -146,11 +146,13 @@ export default function ImportDeckScreen() {
           backImagePath: fetched.backImagePath,
           isFlipped: false,
           place: 'commander',
-          zone: 'BTFLD',
+          zone: 'CMD',
           sleeveId: null,
           setCode: commanderEntry.setCode ?? fetched.setCode,
           collectorNumber: commanderEntry.collectorNumber ?? fetched.collectorNumber,
           scryfallId: fetched.scryfallId,
+          manaValue: fetched.manaValue,
+          castCount: 0,
         });
       }
 
@@ -168,6 +170,7 @@ export default function ImportDeckScreen() {
           setCode: entry.setCode ?? fetched.setCode,
           collectorNumber: entry.collectorNumber ?? fetched.collectorNumber,
           scryfallId: fetched.scryfallId,
+          manaValue: fetched.manaValue,
         });
       });
 

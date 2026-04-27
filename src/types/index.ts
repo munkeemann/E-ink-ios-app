@@ -32,6 +32,14 @@ export interface CardInstance {
   collectorNumber?: string;
   /** Scryfall UUID for this exact printing. Used to identify the card for printing swaps. */
   scryfallId?: string;
+  /** Converted mana cost from Scryfall (cmc field). Absent on decks imported before SAM1-68. */
+  manaValue?: number;
+  /**
+   * Times this commander has been cast from the command zone this game.
+   * Only meaningful when place === 'commander'. Resets to 0 on new game.
+   * SAM1-69: when partner commanders land, each commander CardInstance carries its own counter.
+   */
+  castCount?: number;
 }
 
 export interface TokenTemplate {

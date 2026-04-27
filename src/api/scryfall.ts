@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BULK_DATA_KEY = 'scryfall_bulk_data';
-const BULK_TIMESTAMP_KEY = 'scryfall_bulk_last_fetched';
+const BULK_DATA_KEY = 'scryfall_bulk_data_v2';
+const BULK_TIMESTAMP_KEY = 'scryfall_bulk_last_fetched_v2';
 const BULK_TTL_MS = 24 * 60 * 60 * 1000;
 const TOKEN_CACHE_PREFIX = 'token_cache_';
 
@@ -12,6 +12,7 @@ export interface FetchedCard {
   scryfallId?: string;
   setCode?: string;
   collectorNumber?: string;
+  manaValue?: number;
 }
 
 export interface ScryfallPrinting {
@@ -29,6 +30,7 @@ interface SlimCard {
   imagePath: string;
   backImagePath: string;
   colorIdentity: string[];
+  manaValue?: number;
 }
 
 function extractImageUrl(card: Record<string, unknown>): string | null {
@@ -104,6 +106,7 @@ async function downloadBulkData(
     colorIdentity: Array.isArray(card.color_identity)
       ? (card.color_identity as unknown[]).filter((x): x is string => typeof x === 'string')
       : [],
+    manaValue: typeof card.cmc === 'number' ? card.cmc : undefined,
   }));
 }
 
@@ -182,6 +185,7 @@ export async function fetchCards(
         imagePath: card.imagePath,
         backImagePath: card.backImagePath ?? '',
         colorIdentity: card.colorIdentity,
+        manaValue: card.manaValue,
       };
     } else {
       // Bulk index miss — try Scryfall fuzzy search as fallback
@@ -204,6 +208,7 @@ export async function fetchCards(
           scryfallId: fuzzyCard.id as string | undefined,
           setCode: fuzzyCard.set as string | undefined,
           collectorNumber: fuzzyCard.collector_number as string | undefined,
+          manaValue: typeof fuzzyCard.cmc === 'number' ? fuzzyCard.cmc : undefined,
         };
       } catch {
         errors.push(`${name}: Card not found in local database`);
@@ -242,6 +247,7 @@ export async function fetchCardByPrinting(
       scryfallId: card.id as string,
       setCode: card.set as string,
       collectorNumber: card.collector_number as string,
+      manaValue: typeof card.cmc === 'number' ? card.cmc : undefined,
     };
   } catch {
     return null;
