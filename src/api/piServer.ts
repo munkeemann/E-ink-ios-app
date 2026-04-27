@@ -268,24 +268,34 @@ export async function pushCardToSleeve(
   }
 }
 
+export interface SleeveZoneState {
+  active_idx: number;
+  cell: string;
+}
+
 /**
- * Fetches /zones and returns a sleeveId→zoneName map.
- * Pi returns {"zones": {"2": "EXL", "3": "LIB", ...}}.
+ * Fetches /zones and returns a sleeveId → {active_idx, cell} map.
+ * Pi returns {"zones": {"2": {"active_idx": 0, "cell": "EXL"}, ...}}.
  * Returns an empty object if the Pi is unreachable or the response is malformed.
  */
-export async function fetchZones(serverUrl: string = PI_SERVER): Promise<Record<number, string>> {
+export async function fetchZones(serverUrl: string = PI_SERVER): Promise<Record<number, SleeveZoneState>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 3000);
   const resp = await fetch(`${serverUrl}/zones`, { signal: controller.signal }).finally(() => clearTimeout(timer));
   if (!resp.ok) return {};
   const raw = await resp.json() as unknown;
-  // Expected shape: {"zones": {"2": "EXL", ...}}
   if (raw && typeof raw === 'object' && 'zones' in raw) {
-    const map = (raw as { zones: Record<string, string> }).zones;
-    const result: Record<number, string> = {};
-    for (const [idStr, zoneName] of Object.entries(map)) {
+    const map = (raw as { zones: Record<string, unknown> }).zones;
+    const result: Record<number, SleeveZoneState> = {};
+    for (const [idStr, value] of Object.entries(map)) {
       const id = Number(idStr);
-      if (!isNaN(id)) result[id] = zoneName;
+      if (isNaN(id)) continue;
+      if (value && typeof value === 'object' && 'cell' in value && 'active_idx' in value) {
+        const v = value as { active_idx: unknown; cell: unknown };
+        if (typeof v.cell === 'string' && typeof v.active_idx === 'number') {
+          result[id] = { active_idx: v.active_idx, cell: v.cell };
+        }
+      }
     }
     return result;
   }
@@ -303,7 +313,7 @@ export async function waitForSleeveSelection(
   serverUrl: string = PI_SERVER,
 ): Promise<number | null> {
   // Snapshot current zone state
-  let snapshot: Record<number, string> = {};
+  let snapshot: Record<number, SleeveZoneState> = {};
   try {
     snapshot = await fetchZones(serverUrl);
   } catch {
@@ -317,9 +327,9 @@ export async function waitForSleeveSelection(
     if (isCancelled()) return null;
     try {
       const current = await fetchZones(serverUrl);
-      for (const [idStr, zoneName] of Object.entries(current)) {
+      for (const [idStr, zoneState] of Object.entries(current)) {
         const id = Number(idStr);
-        if (snapshot[id] !== zoneName) return id;
+        if (snapshot[id]?.cell !== zoneState.cell) return id;
       }
     } catch {
       // Pi offline or slow — keep polling

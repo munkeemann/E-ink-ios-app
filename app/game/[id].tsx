@@ -196,31 +196,32 @@ export default function InGameScreen() {
   const deckRef = useRef(deck);
   useEffect(() => { deckRef.current = deck; }, [deck]);
 
-  // Track the last-seen zone_name per sleeve so we can detect Pi-initiated changes
+  // Track the last-seen cell per sleeve so we can detect Pi-initiated changes
   const zonesSnapshotRef = useRef<Record<number, string>>({});
 
-  // Poll /zones every 5 s.
+  // SAM1-71: Poll /zones every 500ms.
   // While waitingForSleeve is true the first incoming zone change is treated as a
-  // card selection (Place in Library). In normal mode, zone changes move cards in state.
+  // card selection (Place in Library). In normal mode, zone changes move cards in state
+  // and HND-exit transitions auto-draw a replacement from the top of library.
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
-        const zoneMap = await fetchZones(); // {"2": "EXL", "3": "LIB", ...}
+        const zoneMap = await fetchZones();
         const currentDeck = deckRef.current;
         if (!currentDeck) return;
 
         // ── Sleeve-selection intercept (Place in Library step 1) ──────────────
         if (waitingForSleeveRef.current) {
-          for (const [idStr, zoneName] of Object.entries(zoneMap)) {
+          for (const [idStr, zoneState] of Object.entries(zoneMap)) {
             const sleeveId = Number(idStr);
-            const prevZone = zonesSnapshotRef.current[sleeveId];
-            if (prevZone === undefined || prevZone === zoneName) continue;
+            const prevCell = zonesSnapshotRef.current[sleeveId];
+            if (prevCell === undefined || prevCell === zoneState.cell) continue;
             // A sleeve button was pressed — identify the card
             const card = currentDeck.cards.find(c => c.sleeveId === sleeveId) ?? null;
             console.log(`[PlaceInLib] sleeve ${sleeveId} pressed; card: ${card?.displayName ?? 'none'}`);
             // Immediately restore the sleeve's zone strip to what it was before the press
-            pushZoneUpdateViaPi(sleeveId, prevZone).catch(() => {});
-            zonesSnapshotRef.current[sleeveId] = prevZone; // keep snapshot stable
+            pushZoneUpdateViaPi(sleeveId, prevCell).catch(() => {});
+            zonesSnapshotRef.current[sleeveId] = prevCell; // keep snapshot stable
             if (card) {
               if (card.place === 'commander') {
                 // Commander is ineligible for Place in Library — silently ignore,
@@ -241,44 +242,98 @@ export default function InGameScreen() {
         }
 
         // ── Normal zone-change processing ─────────────────────────────────────
+        let workingDeck = currentDeck;
         let changed = false;
-        const updatedCards = [...(Array.isArray(currentDeck.cards) ? currentDeck.cards : [])];
 
-        for (const [idStr, zoneName] of Object.entries(zoneMap)) {
+        for (const [idStr, zoneState] of Object.entries(zoneMap)) {
           const sleeveId = Number(idStr);
-          const prevZone = zonesSnapshotRef.current[sleeveId];
-          zonesSnapshotRef.current[sleeveId] = zoneName;
-          if (prevZone === undefined || prevZone === zoneName) continue;
-          const destZone = zoneName as Zone;
-          if (!['LIB', 'HND', 'BTFLD', 'GRV', 'EXL', 'CMD'].includes(destZone)) {
-            console.log(`[ZonePoll] sleeve ${sleeveId}: unrecognised zone name "${zoneName}" — skipping`);
+
+          // SAM1-68: commander zone transitions are owned by the replacement-effect
+          // modal in handleMoveCard / handleMoveSelected. Polling must not double-process
+          // sleeve 1, which would race the modal and skip the Cast button cost increment.
+          if (sleeveId === 1) {
+            zonesSnapshotRef.current[sleeveId] = zoneState.cell;
             continue;
           }
-          const idx = updatedCards.findIndex(c => c.sleeveId === sleeveId);
+
+          const prevCell = zonesSnapshotRef.current[sleeveId];
+          zonesSnapshotRef.current[sleeveId] = zoneState.cell;
+          if (prevCell === undefined || prevCell === zoneState.cell) continue;
+          const destZone = zoneState.cell as Zone;
+          if (!['LIB', 'HND', 'BTFLD', 'GRV', 'EXL', 'CMD'].includes(destZone)) {
+            console.log(`[ZonePoll] sleeve ${sleeveId}: unrecognised cell "${zoneState.cell}" — skipping`);
+            continue;
+          }
+          const idx = workingDeck.cards.findIndex(c => c.sleeveId === sleeveId);
           if (idx === -1) {
             console.log(`[ZonePoll] sleeve ${sleeveId}: no card found with this sleeveId — skipping`);
             continue;
           }
-          const card = updatedCards[idx];
-          if (card.zone === destZone) {
-            console.log(`[ZonePoll] sleeve ${sleeveId} (${card.displayName}): already in zone ${destZone} — no-op`);
-            continue;
-          }
+          const card = workingDeck.cards[idx];
+          if (card.zone === destZone) continue;
           console.log(`[ZonePoll] sleeve ${sleeveId} (${card.displayName}): ${card.zone} → ${destZone}`);
-          updatedCards[idx] = { ...card, zone: destZone };
-          changed = true;
+
+          const isHndExit = card.zone === 'HND' && (destZone === 'GRV' || destZone === 'EXL' || destZone === 'BTFLD');
+
+          if (isHndExit) {
+            // SAM1-71 HND-exit reassignment: pop top of library into the freed sleeve.
+            const libCards = workingDeck.cards
+              .filter(c => c.zone === 'LIB' && c.place !== 'commander')
+              .sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10));
+            const top = libCards[0];
+
+            if (!top) {
+              // Library empty — leave the moved card on the sleeve, just update its zone.
+              const newCards = workingDeck.cards.map((c, i) => i === idx ? { ...c, zone: destZone } : c);
+              workingDeck = { ...workingDeck, cards: newCards };
+              changed = true;
+              Alert.alert('Library empty', `Sleeve ${sleeveId} stays as-is.`);
+              continue;
+            }
+
+            // 4-step reassignment per SAM1-71 spec:
+            // 1. Update moved card's zone (sleeve freed by null-ing sleeveId).
+            // 2. Pop top of library: zone='HND', sleeveId = freed sleeve.
+            // 3. clearMemo(freedSleeve).
+            // 4. Push new card image + descriptor to the freed sleeve.
+            const movedCard = card;
+            const drawnCard: CardInstance = { ...top, zone: 'HND' as Zone, sleeveId };
+
+            // Renumber remaining LIB cards (excluding the drawn one) so place=1 is the new top.
+            let libRank = 0;
+            const newCards = workingDeck.cards.map(c => {
+              if (c === movedCard) return { ...c, zone: destZone, sleeveId: null };
+              if (c === top) return drawnCard;
+              if (c.zone === 'LIB' && c.place !== 'commander') {
+                libRank++;
+                return { ...c, place: String(libRank) };
+              }
+              return c;
+            });
+
+            workingDeck = { ...workingDeck, cards: newCards };
+            changed = true;
+
+            clearMemo(sleeveId);
+            pushCardToSleeve(drawnCard).catch(() => {});
+            pushZoneUpdateViaPi(sleeveId, 'HND').catch(() => {});
+          } else {
+            // Plain zone update — no sleeve reassignment, no library draw.
+            const newCards = workingDeck.cards.map((c, i) => i === idx ? { ...c, zone: destZone } : c);
+            workingDeck = { ...workingDeck, cards: newCards };
+            changed = true;
+          }
         }
 
         if (changed) {
-          const newDeck = { ...currentDeck, cards: updatedCards };
-          deckRef.current = newDeck;
-          setDeck(newDeck);
-          saveDeck(newDeck).catch(() => {});
+          deckRef.current = workingDeck;
+          setDeck(workingDeck);
+          saveDeck(workingDeck).catch(() => {});
         }
       } catch {
         // Pi offline — ignore
       }
-    }, 5000);
+    }, 500);
     return () => clearInterval(interval);
   }, []); // intentionally empty — uses refs to avoid recreating interval on state changes
 

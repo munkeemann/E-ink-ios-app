@@ -12,6 +12,7 @@ GET  /sleeves               — return {"sleeves": {id: ip, ...}}
 POST /display?sleeve_id=N   — forward JPEG body to sleeve /display
 POST /clear?sleeve_id=N     — tell sleeve to blank its display
 POST /set_zone              — forward a zone-index update to a sleeve's /zone endpoint
+POST /zone_update           — sleeve reports its current zone (active_idx, cell)
 GET  /zones                 — return per-sleeve zone state as seen by the Pi
 """
 
@@ -25,11 +26,12 @@ app = Flask(__name__)
 sleeves: dict[int, str] = {}
 sleeves_lock = threading.Lock()
 
-# sleeve_id (int) -> zone_name (str) — last zone reported or set
-sleeve_zones: dict[int, str] = {}
+# sleeve_id (int) -> {"active_idx": int, "cell": str} — last zone reported or set
+sleeve_zones: dict[int, dict] = {}
 zones_lock = threading.Lock()
 
-ZONE_INDEX_TO_NAME: dict[int, str] = {4: "LIB", 3: "HND", 2: "BTFLD", 1: "GRV", 0: "EXL"}
+# SAM1-68: CMD appended at index 5 (matches MTG_ZONE_CELLS in src/api/sleeveService.ts)
+ZONE_INDEX_TO_NAME: dict[int, str] = {4: "LIB", 3: "HND", 2: "BTFLD", 1: "GRV", 0: "EXL", 5: "CMD"}
 
 
 # ── Registry ────────────────────────────────────────────────────────────────
@@ -105,7 +107,7 @@ def set_zone():
 
     zone_name = ZONE_INDEX_TO_NAME.get(zone_index, "EXL")
     with zones_lock:
-        sleeve_zones[sleeve_id] = zone_name
+        sleeve_zones[sleeve_id] = {"active_idx": zone_index, "cell": zone_name}
 
     try:
         requests.post(
@@ -121,18 +123,19 @@ def set_zone():
 
 # ── Zone state (sleeve → Pi → app) ──────────────────────────────────────────
 
-@app.route("/zone_report", methods=["POST"])
-def zone_report():
+@app.route("/zone_update", methods=["POST"])
+def zone_update():
     """
-    Called by a sleeve when its physical zone sensor changes.
-    Body: {"sleeve_id": <int>, "zone_name": <str>}
+    Called by a sleeve when its physical zone sensor changes (SAM1-71).
+    Body: {"sleeve_id": <int>, "active_idx": <int>, "cell": <str>}
     Updates the Pi's in-memory zone state so /zones reflects the change.
     """
     data = request.get_json(force=True)
     sleeve_id = int(data["sleeve_id"])
-    zone_name = str(data["zone_name"])
+    active_idx = int(data["active_idx"])
+    cell = str(data["cell"])
     with zones_lock:
-        sleeve_zones[sleeve_id] = zone_name
+        sleeve_zones[sleeve_id] = {"active_idx": active_idx, "cell": cell}
     return jsonify({"ok": True})
 
 
@@ -140,13 +143,14 @@ def zone_report():
 def get_zones():
     """
     Returns the last-known zone for every registered sleeve.
-    Response: {"zones": {"2": "EXL", "3": "LIB", ...}}
+    Response: {"zones": {"2": {"active_idx": 0, "cell": "EXL"}, ...}}
+    Sleeves with no recorded zone default to LIB (active_idx=4).
     """
     with sleeves_lock:
         registered = set(sleeves.keys())
     with zones_lock:
         result = {
-            str(sid): sleeve_zones.get(sid, "LIB")
+            str(sid): sleeve_zones.get(sid, {"active_idx": 4, "cell": "LIB"})
             for sid in registered
         }
     return jsonify({"zones": result})
