@@ -4,7 +4,6 @@ import {
   CahMaxsResponse,
   CahMaxsSleeveUpdate,
 } from '../types/cah_maxs';
-import { getAllPrompts, getAllResponses } from './CahContent';
 import { cahBlackCardDescriptor, cahMaxsResponseDescriptor } from '../api/sleeveService';
 import { maxsSleeveId } from './CahMaxsLayout';
 
@@ -17,9 +16,14 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-export function createMaxsGame(playerCount: number, K: number): CahMaxsGameState {
-  const prompts = shuffle(getAllPrompts());
-  const responses = shuffle(getAllResponses());
+export function createMaxsGame(
+  playerCount: number,
+  K: number,
+  promptPool: CahMaxsPrompt[],
+  responsePool: CahMaxsResponse[],
+): CahMaxsGameState {
+  const prompts = shuffle(promptPool);
+  const responses = shuffle(responsePool);
   console.log(`[CAH-MAXS] createMaxsGame P=${playerCount} K=${K}  prompts=${prompts.length}  responses=${responses.length}`);
   return {
     variant: 'maxs',

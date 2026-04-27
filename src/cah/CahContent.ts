@@ -22,28 +22,21 @@ interface CahContentJson {
 
 const cahContent = cahContentRaw as CahContentJson;
 
-let _allPrompts: ContentPrompt[] | null = null;
-let _allResponses: ContentResponse[] | null = null;
-
-export function getAllPrompts(): ContentPrompt[] {
-  if (_allPrompts) return _allPrompts;
+export function getPromptsForPacks(activeIds: string[]): ContentPrompt[] {
+  const set = new Set(activeIds);
   const out: ContentPrompt[] = [];
-  for (const pack of Object.values(cahContent.packs)) {
-    for (const p of pack.prompts) out.push(p);
+  for (const [id, pack] of Object.entries(cahContent.packs)) {
+    if (set.has(id)) for (const p of pack.prompts) out.push(p);
   }
-  console.log(`[CAH-MAXS] content load — ${out.length} prompts across ${Object.keys(cahContent.packs).length} packs`);
-  _allPrompts = out;
   return out;
 }
 
-export function getAllResponses(): ContentResponse[] {
-  if (_allResponses) return _allResponses;
+export function getResponsesForPacks(activeIds: string[]): ContentResponse[] {
+  const set = new Set(activeIds);
   const out: ContentResponse[] = [];
-  for (const pack of Object.values(cahContent.packs)) {
-    for (const r of pack.responses) out.push(r);
+  for (const [id, pack] of Object.entries(cahContent.packs)) {
+    if (set.has(id)) for (const r of pack.responses) out.push(r);
   }
-  console.log(`[CAH-MAXS] content load — ${out.length} responses across ${Object.keys(cahContent.packs).length} packs`);
-  _allResponses = out;
   return out;
 }
 

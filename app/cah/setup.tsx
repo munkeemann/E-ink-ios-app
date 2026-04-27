@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -8,7 +8,6 @@ import {
   View,
 } from 'react-native';
 import { router } from 'expo-router';
-import cahPack from '../../assets/data/cah_pack.json';
 import { createCahGame } from '../../src/cah/CahGame';
 import { totalCahSleeveCount } from '../../src/cah/CahSleeveLayout';
 import { saveCahGame } from '../../src/storage/cahStorage';
@@ -18,6 +17,9 @@ import { saveMaxsGame } from '../../src/storage/cahMaxsStorage';
 import { faceDownDescriptor, sendToSleeve, clearMemo, prefetchCardBacks } from '../../src/api/sleeveService';
 import { getRegisteredSleeves } from '../../src/api/piServer';
 import { CahBlackCard, CahCard } from '../../src/types/cah';
+import { listPackChips, DEFAULT_ACTIVE_PACK_IDS, PackChip } from '../../src/cah/packGroups';
+import { loadActivePacks, saveActivePacks } from '../../src/storage/cahPacksStorage';
+import { getPromptsForPacks, getResponsesForPacks } from '../../src/cah/CahContent';
 
 type Ruleset = 'official' | 'maxs';
 
@@ -64,6 +66,12 @@ function Stepper({
   );
 }
 
+function packBadgeText(chip: PackChip): string | null {
+  if (chip.promptCount === 0 && chip.responseCount > 0) return 'responses only';
+  if (chip.responseCount === 0 && chip.promptCount > 0) return 'prompts only';
+  return null;
+}
+
 export default function CahSetupScreen() {
   const [ruleset, setRuleset] = useState<Ruleset>('maxs');
   const [playerCount, setPlayerCount] = useState(4);
@@ -73,9 +81,27 @@ export default function CahSetupScreen() {
   const [registeredCount, setRegisteredCount] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const [activePackIds, setActivePackIds] = useState<string[]>(DEFAULT_ACTIVE_PACK_IDS);
+  const [packsLoaded, setPacksLoaded] = useState(false);
+
   useEffect(() => {
     prefetchCardBacks();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadActivePacks().then(ids => {
+      if (cancelled) return;
+      if (ids) setActivePackIds(ids);
+      setPacksLoaded(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!packsLoaded) return;
+    saveActivePacks(activePackIds);
+  }, [activePackIds, packsLoaded]);
 
   // Poll registered-sleeve count for the Max's budget indicator.
   useEffect(() => {
@@ -93,17 +119,67 @@ export default function CahSetupScreen() {
     return () => { cancelled = true; clearInterval(iv); };
   }, []);
 
+  const chips = useMemo(() => listPackChips(), []);
+  const activePackSet = useMemo(() => new Set(activePackIds), [activePackIds]);
+  const filteredPrompts = useMemo(() => getPromptsForPacks(activePackIds), [activePackIds]);
+  const filteredResponses = useMemo(() => getResponsesForPacks(activePackIds), [activePackIds]);
+
+  const isChipActive = (chip: PackChip) =>
+    chip.packIds.length > 0 && chip.packIds.every(id => activePackSet.has(id));
+
+  const toggleChip = (chip: PackChip) => {
+    const allOn = isChipActive(chip);
+    setActivePackIds(prev => {
+      const next = new Set(prev);
+      if (allOn) {
+        for (const id of chip.packIds) next.delete(id);
+      } else {
+        for (const id of chip.packIds) next.add(id);
+      }
+      return [...next];
+    });
+  };
+
   const officialSleeveCount = totalCahSleeveCount(playerCount, handSize);
   const maxsSleeveCount = totalMaxsSleeveCount(maxsPlayerCount, maxsK);
   const maxsBudgetOK = registeredCount !== null && maxsSleeveCount <= registeredCount;
 
+  const emptySelection = activePackIds.length === 0;
+  const officialPoolOK = filteredPrompts.length > 0 && filteredResponses.length > 0;
+  const officialBlocked = emptySelection || !officialPoolOK;
+
+  const maxsRequiredResponses = maxsPlayerCount * maxsK;
+  const maxsPoolHasPrompt = filteredPrompts.length >= 1;
+  const maxsPoolHasResponses = filteredResponses.length >= maxsRequiredResponses;
+  const maxsPoolOK = maxsPoolHasPrompt && maxsPoolHasResponses;
+  const maxsBlocked = emptySelection || !maxsPoolOK || !maxsBudgetOK;
+
+  const packHint = (() => {
+    if (emptySelection) return 'Select at least one pack';
+    if (ruleset === 'official') {
+      if (filteredPrompts.length === 0) return 'Selected packs have no prompts';
+      if (filteredResponses.length === 0) return 'Selected packs have no responses';
+    } else {
+      if (!maxsPoolHasPrompt) return 'Selected packs have no prompts';
+      if (!maxsPoolHasResponses) {
+        return `Need ${maxsRequiredResponses} responses, selected packs have ${filteredResponses.length}`;
+      }
+    }
+    return `${filteredPrompts.length} prompts · ${filteredResponses.length} responses`;
+  })();
+
   const handleStartOfficial = async () => {
-    const state = createCahGame(
-      playerCount,
-      handSize,
-      cahPack.black as CahBlackCard[],
-      cahPack.white as CahCard[],
-    );
+    const black: CahBlackCard[] = filteredPrompts.map((p, i) => ({
+      id: i + 1,
+      text: p.text,
+      pick: p.pick,
+    }));
+    const white: CahCard[] = filteredResponses.map((r, i) => ({
+      id: i + 1,
+      text: r.text,
+    }));
+
+    const state = createCahGame(playerCount, handSize, black, white);
     await saveCahGame(state);
 
     clearMemo();
@@ -123,12 +199,12 @@ export default function CahSetupScreen() {
   };
 
   const handleStartMaxs = async () => {
-    const state = createMaxsGame(maxsPlayerCount, maxsK);
+    const state = createMaxsGame(maxsPlayerCount, maxsK, filteredPrompts, filteredResponses);
     await saveMaxsGame(state);
 
     clearMemo();
     const registered = new Set(await getRegisteredSleeves());
-    console.log(`[CAH-MAXS] setup handleStart — P=${maxsPlayerCount} K=${maxsK} sleeves=${maxsSleeveCount} registered=${registered.size}`);
+    console.log(`[CAH-MAXS] setup handleStart — P=${maxsPlayerCount} K=${maxsK} sleeves=${maxsSleeveCount} registered=${registered.size} packs=${activePackIds.length}`);
     for (let sid = 1; sid <= maxsSleeveCount; sid++) {
       if (!registered.has(sid)) {
         console.log(`[CAH-MAXS] sleeve ${sid} not registered — skipping`);
@@ -143,9 +219,11 @@ export default function CahSetupScreen() {
     router.replace('/cah/game_maxs');
   };
 
+  const startBlocked = ruleset === 'maxs' ? maxsBlocked : officialBlocked;
+
   const handleStart = async () => {
     if (busy) return;
-    if (ruleset === 'maxs' && !maxsBudgetOK) return;
+    if (startBlocked) return;
     setBusy(true);
     try {
       if (ruleset === 'maxs') await handleStartMaxs();
@@ -160,7 +238,7 @@ export default function CahSetupScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Cards Against Humanity</Text>
         <Text style={styles.packNote}>
-          {ruleset === 'maxs' ? 'Ruleset: Max\'s Rules' : 'Pack: Original Starter Pack v1'}
+          {ruleset === 'maxs' ? 'Ruleset: Max\'s Rules' : 'Ruleset: Official'}
         </Text>
       </View>
 
@@ -177,6 +255,36 @@ export default function CahSetupScreen() {
             </Text>
           </Pressable>
         ))}
+      </View>
+
+      {/* Pack selector */}
+      <View style={styles.packsSection}>
+        <Text style={styles.sectionLabel}>Packs</Text>
+        <View style={styles.packChipRow}>
+          {chips.map(chip => {
+            const active = isChipActive(chip);
+            const badge = packBadgeText(chip);
+            return (
+              <Pressable
+                key={chip.id}
+                style={[styles.packChip, active && styles.packChipActive]}
+                onPress={() => toggleChip(chip)}
+              >
+                <Text style={[styles.packChipText, active && styles.packChipTextActive]}>
+                  {chip.label}
+                </Text>
+                {badge ? (
+                  <Text style={[styles.packChipBadge, active && styles.packChipBadgeActive]}>
+                    {badge}
+                  </Text>
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </View>
+        <Text style={[styles.packHint, (emptySelection || (ruleset === 'maxs' ? !maxsPoolOK : !officialPoolOK)) && styles.packHintWarn]}>
+          {packHint}
+        </Text>
       </View>
 
       {ruleset === 'official' ? (
@@ -241,10 +349,10 @@ export default function CahSetupScreen() {
         style={({ pressed }) => [
           styles.startBtn,
           (pressed || busy) && styles.startBtnPressed,
-          ruleset === 'maxs' && !maxsBudgetOK && styles.startBtnDisabled,
+          startBlocked && styles.startBtnDisabled,
         ]}
         onPress={handleStart}
-        disabled={busy || (ruleset === 'maxs' && !maxsBudgetOK)}
+        disabled={busy || startBlocked}
       >
         {busy ? (
           <ActivityIndicator color="#060c14" />
@@ -316,6 +424,27 @@ const styles = StyleSheet.create({
   rulesetChipActive: { borderColor: '#22d3ee', backgroundColor: '#071e30' },
   rulesetChipText: { color: '#3a6070', fontSize: 14, fontWeight: '700' },
   rulesetChipTextActive: { color: '#22d3ee' },
+
+  packsSection: { gap: 8 },
+  sectionLabel: { color: '#e0f7ff', fontSize: 13, fontWeight: '700', letterSpacing: 0.5 },
+  packChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  packChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#1a3a50',
+    backgroundColor: '#040d16',
+    alignItems: 'center',
+  },
+  packChipActive: { borderColor: '#22d3ee', backgroundColor: '#071e30' },
+  packChipText: { color: '#3a6070', fontSize: 13, fontWeight: '600' },
+  packChipTextActive: { color: '#22d3ee' },
+  packChipBadge: { color: '#3a6070', fontSize: 10, marginTop: 2, fontStyle: 'italic' },
+  packChipBadgeActive: { color: '#0e7490' },
+
+  packHint: { color: '#3a6070', fontSize: 12 },
+  packHintWarn: { color: '#f59e0b' },
 
   startBtn: {
     height: 56,
