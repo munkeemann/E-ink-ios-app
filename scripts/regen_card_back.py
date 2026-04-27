@@ -22,7 +22,7 @@ LONGEST = 700
 
 def main() -> None:
     src = Image.open(SRC).convert("L")
-    rotated = src.rotate(90, expand=True)  # PIL positive = CCW
+    rotated = src.rotate(-90, expand=True)  # PIL positive = CCW, negative = CW
 
     w, h = rotated.size
     scale = LONGEST / max(w, h)
