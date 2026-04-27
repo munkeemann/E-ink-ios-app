@@ -101,10 +101,14 @@ function commanderCastCost(commander: CardInstance | undefined): number | null {
   return commander.manaValue + tax;
 }
 
-function confirmCommanderRedirect(destZone: 'GRV' | 'EXL'): Promise<'CMD' | 'GRV' | 'EXL'> {
+function confirmCommanderRedirect(
+  destZone: 'GRV' | 'EXL',
+  commanderName?: string,
+): Promise<'CMD' | 'GRV' | 'EXL'> {
   return new Promise(resolve => {
+    const subject = commanderName ? `${commanderName} would die` : 'Commander would die';
     Alert.alert(
-      'Commander would die',
+      subject,
       `Send to command zone instead of the ${destZone === 'GRV' ? 'graveyard' : 'exile zone'}?`,
       [
         { text: 'No', onPress: () => resolve(destZone) },
@@ -245,13 +249,21 @@ export default function InGameScreen() {
         let workingDeck = currentDeck;
         let changed = false;
 
+        // SAM1-69: skip every commander sleeve, not just sleeve 1. Partner decks
+        // have a commander on sleeve 2 also; the replacement-effect modal owns it.
+        const commanderSleeveIds = new Set(
+          currentDeck.cards
+            .filter(c => c.place === 'commander' && c.sleeveId !== null)
+            .map(c => c.sleeveId as number),
+        );
+
         for (const [idStr, zoneState] of Object.entries(zoneMap)) {
           const sleeveId = Number(idStr);
 
           // SAM1-68: commander zone transitions are owned by the replacement-effect
           // modal in handleMoveCard / handleMoveSelected. Polling must not double-process
-          // sleeve 1, which would race the modal and skip the Cast button cost increment.
-          if (sleeveId === 1) {
+          // commander sleeves, which would race the modal and skip the Cast button.
+          if (commanderSleeveIds.has(sleeveId)) {
             zonesSnapshotRef.current[sleeveId] = zoneState.cell;
             continue;
           }
@@ -351,7 +363,9 @@ export default function InGameScreen() {
     return counts;
   }, [cards]);
 
-  const commander = cards.find(c => c.place === 'commander');
+  // SAM1-69: partner decks can have two commanders. Sleeve order = array order.
+  const commanders = cards.filter(c => c.place === 'commander')
+    .sort((a, b) => (a.sleeveId ?? 99) - (b.sleeveId ?? 99));
 
   const library = useMemo(() =>
     cards
@@ -422,10 +436,10 @@ export default function InGameScreen() {
   };
 
   // ─── Cast commander from command zone ─────────────────────────────────────
-  const handleCastCommander = async () => {
+  // SAM1-69: takes the specific commander to cast. Each partner has its own counter.
+  const handleCastCommander = async (cmdr: CardInstance) => {
     if (!deck) return;
-    const cmdr = deck.cards.find(c => c.place === 'commander');
-    if (!cmdr || cmdr.zone !== 'CMD') return;
+    if (cmdr.place !== 'commander' || cmdr.zone !== 'CMD') return;
     const newCast: CardInstance = {
       ...cmdr,
       zone: 'BTFLD',
@@ -623,7 +637,7 @@ export default function InGameScreen() {
     if (!deck) return;
     // Commander replacement effect: GRV/EXL → optionally redirect to CMD.
     if (card.place === 'commander' && (destZone === 'GRV' || destZone === 'EXL')) {
-      const choice = await confirmCommanderRedirect(destZone);
+      const choice = await confirmCommanderRedirect(destZone, card.displayName);
       destZone = choice;
     }
     const deckCards = Array.isArray(deck.cards) ? deck.cards : [];
@@ -687,14 +701,18 @@ export default function InGameScreen() {
     const keys = new Set(selectedCards);
     const deckCards = Array.isArray(deck.cards) ? deck.cards : [];
 
-    // Commander replacement effect: if commander is selected and dest is GRV/EXL, prompt.
-    let commanderRedirect: Zone | null = null;
+    // Commander replacement effect: prompt per selected commander when dest is GRV/EXL.
+    // SAM1-69: each partner gets its own modal so per-commander tax is respected.
+    const commanderRedirects = new Map<CardInstance, Zone>();
     if (destZone === 'GRV' || destZone === 'EXL') {
-      const commanderSelected = deckCards.some(c => {
+      const selectedCommanders = deckCards.filter(c => {
         if (c.place !== 'commander') return false;
         return keys.has(cardKey(c)) && (c.zone === sourceZone || (sourceZone === 'BTFLD' && c.zone === 'TKN'));
       });
-      if (commanderSelected) commanderRedirect = await confirmCommanderRedirect(destZone);
+      for (const cmdr of selectedCommanders) {
+        const choice = await confirmCommanderRedirect(destZone, cmdr.displayName);
+        commanderRedirects.set(cmdr, choice);
+      }
     }
 
     setActiveZone(null);
@@ -710,7 +728,7 @@ export default function InGameScreen() {
       if (!isSelected) { acc.push(c); return acc; }
       // Tokens leaving the battlefield are deleted, not moved
       if (c.isToken && destZone !== 'BTFLD' && destZone !== 'TKN') return acc;
-      const finalZone = c.place === 'commander' && commanderRedirect ? commanderRedirect : destZone;
+      const finalZone = commanderRedirects.get(c) ?? destZone;
       acc.push({ ...c, zone: finalZone });
       return acc;
     }, []);
@@ -883,10 +901,12 @@ export default function InGameScreen() {
     for (const c of newCards) {
       if (c.sleeveId !== null) pushZoneUpdateViaPi(c.sleeveId, c.zone).catch(() => {});
     }
-    // Explicitly update sleeve 1 (commander) — the generic loop relies on object-identity
-    // matching inside assignSleeveIds which can miss the commander in spread-copy scenarios.
-    const commanderAfter = newCards.find(c => c.place === 'commander');
-    if (commanderAfter) pushZoneUpdateViaPi(1, commanderAfter.zone).catch(() => {});
+    // Explicitly update commander sleeves — the generic loop relies on object-identity
+    // matching inside assignSleeveIds which can miss commanders in spread-copy scenarios.
+    // SAM1-69: partner decks have two commander sleeves to refresh.
+    for (const cmdr of newCards.filter(c => c.place === 'commander')) {
+      if (cmdr.sleeveId !== null) pushZoneUpdateViaPi(cmdr.sleeveId, cmdr.zone).catch(() => {});
+    }
 
     setPlacePositionVisible(false);
     setPlaceCard(null);
@@ -1064,17 +1084,23 @@ export default function InGameScreen() {
       {/* Deck info bar */}
       <View style={styles.header}>
         <Text style={styles.deckName}>{deck.name}</Text>
-        <View style={styles.commanderRow}>
-          <Text style={styles.commanderName}>⚔ {commander?.displayName ?? '—'}</Text>
-          {commander?.zone === 'CMD' && (
-            <Text style={styles.cmdZoneBadge}>CMD ZONE</Text>
-          )}
-          {(commander?.castCount ?? 0) > 0 && (
-            <Text style={styles.castTaxText}>
-              Cast {commander!.castCount}× — next: +{2 * (commander!.castCount ?? 0)}
-            </Text>
-          )}
-        </View>
+        {commanders.length === 0 ? (
+          <Text style={styles.commanderName}>⚔ —</Text>
+        ) : (
+          commanders.map(cmdr => (
+            <View key={cmdr.sleeveId ?? cmdr.displayName} style={styles.commanderRow}>
+              <Text style={styles.commanderName}>⚔ {cmdr.displayName}</Text>
+              {cmdr.zone === 'CMD' && (
+                <Text style={styles.cmdZoneBadge}>CMD ZONE</Text>
+              )}
+              {(cmdr.castCount ?? 0) > 0 && (
+                <Text style={styles.castTaxText}>
+                  Cast {cmdr.castCount}× — next: +{2 * (cmdr.castCount ?? 0)}
+                </Text>
+              )}
+            </View>
+          ))
+        )}
         <View style={styles.headerMeta}>
           <Text style={[
             styles.sleeveStatus,
@@ -1120,27 +1146,44 @@ export default function InGameScreen() {
         <View style={styles.zoneGridRow}>
           {ZONE_CONFIG.slice(0, 3).map(zone => {
             if (zone.id === 'CMD') {
-              const inCmd = commander?.zone === 'CMD';
-              const cost = commanderCastCost(commander);
-              const onPress = inCmd
-                ? handleCastCommander
-                : () => { setSelectedCards(new Set()); setActiveZone(zone.id); };
               return (
                 <Pressable
                   key={zone.id}
                   style={[styles.zoneBtn, { borderColor: zone.color }, busy && styles.btnDisabled]}
-                  onPress={onPress}
+                  onPress={() => { setSelectedCards(new Set()); setActiveZone(zone.id); }}
                   disabled={busy}
                 >
                   <Text style={[styles.zoneBtnLabel, { color: zone.color }]}>{zone.label}</Text>
-                  {inCmd ? (
-                    <Text style={[styles.zoneBtnCast, { color: zone.color }]} numberOfLines={1}>
-                      Cast ({cost === null ? '?' : cost})
-                    </Text>
+                  {commanders.length === 0 ? (
+                    <Text style={[styles.zoneBtnCommander, { color: zone.color }]} numberOfLines={1}>—</Text>
                   ) : (
-                    <Text style={[styles.zoneBtnCommander, { color: zone.color }]} numberOfLines={1}>
-                      {commander?.displayName ?? '—'}
-                    </Text>
+                    commanders.map(cmdr => {
+                      const inCmd = cmdr.zone === 'CMD';
+                      const cost = commanderCastCost(cmdr);
+                      if (inCmd) {
+                        return (
+                          <Pressable
+                            key={cmdr.sleeveId ?? cmdr.displayName}
+                            onPress={() => handleCastCommander(cmdr)}
+                            disabled={busy}
+                            style={styles.zoneBtnCastRow}
+                          >
+                            <Text style={[styles.zoneBtnCast, { color: zone.color }]} numberOfLines={1}>
+                              Cast ({cost === null ? '?' : cost})
+                            </Text>
+                          </Pressable>
+                        );
+                      }
+                      return (
+                        <Text
+                          key={cmdr.sleeveId ?? cmdr.displayName}
+                          style={[styles.zoneBtnCommander, { color: zone.color }]}
+                          numberOfLines={1}
+                        >
+                          {cmdr.displayName}
+                        </Text>
+                      );
+                    })
                   )}
                 </Pressable>
               );
@@ -1729,7 +1772,8 @@ const styles = StyleSheet.create({
   zoneBtnLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
   zoneBtnCount: { fontSize: 22, fontWeight: '800', marginTop: 4 },
   zoneBtnCommander: { fontSize: 8, fontWeight: '700', marginTop: 4, textAlign: 'center', paddingHorizontal: 2 },
-  zoneBtnCast: { fontSize: 16, fontWeight: '800', marginTop: 4, letterSpacing: 0.3 },
+  zoneBtnCast: { fontSize: 16, fontWeight: '800', letterSpacing: 0.3 },
+  zoneBtnCastRow: { marginTop: 2, paddingVertical: 2, paddingHorizontal: 6 },
 
   actionGrid: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 14, gap: 8 },
   actionRow: { flexDirection: 'row', gap: 8 },

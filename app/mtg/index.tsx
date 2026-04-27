@@ -46,6 +46,11 @@ export default function DeckListScreen() {
 
   const renderItem = ({ item }: { item: Deck }) => {
     console.log('[DeckList] commander imagePath:', item.commanderImagePath);
+    // SAM1-69: render both commander names if this is a partner deck.
+    const commanderNames = item.cards
+      .filter(c => c.place === 'commander')
+      .map(c => c.displayName);
+    const subtitle = commanderNames.length > 0 ? commanderNames.join(' & ') : null;
     return (
       <Pressable
         style={styles.tile}
@@ -65,6 +70,9 @@ export default function DeckListScreen() {
           <Text style={styles.tileName} numberOfLines={2}>
             {item.name}
           </Text>
+          {subtitle && (
+            <Text style={styles.tileCommander} numberOfLines={1}>{subtitle}</Text>
+          )}
           <View style={styles.colorRow}>
             {item.colors.map(c => MANA_IMAGES[c] ? (
               <Image key={c} source={MANA_IMAGES[c]} style={styles.manaIcon} />
@@ -121,6 +129,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(41,46,50,0.55)',
   },
   tileName: { color: '#D4CDC1', fontSize: 17, fontWeight: '700' },
+  tileCommander: { color: '#D0BCFF', fontSize: 12, marginTop: 2 },
   colorRow: { flexDirection: 'row', gap: 6, marginTop: 6 },
   manaIcon: { width: 22, height: 22 },
   cardCount: { color: '#CCC2DC', fontSize: 12, marginTop: 4 },

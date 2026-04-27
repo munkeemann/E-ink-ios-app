@@ -187,8 +187,9 @@ export async function pushZoneUpdateViaPi(
 
 /**
  * Assigns permanent sleeveIds to cards at game-start based on settings.
- * Commander always gets sleeveId 1.
- * Remaining slots (up to sleeveCount) filled from physicalZones in order:
+ * Commanders occupy sleeves 1..commanderCount in deck-list order (SAM1-69:
+ * partner decks have two commanders). Non-commander cards take sleeves
+ * starting at commanderCount+1 and are filled from physicalZones in order:
  *   LIB (top librarySleeveDepth cards), HND, BTFLD/TKN, GRV, EXL.
  * All other cards get sleeveId null.
  * Returns a new cards array with sleeveId assigned.
@@ -200,9 +201,10 @@ export function assignSleeveIds(
   const physZones = new Set(settings.physicalZones);
   const depth = settings.librarySleeveDepth ?? 1;
 
-  // Sleeve 1 is permanently reserved for the commander and is never part of the
-  // non-commander fill loop. Non-commander cards always start at sleeve 2.
-  const nonCommanderSlots = settings.sleeveCount - 1;
+  // Commanders occupy the leading sleeves and are never part of the non-commander fill loop.
+  const commanders = cards.filter(c => c.place === 'commander');
+  const commanderCount = commanders.length;
+  const nonCommanderSlots = Math.max(0, settings.sleeveCount - commanderCount);
   const nonCommanderSleeved: CardInstance[] = [];
 
   const addZone = (zone: string) => {
@@ -228,11 +230,9 @@ export function assignSleeveIds(
     if (physZones.has(zone)) addZone(zone);
   }
 
-  // Commander → sleeve 1 (always). Non-commander cards → sleeves 2..N.
   const sleevedSet = new Map<CardInstance, number>();
-  const commander = cards.find(c => c.place === 'commander');
-  if (commander) sleevedSet.set(commander, 1);
-  nonCommanderSleeved.forEach((c, i) => sleevedSet.set(c, i + 2));
+  commanders.forEach((c, i) => sleevedSet.set(c, i + 1));
+  nonCommanderSleeved.forEach((c, i) => sleevedSet.set(c, commanderCount + i + 1));
 
   return cards.map(c => ({ ...c, sleeveId: sleevedSet.get(c) ?? null }));
 }
@@ -252,9 +252,11 @@ export function nextFreeSleeveId(cards: CardInstance[], sleeveCount: number): nu
 /**
  * Pushes a single card image to its assigned sleeve on the Pi.
  * No-ops if card.sleeveId is null or imagePath is empty.
+ * commanderSleeveCount controls the descriptor label cutover (SAM1-69).
  */
 export async function pushCardToSleeve(
   card: CardInstance,
+  commanderSleeveCount: number = 1,
   serverUrl: string = PI_SERVER,
 ): Promise<void> {
   if (card.sleeveId === null || !card.imagePath) return;
@@ -262,7 +264,7 @@ export async function pushCardToSleeve(
     const imageResp = await fetch(card.imagePath);
     if (!imageResp.ok) return;
     const buf = await imageResp.arrayBuffer();
-    await sendToSleeve(card.sleeveId, mtgDescriptor(card.sleeveId, card.zone), buf, serverUrl);
+    await sendToSleeve(card.sleeveId, mtgDescriptor(card.sleeveId, card.zone, commanderSleeveCount), buf, serverUrl);
   } catch {
     // Pi offline — fail silently
   }
@@ -358,6 +360,7 @@ export async function beginGame(
     const safeRegistered = Array.isArray(registeredSleeves) ? registeredSleeves : [];
     const registeredSet = new Set(safeRegistered);
     const physZones = settings ? new Set(settings.physicalZones) : null;
+    const commanderSleeveCount = safeCards.filter(c => c.place === 'commander').length || 1;
 
     // Dump first card to confirm field names
     if (safeCards.length > 0) {
@@ -404,7 +407,7 @@ export async function beginGame(
         const arrayBuffer = await imageResp.arrayBuffer();
 
         await alertWait(`beginGame: sleeve ${sid}`, `Image fetched (${arrayBuffer.byteLength} bytes). POSTing to Pi…`);
-        await sendToSleeve(sid, mtgDescriptor(sid, card.zone), arrayBuffer, serverUrl);
+        await sendToSleeve(sid, mtgDescriptor(sid, card.zone, commanderSleeveCount), arrayBuffer, serverUrl);
         await alertWait(`beginGame: sleeve ${sid} ✓`, 'Sent OK');
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);

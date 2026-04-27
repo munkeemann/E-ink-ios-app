@@ -64,11 +64,13 @@ const MTG_ZONE_ACTIVE: Record<string, number> = {
   LIB: 0, HND: 1, BTFLD: 2, TKN: 2, GRV: 3, EXL: 4, CMD: 5,
 };
 
-export function mtgDescriptor(sleeveId: number, zone: string): Descriptor {
-  console.log('[SLV] mtgDescriptor enter', { sleeveId, zone });
+export function mtgDescriptor(sleeveId: number, zone: string, commanderSleeveCount: number = 1): Descriptor {
+  console.log('[SLV] mtgDescriptor enter', { sleeveId, zone, commanderSleeveCount });
+  // SAM1-69: sleeves 1..commanderSleeveCount are commanders (1 for solo decks, 2 for partner).
+  const isCommanderSleeve = sleeveId >= 1 && sleeveId <= commanderSleeveCount;
   return {
     v: 2,
-    primary_label: sleeveId === 1 ? 'Commander' : `Card ${sleeveId - 1}`,
+    primary_label: isCommanderSleeve ? 'Commander' : `Card ${sleeveId - commanderSleeveCount}`,
     zone_strip: {
       cells: MTG_ZONE_CELLS,
       active_index: MTG_ZONE_ACTIVE[zone] ?? 0,

@@ -99,7 +99,9 @@ export default function DeckPreviewScreen() {
     );
   }
 
-  const commander = deck.cards.find(c => c.place === 'commander');
+  // SAM1-69: partner decks have two commanders; preserve their order in the cards array.
+  const commanders = deck.cards.filter(c => c.place === 'commander');
+  const commander = commanders[0];
   const library = settings.devMode
     ? deck.cards
         .filter(c => c.zone === 'LIB')
@@ -143,8 +145,11 @@ export default function DeckPreviewScreen() {
       const sleeves = await getRegisteredSleeves();
       clearMemo();
       await beginGame(newCards, sleeves, (sent, total) => setSendProgress({ sent, total }), undefined, settings);
-      // SAM1-68: park sleeve 1's strip on the CMD cell at game start. Requires firmware ZONE_COUNT=6.
-      pushZoneUpdateViaPi(1, 'CMD').catch(() => {});
+      // SAM1-68: park each commander sleeve's strip on the CMD cell at game start.
+      // SAM1-69: partner decks have multiple commander sleeves to park.
+      for (const cmdr of newCards.filter(c => c.place === 'commander')) {
+        if (cmdr.sleeveId !== null) pushZoneUpdateViaPi(cmdr.sleeveId, 'CMD').catch(() => {});
+      }
       router.push(`/game/${deck.id}?freshStart=true`);
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : String(e));
@@ -299,13 +304,36 @@ export default function DeckPreviewScreen() {
         )}
         <View style={styles.headerInfo}>
           <Text style={styles.deckTitle}>{deck.name}</Text>
-          {commander && (
-            <Text style={styles.commanderName}>{commander.displayName}</Text>
-          )}
+          {commanders.map(cmdr => (
+            <Text key={cmdr.displayName} style={styles.commanderName}>{cmdr.displayName}</Text>
+          ))}
           <Text style={styles.deckMeta}>{deck.cards.length} cards total</Text>
           <Text style={[styles.devModeLabel, settings.devMode && styles.devModeLabelActive]}>
             {settings.devMode ? 'Showing actual deck order' : 'Deck order hidden'}
           </Text>
+          {commanders.length === 2 && !gameInProgress && (
+            <Pressable
+              onPress={async () => {
+                // SAM1-69: swap partner order so the second commander becomes the primary (sleeve 1).
+                const [a, b] = commanders;
+                const newCards = deck.cards.map(c => {
+                  if (c === a) return b;
+                  if (c === b) return a;
+                  return c;
+                });
+                const updated: Deck = {
+                  ...deck,
+                  cards: newCards,
+                  commanderImagePath: b.imagePath || deck.commanderImagePath,
+                };
+                await saveDeck(updated);
+                setDeck(updated);
+              }}
+              style={styles.swapPartnersBtn}
+            >
+              <Text style={styles.swapPartnersBtnText}>↕ Swap commanders</Text>
+            </Pressable>
+          )}
         </View>
       </View>
 
@@ -330,7 +358,7 @@ export default function DeckPreviewScreen() {
           /* Card list */
           <FlatList
             key="list"
-            data={[...(commander ? [commander] : []), ...library]}
+            data={[...commanders, ...library]}
             keyExtractor={(c, i) => `${c.baseName}-${i}`}
             renderItem={renderCard}
             scrollEnabled={false}
@@ -602,6 +630,16 @@ const styles = StyleSheet.create({
   headerInfo: { flex: 1, padding: 14, justifyContent: 'center', gap: 4 },
   deckTitle: { color: '#D0BCFF', fontSize: 20, fontWeight: '800' },
   commanderName: { color: '#CCC2DC', fontSize: 13 },
+  swapPartnersBtn: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#625b71',
+  },
+  swapPartnersBtnText: { color: '#D0BCFF', fontSize: 11, fontWeight: '700' },
   deckMeta: { color: '#625b71', fontSize: 12 },
   devModeLabel: { color: '#4a4f55', fontSize: 11, marginTop: 2 },
   devModeLabelActive: { color: '#f59e0b' },

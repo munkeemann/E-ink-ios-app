@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BULK_DATA_KEY = 'scryfall_bulk_data_v2';
-const BULK_TIMESTAMP_KEY = 'scryfall_bulk_last_fetched_v2';
+const BULK_DATA_KEY = 'scryfall_bulk_data_v3';
+const BULK_TIMESTAMP_KEY = 'scryfall_bulk_last_fetched_v3';
 const BULK_TTL_MS = 24 * 60 * 60 * 1000;
 const TOKEN_CACHE_PREFIX = 'token_cache_';
 
@@ -13,6 +13,7 @@ export interface FetchedCard {
   setCode?: string;
   collectorNumber?: string;
   manaValue?: number;
+  keywords?: string[];
 }
 
 export interface ScryfallPrinting {
@@ -31,6 +32,7 @@ interface SlimCard {
   backImagePath: string;
   colorIdentity: string[];
   manaValue?: number;
+  keywords?: string[];
 }
 
 function extractImageUrl(card: Record<string, unknown>): string | null {
@@ -107,6 +109,9 @@ async function downloadBulkData(
       ? (card.color_identity as unknown[]).filter((x): x is string => typeof x === 'string')
       : [],
     manaValue: typeof card.cmc === 'number' ? card.cmc : undefined,
+    keywords: Array.isArray(card.keywords)
+      ? (card.keywords as unknown[]).filter((x): x is string => typeof x === 'string')
+      : undefined,
   }));
 }
 
@@ -186,6 +191,7 @@ export async function fetchCards(
         backImagePath: card.backImagePath ?? '',
         colorIdentity: card.colorIdentity,
         manaValue: card.manaValue,
+        keywords: card.keywords,
       };
     } else {
       // Bulk index miss — try Scryfall fuzzy search as fallback
@@ -209,6 +215,9 @@ export async function fetchCards(
           setCode: fuzzyCard.set as string | undefined,
           collectorNumber: fuzzyCard.collector_number as string | undefined,
           manaValue: typeof fuzzyCard.cmc === 'number' ? fuzzyCard.cmc : undefined,
+          keywords: Array.isArray(fuzzyCard.keywords)
+            ? (fuzzyCard.keywords as unknown[]).filter((x): x is string => typeof x === 'string')
+            : undefined,
         };
       } catch {
         errors.push(`${name}: Card not found in local database`);
@@ -248,6 +257,9 @@ export async function fetchCardByPrinting(
       setCode: card.set as string,
       collectorNumber: card.collector_number as string,
       manaValue: typeof card.cmc === 'number' ? card.cmc : undefined,
+      keywords: Array.isArray(card.keywords)
+        ? (card.keywords as unknown[]).filter((x): x is string => typeof x === 'string')
+        : undefined,
     };
   } catch {
     return null;

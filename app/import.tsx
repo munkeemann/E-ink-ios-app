@@ -21,6 +21,7 @@ interface DeckEntry {
   count: number;
   setCode?: string;
   collectorNumber?: string;
+  isCommander?: boolean;
 }
 
 function parseDeckList(text: string): DeckEntry[] {
@@ -29,6 +30,13 @@ function parseDeckList(text: string): DeckEntry[] {
     .map(l => l.trim())
     .filter(Boolean)
     .flatMap(line => {
+      // SAM1-69: strip a trailing "*CMDR*" marker (Tappedout convention) before regex.
+      let isCommander = false;
+      const cmdrMatch = line.match(/^(.*?)\s*\*CMDR\*\s*$/i);
+      if (cmdrMatch) {
+        isCommander = true;
+        line = cmdrMatch[1].trim();
+      }
       // Matches "4 Card Name" or "4 Card Name (SET) 123"
       const m = line.match(/^(\d+)\s+(.+?)(?:\s+\(([A-Za-z0-9]{2,6})\)(?:\s+(\S+))?)?$/);
       if (!m) return [];
@@ -36,6 +44,7 @@ function parseDeckList(text: string): DeckEntry[] {
       const entry: DeckEntry = { count: parseInt(countStr, 10), name: name.trim() };
       if (setCode) entry.setCode = setCode.toUpperCase();
       if (collectorNumber) entry.collectorNumber = collectorNumber;
+      if (isCommander) entry.isCommander = true;
       return [entry];
     });
 }
@@ -68,7 +77,22 @@ export default function ImportDeckScreen() {
       return;
     }
 
-    const [commanderEntry, ...libraryEntries] = entries;
+    // SAM1-69: detect commander entries. Explicit *CMDR* markers take precedence;
+    // otherwise the first line is the (sole) commander for backward compatibility.
+    const markedCommanders = entries.filter(e => e.isCommander);
+    let commanderEntries: DeckEntry[];
+    let libraryEntries: DeckEntry[];
+    if (markedCommanders.length === 0) {
+      commanderEntries = [entries[0]];
+      libraryEntries = entries.slice(1);
+    } else {
+      if (markedCommanders.length > 2) {
+        Alert.alert('Too many commanders', `Found ${markedCommanders.length} cards marked *CMDR*. A deck has at most two commanders (Partner).`);
+        return;
+      }
+      commanderEntries = markedCommanders;
+      libraryEntries = entries.filter(e => !e.isCommander);
+    }
 
     // Expand each DeckEntry into per-slot entries so we can track printing per card
     const librarySlots: DeckEntry[] = [];
@@ -77,11 +101,11 @@ export default function ImportDeckScreen() {
     }
 
     const uniqueNames = [
-      ...new Set([commanderEntry.name, ...librarySlots.map(e => e.name)]),
+      ...new Set([...commanderEntries.map(e => e.name), ...librarySlots.map(e => e.name)]),
     ];
 
     // Unique printing-specified entries (deduped by set+collector key)
-    const allEntries = [commanderEntry, ...libraryEntries];
+    const allEntries = [...commanderEntries, ...libraryEntries];
     const uniquePrintings = [...new Map(
       allEntries
         .filter(e => e.setCode && e.collectorNumber)
@@ -132,28 +156,47 @@ export default function ImportDeckScreen() {
         return results[e.name] ?? { imagePath: '', backImagePath: '', colorIdentity: [] };
       };
 
+      // SAM1-69: validate Partner keyword when two commanders were marked.
+      if (commanderEntries.length === 2) {
+        const lacking: string[] = [];
+        for (const c of commanderEntries) {
+          const fetched = getResult(c);
+          const hasPartner = (fetched.keywords ?? []).some(k => k.toLowerCase() === 'partner');
+          if (!hasPartner) lacking.push(c.name);
+        }
+        if (lacking.length > 0) {
+          Alert.alert(
+            'Invalid partner pair',
+            `Two commanders were marked but the Partner keyword is missing on: ${lacking.join(', ')}. Both commanders must have Partner.`,
+          );
+          return;
+        }
+      }
+
       const cards: CardInstance[] = [];
 
-      for (let i = 0; i < commanderEntry.count; i++) {
-        const fetched = getResult(commanderEntry);
-        cards.push({
-          baseName: commanderEntry.name,
-          displayName:
-            commanderEntry.count > 1
-              ? `${commanderEntry.name} ${i + 1}`
-              : commanderEntry.name,
-          imagePath: fetched.imagePath,
-          backImagePath: fetched.backImagePath,
-          isFlipped: false,
-          place: 'commander',
-          zone: 'CMD',
-          sleeveId: null,
-          setCode: commanderEntry.setCode ?? fetched.setCode,
-          collectorNumber: commanderEntry.collectorNumber ?? fetched.collectorNumber,
-          scryfallId: fetched.scryfallId,
-          manaValue: fetched.manaValue,
-          castCount: 0,
-        });
+      for (const commanderEntry of commanderEntries) {
+        for (let i = 0; i < commanderEntry.count; i++) {
+          const fetched = getResult(commanderEntry);
+          cards.push({
+            baseName: commanderEntry.name,
+            displayName:
+              commanderEntry.count > 1
+                ? `${commanderEntry.name} ${i + 1}`
+                : commanderEntry.name,
+            imagePath: fetched.imagePath,
+            backImagePath: fetched.backImagePath,
+            isFlipped: false,
+            place: 'commander',
+            zone: 'CMD',
+            sleeveId: null,
+            setCode: commanderEntry.setCode ?? fetched.setCode,
+            collectorNumber: commanderEntry.collectorNumber ?? fetched.collectorNumber,
+            scryfallId: fetched.scryfallId,
+            manaValue: fetched.manaValue,
+            castCount: 0,
+          });
+        }
       }
 
       librarySlots.forEach((entry, idx) => {
@@ -207,12 +250,14 @@ export default function ImportDeckScreen() {
         }
       }
 
-      const commanderResult = getResult(commanderEntry);
+      const primaryCommander = getResult(commanderEntries[0]);
+      // SAM1-69: WUBRG ordering for combined color identity.
+      const WUBRG = ['W', 'U', 'B', 'R', 'G'];
       const deck: Deck = {
         id: Date.now().toString(),
         name: trimmedName,
-        commanderImagePath: commanderResult.imagePath,
-        colors: [...allColors].sort(),
+        commanderImagePath: primaryCommander.imagePath,
+        colors: [...allColors].sort((a, b) => WUBRG.indexOf(a) - WUBRG.indexOf(b)),
         cards,
         tokens: tokens.length > 0 ? tokens : undefined,
         schemaVersion: 2,
@@ -284,7 +329,7 @@ export default function ImportDeckScreen() {
 
         <Text style={styles.label}>Deck List</Text>
         <Text style={styles.hint}>
-          One card per line: "1 Card Name" or "1 Card Name (SET) 123". First line is the commander.
+          One card per line: "1 Card Name" or "1 Card Name (SET) 123". First line is the commander; mark partner commanders with "*CMDR*" suffix on each.
         </Text>
         <TextInput
           style={[styles.input, styles.textArea]}
