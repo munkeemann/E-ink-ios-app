@@ -20,8 +20,9 @@ import { fetchZones, assignSleeveIds, beginGame, getRegisteredSleeves, pushCardT
 import { fetchTokenImage } from '../../src/api/scryfall';
 import { clearMemo } from '../../src/api/sleeveService';
 import { applyZoneTransition, TransitionResult } from '../../src/mtg/zoneTransition';
+import { BUILT_IN_TOKEN_PRESETS, BuiltInTokenPreset } from '../../src/mtg/tokenPresets';
 import { getDeck, loadSettings, saveDeck } from '../../src/storage/deckStorage';
-import { AppSettings, CardInstance, Deck, TokenTemplate } from '../../src/types';
+import { AppSettings, CardInstance, Deck, TokenTemplate, TokenType } from '../../src/types';
 
 function ArtPopupContent({ card }: { card: CardInstance | null }) {
   console.log('[ArtPopup] imagePath:', card?.imagePath);
@@ -156,6 +157,7 @@ export default function InGameScreen() {
   const [tokenModalVisible, setTokenModalVisible] = useState(false);
   const [tokenTab, setTokenTab] = useState<'custom' | 'favorites'>('custom');
   const [tokenName, setTokenName] = useState('');
+  const [tokenType, setTokenType] = useState<TokenType>('creature');
   const [tokenPower, setTokenPower] = useState('1');
   const [tokenToughness, setTokenToughness] = useState('1');
   const [tokenColors, setTokenColors] = useState<string[]>([]);
@@ -991,8 +993,13 @@ export default function InGameScreen() {
 
 
   // ─── Create Token ─────────────────────────────────────────────────────────
+  // SAM1-75: tokens are minted as fresh CardInstances and assigned a free sleeve
+  // from the registered pool. The library is never touched — no cascade, no
+  // place shift, no sleeve theft. If no sleeve is free, the token lives on the
+  // BTFLD tile only (sleeveId=null).
   const createTokenFromValues = async (
     name: string,
+    type: TokenType,
     power: string,
     toughness: string,
     colors: string[],
@@ -1000,26 +1007,29 @@ export default function InGameScreen() {
     if (!name.trim()) { Alert.alert('Missing name', 'Enter a token name.'); return; }
     setTokenCreating(true);
     try {
-      const imagePath = await fetchTokenImage(name.trim(), colors);
+      const isCreature = type === 'creature';
+      const effPower = isCreature ? power : '';
+      const effToughness = isCreature ? toughness : '';
+
+      const imagePath = await fetchTokenImage(
+        name.trim(),
+        colors,
+        effPower || undefined,
+        effToughness || undefined,
+      );
 
       const currentDeck = deck!;
       const deckCards = Array.isArray(currentDeck.cards) ? currentDeck.cards : [];
 
-      // The token steals the sleeve of the current top-of-library card.
-      // All library places shift by +1 so the displaced card lands at position 2.
-      const sortedLib = deckCards
-        .filter(c => c.zone === 'LIB')
-        .sort((a, b) => parseInt(a.place, 10) - parseInt(b.place, 10));
-      const topLibCard = sortedLib[0] ?? null;
-      const tokenSleeveId: number | null = topLibCard?.sleeveId ?? null;
-
-      // Cascade sleeve IDs: each lib card's new sleeveId = the one the next card had.
-      // This correctly handles librarySleeveDepth > 1 (e.g. top 2 cards sleeved).
-      const updatedLibCards = sortedLib.map((c, i) => ({
-        ...c,
-        place: String(i + 2),                           // 1→2, 2→3, …
-        sleeveId: sortedLib[i + 1]?.sleeveId ?? null,   // cascade: inherit next card's sleeve
-      }));
+      const cmdCount = deckCards.filter(c => c.place === 'commander').length || 1;
+      const registered = await getRegisteredSleeves();
+      const bound = new Set<number>(
+        deckCards.filter(c => c.sleeveId !== null).map(c => c.sleeveId as number),
+      );
+      const free = registered
+        .filter(id => !bound.has(id) && id > cmdCount)
+        .sort((a, b) => a - b);
+      const tokenSleeveId: number | null = free.length > 0 ? free[0] : null;
 
       const tokenCard: CardInstance = {
         baseName: name.trim(),
@@ -1033,41 +1043,32 @@ export default function InGameScreen() {
         sleeveId: tokenSleeveId,
       };
 
-      // Save token template to deck.tokens if not already present
-      const commanderCards = deckCards.filter(c => c.place === 'commander');
-      const nonLibNonCommander = deckCards.filter(c => c.zone !== 'LIB' && c.place !== 'commander');
       const existingTokens: TokenTemplate[] = Array.isArray(currentDeck.tokens) ? currentDeck.tokens : [];
-      const alreadySaved = existingTokens.some(t => t.name.toLowerCase() === name.trim().toLowerCase());
+      const alreadySaved = existingTokens.some(
+        t => t.name.toLowerCase() === name.trim().toLowerCase() && (t.type ?? 'creature') === type,
+      );
       const newTokens: TokenTemplate[] = alreadySaved
         ? existingTokens
-        : [...existingTokens, { name: name.trim(), power, toughness, colors }];
+        : [...existingTokens, { name: name.trim(), type, power: effPower, toughness: effToughness, colors }];
 
-      const finalCards = [...commanderCards, ...updatedLibCards, ...nonLibNonCommander, tokenCard];
+      const finalCards = [...deckCards, tokenCard];
       const updated: Deck = { ...currentDeck, cards: finalCards, tokens: newTokens };
       await saveDeck(updated);
       setDeck(updated);
 
-      // Push token image + zone update to the stolen sleeve
       if (tokenSleeveId !== null) {
-        console.log(`[Token] Pushing token "${tokenCard.displayName}" → sleeve ${tokenSleeveId}`);
-        pushCardToSleeve(tokenCard)
-          .then(() => console.log(`[Token] sleeve ${tokenSleeveId} image OK`))
-          .catch(e => console.error(`[Token] sleeve ${tokenSleeveId} image ERR:`, e));
+        console.log(`[Token] "${tokenCard.displayName}" → sleeve ${tokenSleeveId} (image=${imagePath ? 'OK' : 'MISS — using card_back'})`);
+        pushCardToSleeve(tokenCard, cmdCount)
+          .then(() => console.log(`[Token] sleeve ${tokenSleeveId} push OK`))
+          .catch(e => console.error(`[Token] sleeve ${tokenSleeveId} push ERR:`, e));
         pushZoneUpdateViaPi(tokenSleeveId, 'TKN').catch(() => {});
-      }
-      // Push any library cards that inherited a sleeve from the cascade (depth > 1)
-      for (const libCard of updatedLibCards) {
-        if (libCard.sleeveId !== null) {
-          console.log(`[Token] Pushing lib "${libCard.displayName}" (place ${libCard.place}) → sleeve ${libCard.sleeveId}`);
-          pushCardToSleeve(libCard)
-            .then(() => console.log(`[Token] sleeve ${libCard.sleeveId} image OK`))
-            .catch(e => console.error(`[Token] sleeve ${libCard.sleeveId} image ERR:`, e));
-          pushZoneUpdateViaPi(libCard.sleeveId, 'LIB').catch(() => {});
-        }
+      } else {
+        console.log(`[Token] "${tokenCard.displayName}" — no free sleeve, BTFLD tile only`);
       }
 
       setTokenModalVisible(false);
       setTokenName('');
+      setTokenType('creature');
       setTokenPower('1');
       setTokenToughness('1');
       setTokenColors([]);
@@ -1079,10 +1080,19 @@ export default function InGameScreen() {
   };
 
   const handleCreateToken = () =>
-    createTokenFromValues(tokenName, tokenPower, tokenToughness, tokenColors);
+    createTokenFromValues(tokenName, tokenType, tokenPower, tokenToughness, tokenColors);
 
   const handleCreateFromTemplate = (t: TokenTemplate) =>
-    createTokenFromValues(t.name, t.power, t.toughness, t.colors);
+    createTokenFromValues(t.name, t.type ?? 'creature', t.power, t.toughness, t.colors);
+
+  const handleCreateFromPreset = (p: BuiltInTokenPreset) =>
+    createTokenFromValues(
+      p.template.name,
+      p.template.type ?? 'creature',
+      p.template.power,
+      p.template.toughness,
+      p.template.colors,
+    );
 
   const toggleTokenColor = (c: string) => {
     setTokenColors(prev =>
@@ -1538,6 +1548,25 @@ export default function InGameScreen() {
 
             {tokenTab === 'custom' ? (
               <ScrollView keyboardShouldPersistTaps="handled">
+                <Text style={styles.sheetLabel}>Presets</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={styles.presetRow}
+                >
+                  {BUILT_IN_TOKEN_PRESETS.map(p => (
+                    <Pressable
+                      key={p.label}
+                      style={[styles.presetChip, tokenCreating && styles.btnDisabled]}
+                      onPress={() => handleCreateFromPreset(p)}
+                      disabled={tokenCreating}
+                    >
+                      <Text style={styles.presetChipText}>{p.label}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+
                 <Text style={styles.sheetLabel}>Token Name</Text>
                 <TextInput
                   style={styles.sheetInput}
@@ -1548,17 +1577,47 @@ export default function InGameScreen() {
                   autoCapitalize="words"
                 />
 
-                <View style={styles.ptRow}>
-                  <View style={styles.ptField}>
-                    <Text style={styles.sheetLabel}>Power</Text>
-                    <TextInput style={styles.sheetInput} value={tokenPower} onChangeText={setTokenPower} keyboardType="number-pad" selectTextOnFocus />
-                  </View>
-                  <Text style={styles.ptSlash}>/</Text>
-                  <View style={styles.ptField}>
-                    <Text style={styles.sheetLabel}>Toughness</Text>
-                    <TextInput style={styles.sheetInput} value={tokenToughness} onChangeText={setTokenToughness} keyboardType="number-pad" selectTextOnFocus />
-                  </View>
+                <Text style={styles.sheetLabel}>Type</Text>
+                <View style={styles.segRow}>
+                  {(['creature', 'artifact', 'enchantment'] as TokenType[]).map(t => (
+                    <Pressable
+                      key={t}
+                      style={[styles.segBtn, tokenType === t && styles.segBtnActive]}
+                      onPress={() => setTokenType(t)}
+                    >
+                      <Text style={[styles.segBtnText, tokenType === t && styles.segBtnTextActive]}>
+                        {t.charAt(0).toUpperCase() + t.slice(1)}
+                      </Text>
+                    </Pressable>
+                  ))}
                 </View>
+                <View style={styles.segRow}>
+                  {(['planeswalker', 'land'] as TokenType[]).map(t => (
+                    <Pressable
+                      key={t}
+                      style={[styles.segBtn, tokenType === t && styles.segBtnActive]}
+                      onPress={() => setTokenType(t)}
+                    >
+                      <Text style={[styles.segBtnText, tokenType === t && styles.segBtnTextActive]}>
+                        {t.charAt(0).toUpperCase() + t.slice(1)}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+                {tokenType === 'creature' && (
+                  <View style={styles.ptRow}>
+                    <View style={styles.ptField}>
+                      <Text style={styles.sheetLabel}>Power</Text>
+                      <TextInput style={styles.sheetInput} value={tokenPower} onChangeText={setTokenPower} keyboardType="number-pad" selectTextOnFocus />
+                    </View>
+                    <Text style={styles.ptSlash}>/</Text>
+                    <View style={styles.ptField}>
+                      <Text style={styles.sheetLabel}>Toughness</Text>
+                      <TextInput style={styles.sheetInput} value={tokenToughness} onChangeText={setTokenToughness} keyboardType="number-pad" selectTextOnFocus />
+                    </View>
+                  </View>
+                )}
 
                 <Text style={styles.sheetLabel}>Color</Text>
                 <View style={styles.colorRow}>
@@ -1600,17 +1659,19 @@ export default function InGameScreen() {
                   data={favorites}
                   keyExtractor={(t, i) => `${t.name}-${i}`}
                   renderItem={({ item }) => {
-                    const hasStats = item.power !== '' || item.toughness !== '' || item.colors.length > 0;
+                    const itemType: TokenType = item.type ?? 'creature';
+                    const isCreature = itemType === 'creature';
+                    const hasStats = !isCreature || item.power !== '' || item.toughness !== '' || item.colors.length > 0;
                     return (
                       <Pressable
                         style={[styles.favoriteRow, tokenCreating && styles.btnDisabled]}
                         onPress={() => {
                           if (hasStats) {
-                            // Full template — create immediately
                             handleCreateFromTemplate(item);
                           } else {
-                            // Pre-imported name-only — pre-fill Custom tab
+                            // Pre-imported name-only — pre-fill Custom tab as a creature default
                             setTokenName(item.name);
+                            setTokenType('creature');
                             setTokenPower('1');
                             setTokenToughness('1');
                             setTokenColors(item.colors);
@@ -1623,7 +1684,7 @@ export default function InGameScreen() {
                           <Text style={styles.favoriteName}>{item.name}</Text>
                           {hasStats ? (
                             <Text style={styles.favoriteMeta}>
-                              {item.power}/{item.toughness}
+                              {isCreature ? `${item.power}/${item.toughness}` : itemType.charAt(0).toUpperCase() + itemType.slice(1)}
                               {item.colors.length > 0 ? `  ${item.colors.map(c => COLOR_LABELS[c] ?? c).join('')}` : '  Colorless'}
                             </Text>
                           ) : (
@@ -1957,6 +2018,17 @@ const styles = StyleSheet.create({
   favoriteMeta: { color: '#9ca3af', fontSize: 12, marginTop: 2 },
   favoriteMetaHint: { color: '#6650a4', fontSize: 12, marginTop: 2, fontStyle: 'italic' },
   favoriteCreate: { color: '#6650a4', fontSize: 14, fontWeight: '700', paddingLeft: 12 },
+
+  presetRow: { flexDirection: 'row', gap: 8, paddingVertical: 4, paddingHorizontal: 2 },
+  presetChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#625b71',
+    backgroundColor: 'rgba(208,188,255,0.06)',
+  },
+  presetChipText: { color: '#D0BCFF', fontSize: 13, fontWeight: '600' },
 
   segRow: { flexDirection: 'row', gap: 8, marginBottom: 4 },
   segBtn: {

@@ -42,9 +42,15 @@ export interface CardInstance {
   castCount?: number;
 }
 
+export type TokenType = 'creature' | 'artifact' | 'enchantment' | 'planeswalker' | 'land';
+
 export interface TokenTemplate {
   name: string;
+  /** Card type. Absent on templates persisted before SAM1-75; treat as 'creature' on read. */
+  type?: TokenType;
+  /** Empty string when type !== 'creature'. */
   power: string;
+  /** Empty string when type !== 'creature'. */
   toughness: string;
   colors: string[];
 }

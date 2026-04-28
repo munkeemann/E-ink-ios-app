@@ -251,7 +251,9 @@ export function nextFreeSleeveId(cards: CardInstance[], sleeveCount: number): nu
 
 /**
  * Pushes a single card image to its assigned sleeve on the Pi.
- * No-ops if card.sleeveId is null or imagePath is empty.
+ * No-ops if card.sleeveId is null. For tokens with empty imagePath (Scryfall miss),
+ * pushes the card-back image so the sleeve clears its prior content instead of
+ * displaying a stale image. Non-token cards with empty imagePath still no-op.
  * commanderSleeveCount controls the descriptor label cutover (SAM1-69).
  */
 export async function pushCardToSleeve(
@@ -259,7 +261,17 @@ export async function pushCardToSleeve(
   commanderSleeveCount: number = 1,
   serverUrl: string = PI_SERVER,
 ): Promise<void> {
-  if (card.sleeveId === null || !card.imagePath) return;
+  if (card.sleeveId === null) return;
+  if (!card.imagePath) {
+    if (!card.isToken) return;
+    try {
+      const desc = { ...mtgDescriptor(card.sleeveId, card.zone, commanderSleeveCount), _useFaceBack: true as const };
+      await sendToSleeve(card.sleeveId, desc, undefined, serverUrl);
+    } catch {
+      // Pi offline — fail silently
+    }
+    return;
+  }
   try {
     const imageResp = await fetch(card.imagePath);
     if (!imageResp.ok) return;

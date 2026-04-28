@@ -131,42 +131,60 @@ async function ensureBulkData(
 
 /**
  * Fetches a token card image URL from Scryfall using exact name match.
- * Result is cached in AsyncStorage under token_cache_${name}.
- * If colors is non-empty, prefers a result whose colors match; falls back to first result.
+ * Uses layout:token (not t:token) to exclude double-faced tokens whose back face
+ * shares the searched name (e.g. "Dinosaur // Treasure" matching `!"Treasure"`).
+ * Filter chain: prefer (colors AND P/T match) → (colors match) → first result.
+ * One retry on network/non-200 failure. Empty result list is not retried.
  */
-export async function fetchTokenImage(name: string, colors: string[]): Promise<string> {
-  const cacheKey = `${TOKEN_CACHE_PREFIX}${name.toLowerCase()}`;
+export async function fetchTokenImage(
+  name: string,
+  colors: string[],
+  power?: string,
+  toughness?: string,
+): Promise<string> {
+  const sortedColors = [...colors].sort().join('');
+  const cacheKey = `${TOKEN_CACHE_PREFIX}${name.toLowerCase()}_${sortedColors}_${power ?? ''}_${toughness ?? ''}`;
   const cached = await AsyncStorage.getItem(cacheKey);
   if (cached) return cached;
 
-  try {
-    const query = encodeURIComponent(`t:token !"${name}"`);
-    const resp = await fetch(`https://api.scryfall.com/cards/search?q=${query}`, {
-      headers: { 'User-Agent': 'ECardsApp/1.0', Accept: 'application/json' },
-    });
-    if (!resp.ok) return '';
-    const data = await resp.json() as { data?: Array<Record<string, unknown>> };
-    const results = data.data ?? [];
+  const query = encodeURIComponent(`layout:token !"${name}"`);
+  const url = `https://api.scryfall.com/cards/search?q=${query}`;
+  const headers = { 'User-Agent': 'ECardsApp/1.0', Accept: 'application/json' };
 
-    let match: Record<string, unknown> | undefined;
-    if (colors.length > 0) {
-      match = results.find(card => {
-        const cardColors = Array.isArray(card.colors) ? (card.colors as string[]) : [];
-        return colors.every(c => cardColors.includes(c));
-      }) ?? results[0];
-    } else {
-      match = results[0];
+  let results: Array<Record<string, unknown>> = [];
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const resp = await fetch(url, { headers });
+      if (resp.ok) {
+        const data = await resp.json() as { data?: Array<Record<string, unknown>> };
+        results = data.data ?? [];
+        break;
+      }
+    } catch {
+      // network error
     }
-
-    if (!match) return '';
-    const imageUrl = extractImageUrl(match);
-    if (!imageUrl) return '';
-
-    await AsyncStorage.setItem(cacheKey, imageUrl);
-    return imageUrl;
-  } catch {
-    return '';
+    if (attempt === 0) await new Promise(r => setTimeout(r, 500));
   }
+
+  if (results.length === 0) return '';
+
+  const matchesColors = (card: Record<string, unknown>) => {
+    const cardColors = Array.isArray(card.colors) ? (card.colors as string[]) : [];
+    return colors.every(c => cardColors.includes(c));
+  };
+  const matchesPT = (card: Record<string, unknown>) =>
+    String(card.power ?? '') === power && String(card.toughness ?? '') === toughness;
+
+  let match: Record<string, unknown> | undefined;
+  if (power && toughness) match = results.find(c => matchesColors(c) && matchesPT(c));
+  if (!match && colors.length > 0) match = results.find(matchesColors);
+  match = match ?? results[0];
+
+  const imageUrl = extractImageUrl(match);
+  if (!imageUrl) return '';
+
+  await AsyncStorage.setItem(cacheKey, imageUrl);
+  return imageUrl;
 }
 
 export async function fetchCards(
