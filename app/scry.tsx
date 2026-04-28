@@ -77,6 +77,24 @@ export default function ScryScreen() {
     });
   };
 
+  const moveUpBottom = (index: number) => {
+    if (index === 0) return;
+    setBottomCards(prev => {
+      const next = [...prev];
+      [next[index - 1], next[index]] = [next[index], next[index - 1]];
+      return next;
+    });
+  };
+
+  const moveDownBottom = (index: number) => {
+    setBottomCards(prev => {
+      if (index === prev.length - 1) return prev;
+      const next = [...prev];
+      [next[index], next[index + 1]] = [next[index + 1], next[index]];
+      return next;
+    });
+  };
+
   const handleConfirm = async () => {
     if (!deck) return;
     setBusy(true);
@@ -161,17 +179,29 @@ export default function ScryScreen() {
               <Text style={styles.sectionTitle}>
                 Send to Bottom ({bottomCards.length})
               </Text>
-              <Text style={styles.sectionHint}>Tap to move back to top</Text>
+              <Text style={styles.sectionHint}>Use buttons to reorder · Tap name to restore</Text>
             </View>
             {bottomCards.map((c, i) => (
-              <TouchableOpacity
-                key={`bot-${c.baseName}-${i}`}
-                style={styles.bottomRow}
-                onPress={() => bringToTop(c)}
-              >
-                <Text style={styles.bottomName}>{c.displayName}</Text>
-                <Text style={styles.bottomHint}>↑ tap to restore</Text>
-              </TouchableOpacity>
+              <View key={`bot-${c.baseName}-${i}`} style={styles.bottomRow}>
+                <TouchableOpacity
+                  style={styles.moveBtn}
+                  onPress={() => moveUpBottom(i)}
+                  disabled={i === 0}
+                >
+                  <Text style={[styles.moveBtnText, i === 0 && styles.moveBtnDisabled]}>▲</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.moveBtn}
+                  onPress={() => moveDownBottom(i)}
+                  disabled={i === bottomCards.length - 1}
+                >
+                  <Text style={[styles.moveBtnText, i === bottomCards.length - 1 && styles.moveBtnDisabled]}>▼</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.bottomNameContainer} onPress={() => bringToTop(c)}>
+                  <Text style={styles.bottomName}>{c.displayName}</Text>
+                  <Text style={styles.bottomHint}>↑ tap to restore</Text>
+                </TouchableOpacity>
+              </View>
             ))}
           </>
         )}
@@ -243,7 +273,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#292E32',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: '#353A40',
+    gap: 10,
   },
+  bottomNameContainer: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
   bottomName: { color: '#CCC2DC', fontSize: 14, flex: 1 },
   bottomHint: { color: '#625b71', fontSize: 11 },
   footer: {
