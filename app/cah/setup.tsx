@@ -28,6 +28,7 @@ import {
 } from '../../src/cah/packGroups';
 import { loadActivePacks, saveActivePacks } from '../../src/storage/cahPacksStorage';
 import { getPromptsForPacks, getResponsesForPacks } from '../../src/cah/CahContent';
+import { colors } from '../../src/theme/colors';
 
 type Ruleset = 'official' | 'maxs';
 
@@ -399,7 +400,7 @@ export default function CahSetupScreen() {
         disabled={busy || startBlocked}
       >
         {busy ? (
-          <ActivityIndicator color="#060c14" />
+          <ActivityIndicator color={colors.bg.app} />
         ) : (
           <Text style={styles.startBtnLabel}>
             {ruleset === 'maxs' ? "Start Max's Game  →" : 'Start Game  →'}
@@ -411,21 +412,21 @@ export default function CahSetupScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#060c14' },
+  container: { flex: 1, backgroundColor: colors.bg.app },
   content: { padding: 20, gap: 16, paddingBottom: 40 },
 
   header: { alignItems: 'center', paddingVertical: 16 },
-  title: { color: '#22d3ee', fontSize: 22, fontWeight: '800', letterSpacing: 1 },
-  packNote: { color: '#3a6070', fontSize: 12, marginTop: 6 },
+  title: { color: colors.accent.primary, fontSize: 22, fontWeight: '800', letterSpacing: 1 },
+  packNote: { color: colors.text.muted, fontSize: 12, marginTop: 6 },
 
   card: {
-    backgroundColor: '#071a2a',
+    backgroundColor: colors.bg.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#0e7490',
+    borderColor: colors.accent.dark,
     overflow: 'hidden',
   },
-  divider: { height: 1, backgroundColor: '#0a2c3d' },
+  divider: { height: 1, backgroundColor: colors.bg.elevated },
 
   stepperRow: {
     flexDirection: 'row',
@@ -435,25 +436,25 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   stepperLeft: { gap: 3 },
-  stepperLabel: { color: '#e0f7ff', fontSize: 15, fontWeight: '600' },
-  stepperHint: { color: '#3a6070', fontSize: 11 },
+  stepperLabel: { color: colors.text.primary, fontSize: 15, fontWeight: '600' },
+  stepperHint: { color: colors.text.muted, fontSize: 11 },
   stepperControls: { flexDirection: 'row', alignItems: 'center', gap: 20 },
   stepperBtn: {
     width: 36,
     height: 36,
     borderRadius: 8,
-    backgroundColor: '#0a2c3d',
+    backgroundColor: colors.bg.elevated,
     borderWidth: 1,
-    borderColor: '#0e7490',
+    borderColor: colors.accent.dark,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepperBtnText: { color: '#22d3ee', fontSize: 20, fontWeight: '700', lineHeight: 22 },
-  stepperValue: { color: '#e0f7ff', fontSize: 20, fontWeight: '700', minWidth: 32, textAlign: 'center' },
+  stepperBtnText: { color: colors.accent.primary, fontSize: 20, fontWeight: '700', lineHeight: 22 },
+  stepperValue: { color: colors.text.primary, fontSize: 20, fontWeight: '700', minWidth: 32, textAlign: 'center' },
 
   sleeveHint: { alignItems: 'center' },
-  sleeveHintText: { color: '#3a6070', fontSize: 12 },
-  sleeveHintTextAmber: { color: '#f59e0b' },
+  sleeveHintText: { color: colors.text.muted, fontSize: 12 },
+  sleeveHintTextAmber: { color: colors.status.warning },
 
   rulesetRow: { flexDirection: 'row', gap: 8 },
   rulesetChip: {
@@ -461,24 +462,24 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#1a3a50',
-    backgroundColor: '#040d16',
+    borderColor: colors.divider,
+    backgroundColor: colors.bg.app,
     alignItems: 'center',
   },
-  rulesetChipActive: { borderColor: '#22d3ee', backgroundColor: '#071e30' },
-  rulesetChipText: { color: '#3a6070', fontSize: 14, fontWeight: '700' },
-  rulesetChipTextActive: { color: '#22d3ee' },
+  rulesetChipActive: { borderColor: colors.accent.primary, backgroundColor: colors.bg.surface },
+  rulesetChipText: { color: colors.text.muted, fontSize: 14, fontWeight: '700' },
+  rulesetChipTextActive: { color: colors.accent.primary },
 
   packsSection: { gap: 8 },
   packsHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  packsSummary: { color: '#3a6070', fontSize: 12, fontWeight: '600' },
-  sectionLabel: { color: '#e0f7ff', fontSize: 13, fontWeight: '700', letterSpacing: 0.5 },
+  packsSummary: { color: colors.text.muted, fontSize: 12, fontWeight: '600' },
+  sectionLabel: { color: colors.text.primary, fontSize: 13, fontWeight: '700', letterSpacing: 0.5 },
 
   categoryBlock: {
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#0a2c3d',
-    backgroundColor: '#040d16',
+    borderColor: colors.bg.elevated,
+    backgroundColor: colors.bg.app,
     overflow: 'hidden',
   },
   categoryHeader: {
@@ -488,9 +489,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     gap: 10,
   },
-  categoryHeaderLabel: { flex: 1, color: '#e0f7ff', fontSize: 14, fontWeight: '700' },
-  categoryHeaderCount: { color: '#3a6070', fontSize: 12, fontWeight: '600' },
-  categoryHeaderChevron: { color: '#22d3ee', fontSize: 14, fontWeight: '700', minWidth: 14, textAlign: 'right' },
+  categoryHeaderLabel: { flex: 1, color: colors.text.primary, fontSize: 14, fontWeight: '700' },
+  categoryHeaderCount: { color: colors.text.muted, fontSize: 12, fontWeight: '600' },
+  categoryHeaderChevron: { color: colors.accent.primary, fontSize: 14, fontWeight: '700', minWidth: 14, textAlign: 'right' },
   categoryBody: { paddingHorizontal: 12, paddingTop: 4, paddingBottom: 12 },
 
   packChipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -499,28 +500,28 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#1a3a50',
-    backgroundColor: '#040d16',
+    borderColor: colors.divider,
+    backgroundColor: colors.bg.app,
     alignItems: 'center',
   },
-  packChipActive: { borderColor: '#22d3ee', backgroundColor: '#071e30' },
-  packChipText: { color: '#3a6070', fontSize: 13, fontWeight: '600' },
-  packChipTextActive: { color: '#22d3ee' },
-  packChipBadge: { color: '#3a6070', fontSize: 10, marginTop: 2, fontStyle: 'italic' },
-  packChipBadgeActive: { color: '#0e7490' },
+  packChipActive: { borderColor: colors.accent.primary, backgroundColor: colors.bg.surface },
+  packChipText: { color: colors.text.muted, fontSize: 13, fontWeight: '600' },
+  packChipTextActive: { color: colors.accent.primary },
+  packChipBadge: { color: colors.text.muted, fontSize: 10, marginTop: 2, fontStyle: 'italic' },
+  packChipBadgeActive: { color: colors.accent.dark },
 
-  packHint: { color: '#3a6070', fontSize: 12 },
-  packHintWarn: { color: '#f59e0b' },
+  packHint: { color: colors.text.muted, fontSize: 12 },
+  packHintWarn: { color: colors.status.warning },
 
   startBtn: {
     height: 56,
     borderRadius: 10,
-    backgroundColor: '#22d3ee',
+    backgroundColor: colors.accent.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
   },
   startBtnPressed: { opacity: 0.7 },
   startBtnDisabled: { opacity: 0.4 },
-  startBtnLabel: { color: '#060c14', fontSize: 18, fontWeight: '800', letterSpacing: 0.5 },
+  startBtnLabel: { color: colors.bg.app, fontSize: 18, fontWeight: '800', letterSpacing: 0.5 },
 });

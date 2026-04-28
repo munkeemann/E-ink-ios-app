@@ -21,6 +21,7 @@ import { sendToSleeve, clearMemo } from '../../src/api/sleeveService';
 import { getRegisteredSleeves } from '../../src/api/piServer';
 import { CahGameState } from '../../src/types/cah';
 import CardRenderer, { CardRendererRef } from '../../src/shared/CardRenderer';
+import { colors } from '../../src/theme/colors';
 
 const CAPTURE_TIMEOUT_MS = 3000;
 
@@ -88,7 +89,7 @@ export default function CahGameScreen() {
   if (!state) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color="#22d3ee" size="large" />
+        <ActivityIndicator color={colors.accent.primary} size="large" />
       </View>
     );
   }
@@ -223,7 +224,7 @@ export default function CahGameScreen() {
           disabled={busy}
         >
           {busy ? (
-            <ActivityIndicator color="#060c14" />
+            <ActivityIndicator color={colors.bg.app} />
           ) : (
             <Text style={styles.advanceBtnLabel}>{buttonLabel}  →</Text>
           )}
@@ -283,22 +284,25 @@ export default function CahGameScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#060c14' },
+  container: { flex: 1, backgroundColor: colors.bg.app },
   content: { padding: 16, paddingBottom: 40, gap: 12 },
-  loading: { flex: 1, backgroundColor: '#060c14', alignItems: 'center', justifyContent: 'center' },
+  loading: { flex: 1, backgroundColor: colors.bg.app, alignItems: 'center', justifyContent: 'center' },
 
   phaseRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   phaseBadge: {
     paddingHorizontal: 12,
     paddingVertical: 5,
-    backgroundColor: '#071a2a',
+    backgroundColor: colors.bg.surface,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#0e7490',
+    borderColor: colors.accent.dark,
   },
-  phaseText: { color: '#22d3ee', fontSize: 12, fontWeight: '700', letterSpacing: 1.2 },
-  sleeveInfo: { color: '#3a6070', fontSize: 12 },
+  phaseText: { color: colors.accent.primary, fontSize: 12, fontWeight: '700', letterSpacing: 1.2 },
+  sleeveInfo: { color: colors.text.muted, fontSize: 12 },
 
+  // CAH-specific: the black-prompt-card visual matches the physical Cards
+  // Against Humanity card. Pure-black + neutral-grey border are intentional
+  // game-element colors, not theme tokens.
   blackCard: {
     backgroundColor: '#050505',
     borderRadius: 10,
@@ -309,20 +313,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   blackCardText: { color: '#ffffff', fontSize: 16, fontWeight: '600', lineHeight: 22 },
-  pickBadge: { color: '#888', fontSize: 11, marginTop: 8, fontWeight: '700', letterSpacing: 1 },
+  pickBadge: { color: colors.text.muted, fontSize: 11, marginTop: 8, fontWeight: '700', letterSpacing: 1 },
 
   advanceBtn: {
     height: 56,
     borderRadius: 10,
-    backgroundColor: '#22d3ee',
+    backgroundColor: colors.accent.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   advanceBtnPressed: { opacity: 0.7 },
-  advanceBtnLabel: { color: '#060c14', fontSize: 17, fontWeight: '800', letterSpacing: 0.5 },
+  advanceBtnLabel: { color: colors.bg.app, fontSize: 17, fontWeight: '800', letterSpacing: 0.5 },
 
   sectionHeader: {
-    color: '#64b5c8',
+    color: colors.text.secondary,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1.2,
@@ -330,14 +334,14 @@ const styles = StyleSheet.create({
   },
 
   tableCard: {
-    backgroundColor: '#071a2a',
+    backgroundColor: colors.bg.surface,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#0e7490',
+    borderColor: colors.accent.dark,
     overflow: 'hidden',
   },
-  rowBorder: { borderTopWidth: 1, borderTopColor: '#0a2c3d' },
-  winnerRow: { backgroundColor: '#071a20' },
+  rowBorder: { borderTopWidth: 1, borderTopColor: colors.bg.elevated },
+  winnerRow: { backgroundColor: colors.bg.surface },
 
   playerRow: {
     paddingHorizontal: 14,
@@ -345,75 +349,75 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   playerMeta: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  playerLabel: { color: '#64b5c8', fontSize: 13, fontWeight: '700', flex: 1 },
-  winnerLabel: { color: '#4ade80' },
-  playerScore: { color: '#3a6070', fontSize: 12 },
+  playerLabel: { color: colors.text.secondary, fontSize: 13, fontWeight: '700', flex: 1 },
+  winnerLabel: { color: colors.status.success },
+  playerScore: { color: colors.text.muted, fontSize: 12 },
   submittedTag: {
-    color: '#22d3ee',
+    color: colors.accent.primary,
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.8,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
-    backgroundColor: '#071a2a',
+    backgroundColor: colors.bg.surface,
     borderWidth: 1,
-    borderColor: '#0e7490',
+    borderColor: colors.accent.dark,
   },
 
   handRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center' },
-  handCount: { color: '#3a6070', fontSize: 12, fontWeight: '600' },
+  handCount: { color: colors.text.muted, fontSize: 12, fontWeight: '600' },
   submitBtn: {
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 6,
-    backgroundColor: '#0a2c3d',
+    backgroundColor: colors.bg.elevated,
     borderWidth: 1,
-    borderColor: '#0e7490',
+    borderColor: colors.accent.dark,
   },
-  submitBtnPressed: { backgroundColor: '#0c2340', borderColor: '#22d3ee' },
-  submitBtnText: { color: '#22d3ee', fontSize: 12, fontWeight: '700' },
+  submitBtnPressed: { backgroundColor: colors.bg.elevated, borderColor: colors.accent.primary },
+  submitBtnText: { color: colors.accent.primary, fontSize: 12, fontWeight: '700' },
   cardChip: {
     minWidth: 44,
     maxWidth: 90,
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 6,
-    backgroundColor: '#0a2c3d',
+    backgroundColor: colors.bg.elevated,
     borderWidth: 1,
-    borderColor: '#0e7490',
+    borderColor: colors.accent.dark,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cardChipSubmitted: { borderColor: '#22d3ee', backgroundColor: '#061624' },
-  cardChipRevealed: { borderColor: '#4ade80', backgroundColor: '#071a0f', maxWidth: 200 },
-  cardChipPressed: { backgroundColor: '#0c2340', borderColor: '#22d3ee' },
-  cardChipText: { color: '#3a6070', fontSize: 12, fontWeight: '600', textAlign: 'center' },
-  cardChipTextRevealed: { color: '#e0f7ff', fontSize: 11 },
+  cardChipSubmitted: { borderColor: colors.accent.primary, backgroundColor: colors.bg.surface },
+  cardChipRevealed: { borderColor: colors.status.success, backgroundColor: colors.bg.surface, maxWidth: 200 },
+  cardChipPressed: { backgroundColor: colors.bg.elevated, borderColor: colors.accent.primary },
+  cardChipText: { color: colors.text.muted, fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  cardChipTextRevealed: { color: colors.text.primary, fontSize: 11 },
 
   winPickBtn: {
     alignSelf: 'flex-start',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
-    backgroundColor: '#0a2c3d',
+    backgroundColor: colors.bg.elevated,
     borderWidth: 1,
-    borderColor: '#0e7490',
+    borderColor: colors.accent.dark,
   },
-  winPickBtnPressed: { backgroundColor: '#0c2340' },
-  winPickBtnWon: { backgroundColor: '#071a0f', borderColor: '#4ade80' },
-  winPickBtnText: { color: '#64b5c8', fontSize: 13, fontWeight: '700' },
-  winPickBtnTextWon: { color: '#4ade80' },
+  winPickBtnPressed: { backgroundColor: colors.bg.elevated },
+  winPickBtnWon: { backgroundColor: colors.bg.surface, borderColor: colors.status.success },
+  winPickBtnText: { color: colors.text.secondary, fontSize: 13, fontWeight: '700' },
+  winPickBtnTextWon: { color: colors.status.success },
 
   endBtn: {
     marginTop: 8,
     height: 44,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#2a1520',
-    backgroundColor: '#0f0a0d',
+    borderColor: colors.divider,
+    backgroundColor: colors.bg.app,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  endBtnLabel: { color: '#7d5260', fontSize: 14, fontWeight: '600' },
+  endBtnLabel: { color: colors.text.muted, fontSize: 14, fontWeight: '600' },
 });

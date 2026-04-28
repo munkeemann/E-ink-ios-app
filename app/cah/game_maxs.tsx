@@ -18,6 +18,7 @@ import { sendToSleeve, clearMemo } from '../../src/api/sleeveService';
 import { getRegisteredSleeves } from '../../src/api/piServer';
 import { CahMaxsGameState, CahMaxsSleeveUpdate } from '../../src/types/cah_maxs';
 import CardRenderer, { CardRendererRef } from '../../src/shared/CardRenderer';
+import { colors } from '../../src/theme/colors';
 
 const CAPTURE_TIMEOUT_MS = 3000;
 
@@ -80,7 +81,7 @@ export default function CahMaxsGameScreen() {
   if (!state) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color="#22d3ee" size="large" />
+        <ActivityIndicator color={colors.accent.primary} size="large" />
       </View>
     );
   }
@@ -157,7 +158,7 @@ export default function CahMaxsGameScreen() {
         disabled={busy}
       >
         {busy ? (
-          <ActivityIndicator color="#060c14" />
+          <ActivityIndicator color={colors.bg.app} />
         ) : (
           <Text style={styles.advanceBtnLabel}>{dealLabel}  →</Text>
         )}
@@ -173,22 +174,23 @@ export default function CahMaxsGameScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#060c14' },
+  container: { flex: 1, backgroundColor: colors.bg.app },
   content: { padding: 16, paddingBottom: 40, gap: 12 },
-  loading: { flex: 1, backgroundColor: '#060c14', alignItems: 'center', justifyContent: 'center' },
+  loading: { flex: 1, backgroundColor: colors.bg.app, alignItems: 'center', justifyContent: 'center' },
 
   phaseRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   phaseBadge: {
     paddingHorizontal: 12,
     paddingVertical: 5,
-    backgroundColor: '#071a2a',
+    backgroundColor: colors.bg.surface,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#0e7490',
+    borderColor: colors.accent.dark,
   },
-  phaseText: { color: '#22d3ee', fontSize: 12, fontWeight: '700', letterSpacing: 1.2 },
-  sleeveInfo: { color: '#3a6070', fontSize: 12 },
+  phaseText: { color: colors.accent.primary, fontSize: 12, fontWeight: '700', letterSpacing: 1.2 },
+  sleeveInfo: { color: colors.text.muted, fontSize: 12 },
 
+  // CAH-specific: see app/cah/game.tsx for rationale on the black-card colors.
   blackCard: {
     backgroundColor: '#050505',
     borderRadius: 10,
@@ -199,27 +201,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   blackCardText: { color: '#ffffff', fontSize: 16, fontWeight: '600', lineHeight: 22 },
-  pickBadge: { color: '#888', fontSize: 11, marginTop: 8, fontWeight: '700', letterSpacing: 1 },
+  pickBadge: { color: colors.text.muted, fontSize: 11, marginTop: 8, fontWeight: '700', letterSpacing: 1 },
 
   advanceBtn: {
     height: 56,
     borderRadius: 10,
-    backgroundColor: '#22d3ee',
+    backgroundColor: colors.accent.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   advanceBtnPressed: { opacity: 0.7 },
-  advanceBtnLabel: { color: '#060c14', fontSize: 17, fontWeight: '800', letterSpacing: 0.5 },
+  advanceBtnLabel: { color: colors.bg.app, fontSize: 17, fontWeight: '800', letterSpacing: 0.5 },
 
   endBtn: {
     marginTop: 8,
     height: 44,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#2a1520',
-    backgroundColor: '#0f0a0d',
+    borderColor: colors.divider,
+    backgroundColor: colors.bg.app,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  endBtnLabel: { color: '#7d5260', fontSize: 14, fontWeight: '600' },
+  endBtnLabel: { color: colors.text.muted, fontSize: 14, fontWeight: '600' },
 });
