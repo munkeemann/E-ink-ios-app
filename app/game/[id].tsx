@@ -21,6 +21,8 @@ import { fetchTokenImage } from '../../src/api/scryfall';
 import { clearMemo } from '../../src/api/sleeveService';
 import { applyZoneTransition, TransitionResult } from '../../src/mtg/zoneTransition';
 import { BUILT_IN_TOKEN_PRESETS, BuiltInTokenPreset } from '../../src/mtg/tokenPresets';
+import { ZONE_COLORS } from '../../src/mtg/zoneColors';
+import { colors } from '../../src/theme/colors';
 import { getDeck, loadSettings, saveDeck } from '../../src/storage/deckStorage';
 import { AppSettings, CardInstance, Deck, TokenTemplate, TokenType } from '../../src/types';
 
@@ -53,22 +55,22 @@ const artPopupStyles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: colors.overlay.light,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderColor: colors.overlay.light,
   },
-  flipLabel: { color: '#e0f7ff', fontSize: 14, fontWeight: '700' },
+  flipLabel: { color: colors.text.primary, fontSize: 14, fontWeight: '700' },
 });
 
 type Zone = 'LIB' | 'HND' | 'BTFLD' | 'GRV' | 'EXL' | 'CMD' | 'TKN';
 
 const ZONE_CONFIG: { id: Zone; label: string; color: string }[] = [
-  { id: 'CMD',   label: 'Command',     color: '#f59e0b' },
-  { id: 'LIB',   label: 'Library',     color: '#3b82f6' },
-  { id: 'HND',   label: 'Hand',        color: '#22c55e' },
-  { id: 'BTFLD', label: 'Battlefield', color: '#e2e8f0' },
-  { id: 'GRV',   label: 'Graveyard',   color: '#9ca3af' },
-  { id: 'EXL',   label: 'Exile',       color: '#f97316' },
+  { id: 'CMD',   label: 'Command',     color: ZONE_COLORS.CMD },
+  { id: 'LIB',   label: 'Library',     color: ZONE_COLORS.LIB },
+  { id: 'HND',   label: 'Hand',        color: ZONE_COLORS.HND },
+  { id: 'BTFLD', label: 'Battlefield', color: ZONE_COLORS.BTFLD },
+  { id: 'GRV',   label: 'Graveyard',   color: ZONE_COLORS.GRV },
+  { id: 'EXL',   label: 'Exile',       color: ZONE_COLORS.EXL },
 ];
 
 const MOVABLE_ZONES = ZONE_CONFIG.filter(z => z.id !== 'CMD');
@@ -1104,7 +1106,7 @@ export default function InGameScreen() {
   if (!deck) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#D0BCFF" />
+        <ActivityIndicator color={colors.accent.primary} />
       </View>
     );
   }
@@ -1289,7 +1291,7 @@ export default function InGameScreen() {
 
       {busy && (
         <View style={styles.busyOverlay}>
-          <ActivityIndicator color="#D0BCFF" />
+          <ActivityIndicator color={colors.accent.primary} />
           <Text style={styles.busyText}>{busyLabel}</Text>
         </View>
       )}
@@ -1408,7 +1410,7 @@ export default function InGameScreen() {
 
             {mulliganBusy && (
               <View style={styles.mulliganBusyRow}>
-                <ActivityIndicator color="#D0BCFF" size="small" />
+                <ActivityIndicator color={colors.accent.primary} size="small" />
                 <Text style={styles.busyText}>Sending new hand…</Text>
               </View>
             )}
@@ -1485,7 +1487,7 @@ export default function InGameScreen() {
               <View style={styles.sheetHandle} />
               <Text style={styles.sheetTitle}>Tutor</Text>
               <Text style={styles.sheetLabel}>Card name (partial match ok)</Text>
-              <TextInput style={styles.sheetInput} value={tutorQuery} onChangeText={setTutorQuery} placeholder="Lightning Bolt" placeholderTextColor="#625b71" autoFocus autoCapitalize="words" />
+              <TextInput style={styles.sheetInput} value={tutorQuery} onChangeText={setTutorQuery} placeholder="Lightning Bolt" placeholderTextColor={colors.text.muted} autoFocus autoCapitalize="words" />
               <View style={styles.sheetActions}>
                 <Pressable style={styles.cancelBtn} onPress={() => { setTutorModalVisible(false); setTutorQuery(''); }}>
                   <Text style={styles.cancelBtnText}>Cancel</Text>
@@ -1573,7 +1575,7 @@ export default function InGameScreen() {
                   value={tokenName}
                   onChangeText={setTokenName}
                   placeholder="e.g. Soldier, Dragon, Treasure"
-                  placeholderTextColor="#625b71"
+                  placeholderTextColor={colors.text.muted}
                   autoCapitalize="words"
                 />
 
@@ -1643,7 +1645,7 @@ export default function InGameScreen() {
                     disabled={tokenCreating}
                   >
                     {tokenCreating
-                      ? <ActivityIndicator color="#D0BCFF" size="small" />
+                      ? <ActivityIndicator color={colors.accent.primary} size="small" />
                       : <Text style={styles.confirmBtnText}>Create</Text>
                     }
                   </Pressable>
@@ -1692,7 +1694,7 @@ export default function InGameScreen() {
                           )}
                         </View>
                         {tokenCreating
-                          ? <ActivityIndicator color="#D0BCFF" size="small" />
+                          ? <ActivityIndicator color={colors.accent.primary} size="small" />
                           : <Text style={styles.favoriteCreate}>{hasStats ? 'Create →' : 'Fill →'}</Text>
                         }
                       </Pressable>
@@ -1710,7 +1712,7 @@ export default function InGameScreen() {
       <Modal visible={waitingForSleeve} transparent animationType="fade" onRequestClose={handleCancelWaiting}>
         <View style={styles.sleeveWaitBackdrop}>
           <View style={styles.sleeveWaitCard}>
-            <ActivityIndicator color="#D0BCFF" size="large" style={{ marginBottom: 16 }} />
+            <ActivityIndicator color={colors.accent.primary} size="large" style={{ marginBottom: 16 }} />
             <Text style={styles.sleeveWaitTitle}>Press the button on the card you want to place in the library.</Text>
             <Pressable style={[styles.cancelBtn, { marginTop: 16 }]} onPress={handleCancelWaiting}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
@@ -1809,21 +1811,21 @@ export default function InGameScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#292E32' },
+  container: { flex: 1, backgroundColor: colors.bg.app },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
   header: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#353A40',
+    backgroundColor: colors.bg.surface,
     borderBottomWidth: 1,
-    borderColor: '#625b71',
+    borderColor: colors.text.muted,
   },
-  deckName: { color: '#D0BCFF', fontSize: 18, fontWeight: '800' },
+  deckName: { color: colors.accent.primary, fontSize: 18, fontWeight: '800' },
   commanderRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 2 },
-  commanderName: { color: '#CCC2DC', fontSize: 13 },
+  commanderName: { color: colors.text.secondary, fontSize: 13 },
   cmdZoneBadge: {
-    color: '#f59e0b',
+    color: colors.status.warning,
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.5,
@@ -1831,15 +1833,15 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: '#f59e0b',
+    borderColor: colors.status.warning,
   },
-  castTaxText: { color: '#9ca3af', fontSize: 11, fontWeight: '600' },
+  castTaxText: { color: colors.text.muted, fontSize: 11, fontWeight: '600' },
   headerMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
   headerMetaRight: { alignItems: 'flex-end', gap: 4 },
-  sleeveStatus: { color: '#6ee7b7', fontSize: 11 },
-  sleeveStatusNone: { color: '#f87171' },
-  settingsIndicator: { color: '#625b71', fontSize: 11 },
-  endGameBtn: { color: '#f87171', fontSize: 11, fontWeight: '700' },
+  sleeveStatus: { color: colors.status.success, fontSize: 11 },
+  sleeveStatusNone: { color: colors.status.danger },
+  settingsIndicator: { color: colors.text.muted, fontSize: 11 },
+  endGameBtn: { color: colors.status.danger, fontSize: 11, fontWeight: '700' },
 
   zoneGrid: { paddingHorizontal: 10, paddingTop: 12, paddingBottom: 4, gap: 8 },
   zoneGridRow: { flexDirection: 'row', gap: 8 },
@@ -1851,7 +1853,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: colors.overlay.light,
   },
   zoneBtnLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
   zoneBtnCount: { fontSize: 22, fontWeight: '800', marginTop: 4 },
@@ -1863,17 +1865,17 @@ const styles = StyleSheet.create({
   actionRow: { flexDirection: 'row', gap: 8 },
   actionBtn: {
     flex: 1,
-    backgroundColor: '#353A40',
+    backgroundColor: colors.bg.surface,
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#625b71',
+    borderColor: colors.text.muted,
     gap: 4,
   },
   actionBtnSpacer: { flex: 1 },
   actionIcon: { fontSize: 20 },
-  actionLabel: { color: '#D0BCFF', fontSize: 11, fontWeight: '700' },
+  actionLabel: { color: colors.accent.primary, fontSize: 11, fontWeight: '700' },
   btnDisabled: { opacity: 0.4 },
 
   busyOverlay: {
@@ -1886,19 +1888,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     padding: 8,
-    backgroundColor: 'rgba(41,46,50,0.9)',
+    backgroundColor: colors.overlay.darker,
   },
-  busyText: { color: '#CCC2DC', fontSize: 13 },
+  busyText: { color: colors.text.secondary, fontSize: 13 },
 
-  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  sheetBackdrop: { flex: 1, backgroundColor: colors.overlay.dark, justifyContent: 'flex-end' },
   sheetBackdropTouchable: { ...StyleSheet.absoluteFillObject },
   sheet: {
-    backgroundColor: '#353A40',
+    backgroundColor: colors.bg.surface,
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
     borderWidth: 1,
     borderBottomWidth: 0,
-    borderColor: '#625b71',
+    borderColor: colors.text.muted,
     paddingHorizontal: 20,
     paddingBottom: 36,
     maxHeight: '80%',
@@ -1909,17 +1911,17 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#625b71',
+    backgroundColor: colors.text.muted,
     alignSelf: 'center',
     marginVertical: 10,
   },
-  sheetTitle: { color: '#D0BCFF', fontSize: 18, fontWeight: '800', marginBottom: 14 },
-  sheetLabel: { color: '#CCC2DC', fontSize: 13, marginBottom: 6, marginTop: 10 },
+  sheetTitle: { color: colors.accent.primary, fontSize: 18, fontWeight: '800', marginBottom: 14 },
+  sheetLabel: { color: colors.text.secondary, fontSize: 13, marginBottom: 6, marginTop: 10 },
   sheetInput: {
-    backgroundColor: '#292E32',
-    color: '#D4CDC1',
+    backgroundColor: colors.bg.app,
+    color: colors.text.primary,
     borderWidth: 1,
-    borderColor: '#625b71',
+    borderColor: colors.text.muted,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -1927,20 +1929,20 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   sheetActions: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  cancelBtn: { flex: 1, paddingVertical: 12, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#625b71' },
-  cancelBtnText: { color: '#625b71', fontSize: 15 },
-  confirmBtn: { flex: 1, backgroundColor: '#6650a4', paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
-  confirmBtnText: { color: '#D0BCFF', fontSize: 15, fontWeight: '800' },
+  cancelBtn: { flex: 1, paddingVertical: 12, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: colors.text.muted },
+  cancelBtnText: { color: colors.text.muted, fontSize: 15 },
+  confirmBtn: { flex: 1, backgroundColor: colors.accent.dark, paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
+  confirmBtnText: { color: colors.accent.primary, fontSize: 15, fontWeight: '800' },
 
-  mulliganInfo: { color: '#CCC2DC', fontSize: 15, lineHeight: 22, marginBottom: 12 },
+  mulliganInfo: { color: colors.text.secondary, fontSize: 15, lineHeight: 22, marginBottom: 12 },
   mulliganBottomedBox: {
-    backgroundColor: 'rgba(0,0,0,0.2)',
+    backgroundColor: colors.overlay.dark,
     borderRadius: 8,
     padding: 12,
     marginBottom: 12,
   },
-  mulliganBottomedLabel: { color: '#9ca3af', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', marginBottom: 6 },
-  mulliganBottomedCard: { color: '#D4CDC1', fontSize: 14, paddingVertical: 2 },
+  mulliganBottomedLabel: { color: colors.text.muted, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', marginBottom: 6 },
+  mulliganBottomedCard: { color: colors.text.primary, fontSize: 14, paddingVertical: 2 },
   mulliganBusyRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
 
   zoneSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
@@ -1950,45 +1952,45 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: '#625b71',
+    borderColor: colors.text.muted,
   },
-  zoneClsBtnText: { color: '#CCC2DC', fontSize: 12, fontWeight: '700' },
+  zoneClsBtnText: { color: colors.text.secondary, fontSize: 12, fontWeight: '700' },
   moveSelectedBtn: {
-    backgroundColor: '#6650a4',
+    backgroundColor: colors.accent.dark,
     borderRadius: 6,
     paddingVertical: 6,
     paddingHorizontal: 10,
   },
   moveSelectedBtnDisabled: { opacity: 0.35 },
-  moveSelectedBtnText: { color: '#D0BCFF', fontSize: 12, fontWeight: '700' },
+  moveSelectedBtnText: { color: colors.accent.primary, fontSize: 12, fontWeight: '700' },
 
-  emptyText: { color: '#625b71', fontSize: 14, textAlign: 'center', marginTop: 24, marginBottom: 12 },
-  cardRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#4a4f55' },
+  emptyText: { color: colors.text.muted, fontSize: 14, textAlign: 'center', marginTop: 24, marginBottom: 12 },
+  cardRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.text.muted },
   checkbox: {
     width: 22,
     height: 22,
     borderRadius: 4,
     borderWidth: 1.5,
-    borderColor: '#625b71',
+    borderColor: colors.text.muted,
     marginRight: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkboxChecked: { backgroundColor: '#6650a4', borderColor: '#D0BCFF' },
-  checkmark: { color: '#D0BCFF', fontSize: 13, fontWeight: '800' },
+  checkboxChecked: { backgroundColor: colors.accent.dark, borderColor: colors.accent.primary },
+  checkmark: { color: colors.accent.primary, fontSize: 13, fontWeight: '800' },
   cardNameWrapper: { flex: 1 },
-  cardName: { color: '#D4CDC1', fontSize: 15 },
-  tokenBadge: { color: '#f59e0b', fontSize: 11, fontWeight: '700', marginLeft: 6 },
+  cardName: { color: colors.text.primary, fontSize: 15 },
+  tokenBadge: { color: colors.status.warning, fontSize: 11, fontWeight: '700', marginLeft: 6 },
 
-  tabRow: { flexDirection: 'row', marginBottom: 16, borderRadius: 8, backgroundColor: '#292E32', padding: 3 },
+  tabRow: { flexDirection: 'row', marginBottom: 16, borderRadius: 8, backgroundColor: colors.bg.app, padding: 3 },
   tab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 6 },
-  tabActive: { backgroundColor: '#6650a4' },
-  tabText: { color: '#625b71', fontSize: 14, fontWeight: '700' },
-  tabTextActive: { color: '#D0BCFF' },
+  tabActive: { backgroundColor: colors.accent.dark },
+  tabText: { color: colors.text.muted, fontSize: 14, fontWeight: '700' },
+  tabTextActive: { color: colors.accent.primary },
 
   ptRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   ptField: { flex: 1 },
-  ptSlash: { color: '#625b71', fontSize: 24, fontWeight: '700', marginTop: 18 },
+  ptSlash: { color: colors.text.muted, fontSize: 24, fontWeight: '700', marginTop: 18 },
 
   colorRow: { flexDirection: 'row', gap: 8, marginBottom: 4 },
   colorBtn: {
@@ -1997,27 +1999,27 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1.5,
-    borderColor: '#625b71',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderColor: colors.text.muted,
+    backgroundColor: colors.overlay.light,
     gap: 4,
   },
-  colorBtnActive: { borderColor: '#D0BCFF', backgroundColor: 'rgba(208,188,255,0.12)' },
+  colorBtnActive: { borderColor: colors.accent.primary, backgroundColor: colors.overlay.light },
   colorBtnText: { fontSize: 18 },
-  colorBtnLabel: { color: '#625b71', fontSize: 11, fontWeight: '800' },
-  colorBtnLabelActive: { color: '#D0BCFF' },
+  colorBtnLabel: { color: colors.text.muted, fontSize: 11, fontWeight: '800' },
+  colorBtnLabelActive: { color: colors.accent.primary },
 
   favoriteRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: '#4a4f55',
+    borderColor: colors.text.muted,
   },
   favoriteInfo: { flex: 1 },
-  favoriteName: { color: '#D0BCFF', fontSize: 16, fontWeight: '700' },
-  favoriteMeta: { color: '#9ca3af', fontSize: 12, marginTop: 2 },
-  favoriteMetaHint: { color: '#6650a4', fontSize: 12, marginTop: 2, fontStyle: 'italic' },
-  favoriteCreate: { color: '#6650a4', fontSize: 14, fontWeight: '700', paddingLeft: 12 },
+  favoriteName: { color: colors.accent.primary, fontSize: 16, fontWeight: '700' },
+  favoriteMeta: { color: colors.text.muted, fontSize: 12, marginTop: 2 },
+  favoriteMetaHint: { color: colors.accent.dark, fontSize: 12, marginTop: 2, fontStyle: 'italic' },
+  favoriteCreate: { color: colors.accent.dark, fontSize: 14, fontWeight: '700', paddingLeft: 12 },
 
   presetRow: { flexDirection: 'row', gap: 8, paddingVertical: 4, paddingHorizontal: 2 },
   presetChip: {
@@ -2025,10 +2027,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: '#625b71',
-    backgroundColor: 'rgba(208,188,255,0.06)',
+    borderColor: colors.text.muted,
+    backgroundColor: colors.overlay.light,
   },
-  presetChipText: { color: '#D0BCFF', fontSize: 13, fontWeight: '600' },
+  presetChipText: { color: colors.accent.primary, fontSize: 13, fontWeight: '600' },
 
   segRow: { flexDirection: 'row', gap: 8, marginBottom: 4 },
   segBtn: {
@@ -2036,15 +2038,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1.5,
-    borderColor: '#625b71',
+    borderColor: colors.text.muted,
     alignItems: 'center',
   },
-  segBtnActive: { borderColor: '#D0BCFF', backgroundColor: 'rgba(208,188,255,0.12)' },
-  segBtnText: { color: '#625b71', fontSize: 14, fontWeight: '700' },
-  segBtnTextActive: { color: '#D0BCFF' },
+  segBtnActive: { borderColor: colors.accent.primary, backgroundColor: colors.overlay.light },
+  segBtnText: { color: colors.text.muted, fontSize: 14, fontWeight: '700' },
+  segBtnTextActive: { color: colors.accent.primary },
 
   placeCardName: {
-    color: '#D0BCFF',
+    color: colors.accent.primary,
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 12,
@@ -2056,32 +2058,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: '#4a4f55',
+    borderColor: colors.text.muted,
     gap: 8,
   },
-  flipZoneBadge: { color: '#9ca3af', fontSize: 11, fontWeight: '700' },
-  flipFaceBadge: { color: '#6ee7b7', fontSize: 12, fontWeight: '700', minWidth: 36, textAlign: 'right' },
-  flipFaceBadgeBack: { color: '#f59e0b' },
+  flipZoneBadge: { color: colors.text.muted, fontSize: 11, fontWeight: '700' },
+  flipFaceBadge: { color: colors.status.success, fontSize: 12, fontWeight: '700', minWidth: 36, textAlign: 'right' },
+  flipFaceBadgeBack: { color: colors.status.warning },
 
   sleeveWaitBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    backgroundColor: colors.overlay.dark,
     alignItems: 'center',
     justifyContent: 'center',
   },
   sleeveWaitCard: {
-    backgroundColor: '#353A40',
+    backgroundColor: colors.bg.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#625b71',
+    borderColor: colors.text.muted,
     padding: 28,
     width: 280,
     alignItems: 'center',
   },
-  sleeveWaitTitle: { color: '#D0BCFF', fontSize: 16, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
-  sleeveWaitCountdown: { color: '#9ca3af', fontSize: 36, fontWeight: '800', marginBottom: 20 },
+  sleeveWaitTitle: { color: colors.accent.primary, fontSize: 16, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
+  sleeveWaitCountdown: { color: colors.text.muted, fontSize: 36, fontWeight: '800', marginBottom: 20 },
 
-  artBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center' },
+  artBackdrop: { flex: 1, backgroundColor: colors.overlay.darker, alignItems: 'center', justifyContent: 'center' },
   artFull: { width: '90%', height: '80%' },
 
 });

@@ -18,6 +18,7 @@ import { clearMemo } from '../../src/api/sleeveService';
 import { fetchPrintings, ScryfallPrinting } from '../../src/api/scryfall';
 import { getDeck, loadSettings, saveDeck } from '../../src/storage/deckStorage';
 import { AppSettings, CardInstance, Deck, TokenTemplate } from '../../src/types';
+import { colors } from '../../src/theme/colors';
 
 function ArtPopupContent({ card }: { card: CardInstance | null }) {
   console.log('[ArtPopup] imagePath:', card?.imagePath);
@@ -48,11 +49,11 @@ const artPopupStyles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: colors.overlay.light,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderColor: colors.overlay.light,
   },
-  flipLabel: { color: '#e0f7ff', fontSize: 14, fontWeight: '700' },
+  flipLabel: { color: colors.text.primary, fontSize: 14, fontWeight: '700' },
 });
 
 const MTG_COLORS = ['W', 'U', 'B', 'R', 'G'];
@@ -94,7 +95,7 @@ export default function DeckPreviewScreen() {
   if (!deck) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#D0BCFF" />
+        <ActivityIndicator color={colors.accent.primary} />
       </View>
     );
   }
@@ -419,7 +420,7 @@ export default function DeckPreviewScreen() {
 
       {sending ? (
         <View style={styles.sendingBar}>
-          <ActivityIndicator color="#D0BCFF" size="small" />
+          <ActivityIndicator color={colors.accent.primary} size="small" />
           <Text style={styles.sendingText}>
             Sending sleeves… {sendProgress.sent}/{sendProgress.total}
           </Text>
@@ -457,7 +458,7 @@ export default function DeckPreviewScreen() {
               value={newTokenName}
               onChangeText={setNewTokenName}
               placeholder="e.g. Soldier, Dragon, Treasure"
-              placeholderTextColor="#625b71"
+              placeholderTextColor={colors.text.muted}
               autoCapitalize="words"
               autoFocus
             />
@@ -548,7 +549,7 @@ export default function DeckPreviewScreen() {
 
             {printingsLoading ? (
               <View style={styles.pickerLoading}>
-                <ActivityIndicator color="#D0BCFF" size="large" />
+                <ActivityIndicator color={colors.accent.primary} size="large" />
                 <Text style={styles.pickerLoadingText}>Loading printings…</Text>
               </View>
             ) : (
@@ -617,19 +618,19 @@ export default function DeckPreviewScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#292E32' },
+  container: { flex: 1, backgroundColor: colors.bg.app },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: {
     flexDirection: 'row',
-    backgroundColor: '#353A40',
+    backgroundColor: colors.bg.surface,
     borderBottomWidth: 1,
-    borderColor: '#625b71',
+    borderColor: colors.text.muted,
   },
   headerArt: { width: 90, height: 124 },
-  headerArtPlaceholder: { backgroundColor: '#353A40' },
+  headerArtPlaceholder: { backgroundColor: colors.bg.surface },
   headerInfo: { flex: 1, padding: 14, justifyContent: 'center', gap: 4 },
-  deckTitle: { color: '#D0BCFF', fontSize: 20, fontWeight: '800' },
-  commanderName: { color: '#CCC2DC', fontSize: 13 },
+  deckTitle: { color: colors.accent.primary, fontSize: 20, fontWeight: '800' },
+  commanderName: { color: colors.text.secondary, fontSize: 13 },
   swapPartnersBtn: {
     marginTop: 8,
     alignSelf: 'flex-start',
@@ -637,12 +638,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#625b71',
+    borderColor: colors.text.muted,
   },
-  swapPartnersBtnText: { color: '#D0BCFF', fontSize: 11, fontWeight: '700' },
-  deckMeta: { color: '#625b71', fontSize: 12 },
-  devModeLabel: { color: '#4a4f55', fontSize: 11, marginTop: 2 },
-  devModeLabelActive: { color: '#f59e0b' },
+  swapPartnersBtnText: { color: colors.accent.primary, fontSize: 11, fontWeight: '700' },
+  deckMeta: { color: colors.text.muted, fontSize: 12 },
+  devModeLabel: { color: colors.text.muted, fontSize: 11, marginTop: 2 },
+  devModeLabelActive: { color: colors.status.warning },
 
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: 16 },
@@ -653,19 +654,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: '#353A40',
+    borderColor: colors.bg.surface,
   },
   cardIndex: {
     width: 30,
-    color: '#625b71',
+    color: colors.text.muted,
     fontSize: 12,
     textAlign: 'right',
     marginRight: 12,
   },
   cardNameRow: { flex: 1, gap: 2 },
-  cardName: { color: '#D4CDC1', fontSize: 15 },
-  cardSetBadge: { color: '#625b71', fontSize: 11 },
-  cardPickArrow: { color: '#4a4f55', fontSize: 18, marginLeft: 6 },
+  cardName: { color: colors.text.primary, fontSize: 15 },
+  cardSetBadge: { color: colors.text.muted, fontSize: 11 },
+  cardPickArrow: { color: colors.text.muted, fontSize: 18, marginLeft: 6 },
 
   sectionHeader: {
     flexDirection: 'row',
@@ -675,31 +676,31 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 10,
     borderTopWidth: 1,
-    borderColor: '#4a4f55',
+    borderColor: colors.text.muted,
     marginTop: 10,
   },
-  sectionTitle: { color: '#D0BCFF', fontSize: 14, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6 },
+  sectionTitle: { color: colors.accent.primary, fontSize: 14, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6 },
   addTokenBtn: {
-    backgroundColor: '#6650a4',
+    backgroundColor: colors.accent.dark,
     borderRadius: 6,
     paddingVertical: 5,
     paddingHorizontal: 12,
   },
-  addTokenBtnText: { color: '#D0BCFF', fontSize: 13, fontWeight: '700' },
-  emptyText: { color: '#625b71', fontSize: 13, paddingHorizontal: 16, paddingBottom: 12, lineHeight: 20 },
+  addTokenBtnText: { color: colors.accent.primary, fontSize: 13, fontWeight: '700' },
+  emptyText: { color: colors.text.muted, fontSize: 13, paddingHorizontal: 16, paddingBottom: 12, lineHeight: 20 },
   tokenRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: '#353A40',
+    borderColor: colors.bg.surface,
   },
   tokenInfo: { flex: 1 },
-  tokenName: { color: '#D4CDC1', fontSize: 15 },
-  tokenMeta: { color: '#9ca3af', fontSize: 12, marginTop: 2 },
+  tokenName: { color: colors.text.primary, fontSize: 15 },
+  tokenMeta: { color: colors.text.muted, fontSize: 12, marginTop: 2 },
   deleteBtn: { padding: 8 },
-  deleteBtnText: { color: '#f87171', fontSize: 16 },
+  deleteBtnText: { color: colors.status.danger, fontSize: 16 },
 
   sendingBar: {
     flexDirection: 'row',
@@ -707,11 +708,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
     padding: 18,
-    backgroundColor: '#353A40',
+    backgroundColor: colors.bg.surface,
     borderTopWidth: 1,
-    borderColor: '#625b71',
+    borderColor: colors.text.muted,
   },
-  sendingText: { color: '#CCC2DC', fontSize: 14 },
+  sendingText: { color: colors.text.secondary, fontSize: 14 },
   bottomActions: {
     flexDirection: 'row',
     gap: 10,
@@ -720,15 +721,15 @@ const styles = StyleSheet.create({
   resumeBtn: {
     flex: 1,
     borderWidth: 1.5,
-    borderColor: '#6650a4',
+    borderColor: colors.accent.dark,
     borderRadius: 10,
     paddingVertical: 16,
     alignItems: 'center',
   },
-  resumeBtnText: { color: '#9C6ADE', fontSize: 16, fontWeight: '700' },
+  resumeBtnText: { color: colors.accent.primary, fontSize: 16, fontWeight: '700' },
   beginBtn: {
     flex: 1,
-    backgroundColor: '#6650a4',
+    backgroundColor: colors.accent.dark,
     borderRadius: 10,
     paddingVertical: 16,
     alignItems: 'center',
@@ -737,16 +738,16 @@ const styles = StyleSheet.create({
     flex: 0,
     margin: 16,
   },
-  beginBtnText: { color: '#D0BCFF', fontSize: 18, fontWeight: '800' },
+  beginBtnText: { color: colors.accent.primary, fontSize: 18, fontWeight: '800' },
 
-  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  sheetBackdrop: { flex: 1, backgroundColor: colors.overlay.dark, justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: '#353A40',
+    backgroundColor: colors.bg.surface,
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
     borderWidth: 1,
     borderBottomWidth: 0,
-    borderColor: '#625b71',
+    borderColor: colors.text.muted,
     paddingHorizontal: 20,
     paddingBottom: 36,
     maxHeight: '80%',
@@ -755,17 +756,17 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#625b71',
+    backgroundColor: colors.text.muted,
     alignSelf: 'center',
     marginVertical: 10,
   },
-  sheetTitle: { color: '#D0BCFF', fontSize: 18, fontWeight: '800', marginBottom: 14 },
-  sheetLabel: { color: '#CCC2DC', fontSize: 13, marginBottom: 6, marginTop: 10 },
+  sheetTitle: { color: colors.accent.primary, fontSize: 18, fontWeight: '800', marginBottom: 14 },
+  sheetLabel: { color: colors.text.secondary, fontSize: 13, marginBottom: 6, marginTop: 10 },
   sheetInput: {
-    backgroundColor: '#292E32',
-    color: '#D4CDC1',
+    backgroundColor: colors.bg.app,
+    color: colors.text.primary,
     borderWidth: 1,
-    borderColor: '#625b71',
+    borderColor: colors.text.muted,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -773,14 +774,14 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   sheetActions: { flexDirection: 'row', gap: 10, marginTop: 16 },
-  cancelBtn: { flex: 1, paddingVertical: 12, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#625b71' },
-  cancelBtnText: { color: '#625b71', fontSize: 15 },
-  confirmBtn: { flex: 1, backgroundColor: '#6650a4', paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
-  confirmBtnText: { color: '#D0BCFF', fontSize: 15, fontWeight: '800' },
+  cancelBtn: { flex: 1, paddingVertical: 12, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: colors.text.muted },
+  cancelBtnText: { color: colors.text.muted, fontSize: 15 },
+  confirmBtn: { flex: 1, backgroundColor: colors.accent.dark, paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
+  confirmBtnText: { color: colors.accent.primary, fontSize: 15, fontWeight: '800' },
 
   ptRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   ptField: { flex: 1 },
-  ptSlash: { color: '#625b71', fontSize: 24, fontWeight: '700', marginTop: 16 },
+  ptSlash: { color: colors.text.muted, fontSize: 24, fontWeight: '700', marginTop: 16 },
 
   colorRow: { flexDirection: 'row', gap: 8, marginBottom: 4 },
   colorBtn: {
@@ -789,22 +790,22 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1.5,
-    borderColor: '#625b71',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderColor: colors.text.muted,
+    backgroundColor: colors.overlay.light,
     gap: 4,
   },
-  colorBtnActive: { borderColor: '#D0BCFF', backgroundColor: 'rgba(208,188,255,0.12)' },
+  colorBtnActive: { borderColor: colors.accent.primary, backgroundColor: colors.overlay.light },
   colorBtnText: { fontSize: 18 },
-  colorBtnLabel: { color: '#625b71', fontSize: 11, fontWeight: '800' },
-  colorBtnLabelActive: { color: '#D0BCFF' },
+  colorBtnLabel: { color: colors.text.muted, fontSize: 11, fontWeight: '800' },
+  colorBtnLabelActive: { color: colors.accent.primary },
 
   viewToggleBar: {
     flexDirection: 'row',
     padding: 8,
     gap: 8,
-    backgroundColor: '#353A40',
+    backgroundColor: colors.bg.surface,
     borderBottomWidth: 1,
-    borderColor: '#4a4f55',
+    borderColor: colors.text.muted,
   },
   viewToggleBtn: {
     flex: 1,
@@ -812,11 +813,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#4a4f55',
+    borderColor: colors.text.muted,
   },
-  viewToggleBtnActive: { backgroundColor: '#6650a4', borderColor: '#6650a4' },
-  viewToggleBtnText: { color: '#625b71', fontSize: 14, fontWeight: '700' },
-  viewToggleBtnTextActive: { color: '#D0BCFF' },
+  viewToggleBtnActive: { backgroundColor: colors.accent.dark, borderColor: colors.accent.dark },
+  viewToggleBtnText: { color: colors.text.muted, fontSize: 14, fontWeight: '700' },
+  viewToggleBtnTextActive: { color: colors.accent.primary },
 
   galleryGrid: { padding: 4 },
   galleryTile: {
@@ -825,20 +826,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   galleryArt: { width: '100%', aspectRatio: 0.72, borderRadius: 8 },
-  galleryArtPlaceholder: { backgroundColor: '#4a4f55' },
-  galleryName: { color: '#D4CDC1', fontSize: 12, textAlign: 'center', marginTop: 4, paddingHorizontal: 4 },
+  galleryArtPlaceholder: { backgroundColor: colors.text.muted },
+  galleryName: { color: colors.text.primary, fontSize: 12, textAlign: 'center', marginTop: 4, paddingHorizontal: 4 },
 
-  artBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center' },
+  artBackdrop: { flex: 1, backgroundColor: colors.overlay.darker, alignItems: 'center', justifyContent: 'center' },
   artFull: { width: '90%', height: '80%' },
 
   // ── Printing picker ────────────────────────────────────────────────────────
   pickerSheet: {
-    backgroundColor: '#292E32',
+    backgroundColor: colors.bg.app,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderWidth: 1,
     borderBottomWidth: 0,
-    borderColor: '#625b71',
+    borderColor: colors.text.muted,
     paddingBottom: 36,
     maxHeight: '88%',
   },
@@ -850,20 +851,20 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   pickerTitleBlock: { flex: 1, gap: 3 },
-  pickerTitle: { color: '#D0BCFF', fontSize: 18, fontWeight: '800' },
-  pickerCurrentPrinting: { color: '#625b71', fontSize: 12 },
+  pickerTitle: { color: colors.accent.primary, fontSize: 18, fontWeight: '800' },
+  pickerCurrentPrinting: { color: colors.text.muted, fontSize: 12 },
   pickerCloseBtn: { paddingTop: 2 },
-  pickerCloseBtnText: { color: '#625b71', fontSize: 16 },
+  pickerCloseBtnText: { color: colors.text.muted, fontSize: 16 },
   pickerCount: {
-    color: '#625b71',
+    color: colors.text.muted,
     fontSize: 12,
     paddingHorizontal: 20,
     paddingBottom: 8,
   },
   pickerList: { flexGrow: 0 },
   pickerLoading: { alignItems: 'center', paddingVertical: 40, gap: 12 },
-  pickerLoadingText: { color: '#9C6ADE', fontSize: 14 },
-  pickerEmpty: { color: '#625b71', fontSize: 14, padding: 20, textAlign: 'center' },
+  pickerLoadingText: { color: colors.accent.primary, fontSize: 14 },
+  pickerEmpty: { color: colors.text.muted, fontSize: 14, padding: 20, textAlign: 'center' },
 
   printingRow: {
     flexDirection: 'row',
@@ -871,16 +872,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: '#353A40',
+    borderColor: colors.bg.surface,
     gap: 12,
   },
-  printingRowCurrent: { backgroundColor: 'rgba(208,188,255,0.07)' },
-  printingRowPressed: { backgroundColor: 'rgba(208,188,255,0.12)' },
+  printingRowCurrent: { backgroundColor: colors.overlay.light },
+  printingRowPressed: { backgroundColor: colors.overlay.light },
   printingThumb: { width: 44, height: 62, borderRadius: 4 },
-  printingThumbPlaceholder: { backgroundColor: '#353A40' },
+  printingThumbPlaceholder: { backgroundColor: colors.bg.surface },
   printingInfo: { flex: 1, gap: 4 },
-  printingSetName: { color: '#D4CDC1', fontSize: 14, fontWeight: '600' },
-  printingMeta: { color: '#625b71', fontSize: 12 },
-  printingCurrentBadge: { color: '#9C6ADE', fontSize: 18, fontWeight: '700', width: 20, textAlign: 'center' },
-  printingArrow: { color: '#4a4f55', fontSize: 20, width: 20, textAlign: 'center' },
+  printingSetName: { color: colors.text.primary, fontSize: 14, fontWeight: '600' },
+  printingMeta: { color: colors.text.muted, fontSize: 12 },
+  printingCurrentBadge: { color: colors.accent.primary, fontSize: 18, fontWeight: '700', width: 20, textAlign: 'center' },
+  printingArrow: { color: colors.text.muted, fontSize: 20, width: 20, textAlign: 'center' },
 });

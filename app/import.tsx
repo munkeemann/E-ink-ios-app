@@ -15,6 +15,7 @@ import { router } from 'expo-router';
 import { fetchCardByPrinting, fetchCards, fetchTokenImage } from '../src/api/scryfall';
 import { saveDeck } from '../src/storage/deckStorage';
 import { CardInstance, Deck, TokenTemplate } from '../src/types';
+import { colors } from '../src/theme/colors';
 
 interface DeckEntry {
   name: string;
@@ -323,7 +324,7 @@ export default function ImportDeckScreen() {
           value={deckName}
           onChangeText={setDeckName}
           placeholder="e.g. Ur-Dragon"
-          placeholderTextColor="#625b71"
+          placeholderTextColor={colors.text.muted}
           editable={!importing}
         />
 
@@ -336,7 +337,7 @@ export default function ImportDeckScreen() {
           value={deckList}
           onChangeText={setDeckList}
           placeholder={'1 The Ur-Dragon\n1 Scion of the Ur-Dragon\n4 Cultivate\n...'}
-          placeholderTextColor="#625b71"
+          placeholderTextColor={colors.text.muted}
           multiline
           textAlignVertical="top"
           editable={!importing}
@@ -351,7 +352,7 @@ export default function ImportDeckScreen() {
           value={tokenList}
           onChangeText={setTokenList}
           placeholder={'Goblin\nTreasure\nSoldier\n...'}
-          placeholderTextColor="#625b71"
+          placeholderTextColor={colors.text.muted}
           multiline
           textAlignVertical="top"
           editable={!importing}
@@ -360,7 +361,7 @@ export default function ImportDeckScreen() {
 
         {importing ? (
           <View style={styles.progressBox}>
-            <ActivityIndicator size="large" color="#D0BCFF" />
+            <ActivityIndicator size="large" color={colors.accent.primary} />
             {progressLabel()}
           </View>
         ) : (
@@ -374,10 +375,10 @@ export default function ImportDeckScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#292E32' },
+  container: { flex: 1, backgroundColor: colors.bg.app },
   scroll: { padding: 18 },
   label: {
-    color: '#D0BCFF',
+    color: colors.accent.primary,
     fontSize: 13,
     fontWeight: '700',
     textTransform: 'uppercase',
@@ -385,12 +386,12 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     marginTop: 14,
   },
-  hint: { color: '#625b71', fontSize: 12, marginBottom: 8 },
+  hint: { color: colors.text.muted, fontSize: 12, marginBottom: 8 },
   input: {
-    backgroundColor: '#353A40',
-    color: '#D4CDC1',
+    backgroundColor: colors.bg.surface,
+    color: colors.text.primary,
     borderWidth: 1,
-    borderColor: '#625b71',
+    borderColor: colors.text.muted,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -399,14 +400,14 @@ const styles = StyleSheet.create({
   textArea: { height: 300, lineHeight: 22 },
   tokenArea: { height: 120, lineHeight: 22 },
   progressBox: { marginTop: 24, alignItems: 'center', gap: 12 },
-  progressText: { color: '#CCC2DC', fontSize: 15 },
-  progressNum: { color: '#D0BCFF', fontWeight: '700' },
+  progressText: { color: colors.text.secondary, fontSize: 15 },
+  progressNum: { color: colors.accent.primary, fontWeight: '700' },
   button: {
     marginTop: 28,
-    backgroundColor: '#6650a4',
+    backgroundColor: colors.accent.dark,
     borderRadius: 10,
     paddingVertical: 15,
     alignItems: 'center',
   },
-  buttonText: { color: '#D0BCFF', fontSize: 17, fontWeight: '800' },
+  buttonText: { color: colors.accent.primary, fontSize: 17, fontWeight: '800' },
 });

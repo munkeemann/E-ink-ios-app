@@ -11,6 +11,7 @@ import {
 import { router, useFocusEffect } from 'expo-router';
 import { deleteDeck, loadDecks } from '../../src/storage/deckStorage';
 import { Deck } from '../../src/types';
+import { colors } from '../../src/theme/colors';
 
 const MANA_IMAGES: Record<string, ReturnType<typeof require>> = {
   W: require('../../assets/images/white_mana.png'),
@@ -110,29 +111,29 @@ export default function DeckListScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#292E32' },
+  container: { flex: 1, backgroundColor: colors.bg.app },
   list: { padding: 14 },
   tile: {
     height: 120,
-    backgroundColor: '#353A40',
+    backgroundColor: colors.bg.surface,
     borderRadius: 10,
     marginBottom: 14,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#625b71',
+    borderColor: colors.text.muted,
   },
-  tilePlaceholder: { backgroundColor: '#353A40' },
+  tilePlaceholder: { backgroundColor: colors.bg.surface },
   tileOverlay: {
     flex: 1,
     padding: 12,
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(41,46,50,0.55)',
+    backgroundColor: colors.overlay.dark,
   },
-  tileName: { color: '#D4CDC1', fontSize: 17, fontWeight: '700' },
-  tileCommander: { color: '#D0BCFF', fontSize: 12, marginTop: 2 },
+  tileName: { color: colors.text.primary, fontSize: 17, fontWeight: '700' },
+  tileCommander: { color: colors.accent.primary, fontSize: 12, marginTop: 2 },
   colorRow: { flexDirection: 'row', gap: 6, marginTop: 6 },
   manaIcon: { width: 22, height: 22 },
-  cardCount: { color: '#CCC2DC', fontSize: 12, marginTop: 4 },
+  cardCount: { color: colors.text.secondary, fontSize: 12, marginTop: 4 },
   deleteBtn: {
     position: 'absolute',
     top: 8,
@@ -140,14 +141,14 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: 'rgba(125,82,96,0.85)',
+    backgroundColor: colors.overlay.dark,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  deleteBtnLabel: { color: '#EFB8C8', fontSize: 11, fontWeight: '700' },
+  deleteBtnLabel: { color: colors.text.secondary, fontSize: 11, fontWeight: '700' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  emptyTitle: { color: '#D0BCFF', fontSize: 22, fontWeight: '700' },
-  emptyHint: { color: '#625b71', fontSize: 14 },
+  emptyTitle: { color: colors.accent.primary, fontSize: 22, fontWeight: '700' },
+  emptyHint: { color: colors.text.muted, fontSize: 14 },
   fab: {
     position: 'absolute',
     bottom: 28,
@@ -155,14 +156,14 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 29,
-    backgroundColor: '#6650a4',
+    backgroundColor: colors.accent.dark,
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 8,
-    shadowColor: '#000',
+    shadowColor: colors.bg.app,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.5,
     shadowRadius: 5,
   },
-  fabLabel: { fontSize: 30, color: '#D0BCFF', lineHeight: 34 },
+  fabLabel: { fontSize: 30, color: colors.accent.primary, lineHeight: 34 },
 });

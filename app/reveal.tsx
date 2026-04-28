@@ -12,6 +12,7 @@ import {
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { getDeck, saveDeck } from '../src/storage/deckStorage';
 import { CardInstance, Deck } from '../src/types';
+import { colors } from '../src/theme/colors';
 
 export default function RevealScreen() {
   const { deckId, count } = useLocalSearchParams<{ deckId: string; count: string }>();
@@ -121,46 +122,46 @@ export default function RevealScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#292E32' },
+  container: { flex: 1, backgroundColor: colors.bg.app },
   sectionHeader: {
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 6,
-    backgroundColor: '#353A40',
+    backgroundColor: colors.bg.surface,
     borderBottomWidth: 1,
-    borderColor: '#625b71',
+    borderColor: colors.text.muted,
   },
-  sectionTitle: { color: '#D0BCFF', fontSize: 14, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 },
-  sectionHint: { color: '#625b71', fontSize: 11, marginTop: 2 },
+  sectionTitle: { color: colors.accent.primary, fontSize: 14, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 },
+  sectionHint: { color: colors.text.muted, fontSize: 11, marginTop: 2 },
   cardRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,
     paddingVertical: 8,
-    backgroundColor: '#353A40',
+    backgroundColor: colors.bg.surface,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: '#625b71',
+    borderColor: colors.text.muted,
     gap: 10,
   },
   moveBtn: { paddingHorizontal: 6, paddingVertical: 4 },
-  moveBtnText: { color: '#CCC2DC', fontSize: 16 },
-  moveBtnDisabled: { color: '#444' },
+  moveBtnText: { color: colors.text.secondary, fontSize: 16 },
+  moveBtnDisabled: { color: colors.text.disabled },
   cardThumb: { width: 44, height: 60, borderRadius: 4 },
-  cardThumbPlaceholder: { backgroundColor: '#4a4f55' },
+  cardThumbPlaceholder: { backgroundColor: colors.text.muted },
   cardNameContainer: { flex: 1 },
-  cardName: { color: '#D4CDC1', fontSize: 15 },
+  cardName: { color: colors.text.primary, fontSize: 15 },
   footer: {
     flexDirection: 'row',
     gap: 10,
     padding: 14,
-    backgroundColor: '#353A40',
+    backgroundColor: colors.bg.surface,
     borderTopWidth: 1,
-    borderColor: '#625b71',
+    borderColor: colors.text.muted,
   },
-  cancelBtn: { flex: 1, paddingVertical: 15, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: '#625b71' },
-  cancelText: { color: '#625b71', fontSize: 16 },
-  confirmBtn: { flex: 1, backgroundColor: '#6650a4', borderRadius: 10, paddingVertical: 15, alignItems: 'center' },
-  confirmText: { color: '#D0BCFF', fontSize: 16, fontWeight: '800' },
-  artBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center' },
+  cancelBtn: { flex: 1, paddingVertical: 15, borderRadius: 10, alignItems: 'center', borderWidth: 1, borderColor: colors.text.muted },
+  cancelText: { color: colors.text.muted, fontSize: 16 },
+  confirmBtn: { flex: 1, backgroundColor: colors.accent.dark, borderRadius: 10, paddingVertical: 15, alignItems: 'center' },
+  confirmText: { color: colors.accent.primary, fontSize: 16, fontWeight: '800' },
+  artBackdrop: { flex: 1, backgroundColor: colors.overlay.darker, alignItems: 'center', justifyContent: 'center' },
   artFull: { width: '90%', height: '80%' },
 });

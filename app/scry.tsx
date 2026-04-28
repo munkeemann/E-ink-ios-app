@@ -13,6 +13,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { assignSleeveIds, beginGame, getRegisteredSleeves } from '../src/api/piServer';
 import { getDeck, loadSettings, saveDeck } from '../src/storage/deckStorage';
 import { CardInstance, Deck } from '../src/types';
+import { colors } from '../src/theme/colors';
 
 export default function ScryScreen() {
   const { deckId, count } = useLocalSearchParams<{
@@ -44,7 +45,7 @@ export default function ScryScreen() {
   if (!deck) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#D0BCFF" />
+        <ActivityIndicator color={colors.accent.primary} />
       </View>
     );
   }
@@ -214,7 +215,7 @@ export default function ScryScreen() {
           disabled={busy}
         >
           {busy ? (
-            <ActivityIndicator color="#D0BCFF" />
+            <ActivityIndicator color={colors.accent.primary} />
           ) : (
             <Text style={styles.confirmText}>✓ Confirm & Send Sleeves</Text>
           )}
@@ -225,26 +226,26 @@ export default function ScryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#292E32' },
+  container: { flex: 1, backgroundColor: colors.bg.app },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   sectionHeader: {
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 6,
-    backgroundColor: '#353A40',
+    backgroundColor: colors.bg.surface,
     borderBottomWidth: 1,
-    borderColor: '#625b71',
+    borderColor: colors.text.muted,
   },
   sectionTitle: {
-    color: '#D0BCFF',
+    color: colors.accent.primary,
     fontSize: 14,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
-  sectionHint: { color: '#625b71', fontSize: 11, marginTop: 2 },
+  sectionHint: { color: colors.text.muted, fontSize: 11, marginTop: 2 },
   emptyText: {
-    color: '#625b71',
+    color: colors.text.muted,
     textAlign: 'center',
     paddingVertical: 20,
     fontStyle: 'italic',
@@ -254,42 +255,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 14,
     paddingVertical: 12,
-    backgroundColor: '#353A40',
+    backgroundColor: colors.bg.surface,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: '#625b71',
+    borderColor: colors.text.muted,
     gap: 10,
   },
   moveBtn: { paddingHorizontal: 6, paddingVertical: 4 },
-  moveBtnText: { color: '#CCC2DC', fontSize: 16 },
-  moveBtnDisabled: { color: '#444' },
+  moveBtnText: { color: colors.text.secondary, fontSize: 16 },
+  moveBtnDisabled: { color: colors.text.disabled },
   cardNameContainer: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  cardName: { color: '#D4CDC1', fontSize: 15, flex: 1 },
-  cardHint: { color: '#625b71', fontSize: 10 },
+  cardName: { color: colors.text.primary, fontSize: 15, flex: 1 },
+  cardHint: { color: colors.text.muted, fontSize: 10 },
   bottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,
     paddingVertical: 11,
-    backgroundColor: '#292E32',
+    backgroundColor: colors.bg.app,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: '#353A40',
+    borderColor: colors.bg.surface,
     gap: 10,
   },
   bottomNameContainer: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  bottomName: { color: '#CCC2DC', fontSize: 14, flex: 1 },
-  bottomHint: { color: '#625b71', fontSize: 11 },
+  bottomName: { color: colors.text.secondary, fontSize: 14, flex: 1 },
+  bottomHint: { color: colors.text.muted, fontSize: 11 },
   footer: {
     padding: 14,
-    backgroundColor: '#353A40',
+    backgroundColor: colors.bg.surface,
     borderTopWidth: 1,
-    borderColor: '#625b71',
+    borderColor: colors.text.muted,
   },
   confirmBtn: {
-    backgroundColor: '#6650a4',
+    backgroundColor: colors.accent.dark,
     borderRadius: 10,
     paddingVertical: 15,
     alignItems: 'center',
   },
   confirmBtnDisabled: { opacity: 0.5 },
-  confirmText: { color: '#D0BCFF', fontSize: 16, fontWeight: '800' },
+  confirmText: { color: colors.accent.primary, fontSize: 16, fontWeight: '800' },
 });
