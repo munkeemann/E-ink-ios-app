@@ -1060,13 +1060,16 @@ export default function InGameScreen() {
 
       if (tokenSleeveId !== null) {
         console.log(`[Token] "${tokenCard.displayName}" → sleeve ${tokenSleeveId} (image=${imagePath ? 'OK' : 'MISS — using card_back'})`);
-        pushCardToSleeve(tokenCard, cmdCount)
-          .then(() => console.log(`[Token] sleeve ${tokenSleeveId} push OK`))
-          .catch(e => console.error(`[Token] sleeve ${tokenSleeveId} push ERR:`, e));
-        pushZoneUpdateViaPi(tokenSleeveId, 'TKN').catch(() => {});
       } else {
         console.log(`[Token] "${tokenCard.displayName}" — no free sleeve, BTFLD tile only`);
       }
+      // SAM1-81: full-sweep refresh — same ritual as handleMillConfirm /
+      // handleKeepHand. clearMemo wipes the fingerprint cache so library
+      // sleeves (whose descriptors are unchanged) re-push instead of being
+      // deduped; syncSleeves drives the actual re-push of every sleeve,
+      // including the new token.
+      clearMemo();
+      syncSleeves(finalCards);
 
       setTokenModalVisible(false);
       setTokenName('');
