@@ -363,8 +363,13 @@ export default function InGameScreen() {
   const zoneCards = useMemo(() => {
     if (!activeZone) return [];
     if (activeZone === 'BTFLD') return cards.filter(c => c.zone === 'BTFLD' || c.zone === 'TKN');
-    return cards.filter(c => c.zone === activeZone);
-  }, [activeZone, cards]);
+    const filtered = cards.filter(c => c.zone === activeZone);
+    if (activeZone === 'LIB' && !settings.devMode) {
+      const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
+      return [...filtered].sort((a, b) => collator.compare(a.displayName, b.displayName));
+    }
+    return filtered;
+  }, [activeZone, cards, settings.devMode]);
 
   // ─── Push sleeves after a reorder (shuffle, tutor, scry) ────────────────
   const doBeginGame = async (gameCards: CardInstance[]) => {
