@@ -66,4 +66,4 @@ The app posts JPEG bytes of card images to the Pi server to render on physical e
 - Scryfall bulk data is cached for 24 hours; card images are cached per-card. Both use AsyncStorage.
 - Game state lives in React component state in `game/[id].tsx` — nothing is persisted mid-game. A fresh game always starts from a shuffled library.
 - Token templates are stored per-deck in the `tokens` field of the `Deck` object.
-- The color palette is dark Material 3: primary purple `#9C6ADE`, background `#1A1A2E`, surface `#2A2A3E`.
+- **Theme**: shared UI palette tokens live in `src/theme/colors.ts`, grouped as `bg`, `text`, `accent`, `border`, `divider`, `status`, `overlay`. The palette is dark-navy + cyan accent; consumed by all game sections plus the landing screen. MTG game-state zone colors (CMD/LIB/HND/BTFLD/GRV/EXL) live separately in `src/mtg/zoneColors.ts` as game data, not UI palette. MTG mana letters (`MTG_COLORS` W/U/B/R/G) are inline in `app/game/[id].tsx` and are also game data.

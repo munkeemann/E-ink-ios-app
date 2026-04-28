@@ -18,6 +18,7 @@ import { CahGameState } from '../src/types/cah';
 import { CahMaxsGameState } from '../src/types/cah_maxs';
 import { clearMemo } from '../src/api/sleeveService';
 import AmbientLayer from '../src/components/AmbientLayer';
+import { colors } from '../src/theme/colors';
 
 type GameDef = {
   id: string;
@@ -198,7 +199,7 @@ export default function GameSelectScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#060c14' },
+  container: { flex: 1, backgroundColor: colors.bg.app },
 
   header: {
     paddingTop: 64,
@@ -207,16 +208,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    color: '#22d3ee',
+    color: colors.accent.primary,
     fontSize: 26,
     fontWeight: '800',
     letterSpacing: 1.5,
-    textShadowColor: 'rgba(34,211,238,0.5)',
+    textShadowColor: colors.overlay.accent50,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 12,
   },
   headerSubtitle: {
-    color: '#64b5c8',
+    color: colors.text.secondary,
     fontSize: 14,
     marginTop: 4,
     letterSpacing: 0.8,
@@ -227,23 +228,23 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: '#071e30',
+    backgroundColor: colors.bg.surface,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#22d3ee',
+    borderColor: colors.accent.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    shadowColor: '#22d3ee',
+    shadowColor: colors.accent.primary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 4,
   },
   resumeLeft: { flex: 1, gap: 3 },
-  resumeLabel: { color: '#22d3ee', fontSize: 11, fontWeight: '700', letterSpacing: 1.2 },
-  resumeName: { color: '#e0f7ff', fontSize: 15, fontWeight: '700' },
-  resumeArrow: { color: '#22d3ee', fontSize: 28, marginLeft: 8 },
+  resumeLabel: { color: colors.accent.primary, fontSize: 11, fontWeight: '700', letterSpacing: 1.2 },
+  resumeName: { color: colors.text.primary, fontSize: 15, fontWeight: '700' },
+  resumeArrow: { color: colors.accent.primary, fontSize: 28, marginLeft: 8 },
 
   grid: { paddingHorizontal: 12, paddingBottom: 32 },
   row: { gap: 12, marginBottom: 12 },
@@ -258,41 +259,41 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   tileAvailable: {
-    backgroundColor: '#071a2a',
-    borderColor: '#0e7490',
-    shadowColor: '#22d3ee',
+    backgroundColor: colors.bg.surface,
+    borderColor: colors.accent.dark,
+    shadowColor: colors.accent.primary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
   },
   tileUnavailable: {
-    backgroundColor: '#0a0f16',
-    borderColor: '#1a2535',
+    backgroundColor: colors.bg.app,
+    borderColor: colors.divider,
   },
   tilePressed: {
-    borderColor: '#22d3ee',
-    backgroundColor: '#0c2340',
+    borderColor: colors.accent.primary,
+    backgroundColor: colors.bg.elevated,
   },
 
   tileIcon: { fontSize: 28 },
-  tileTitle: { color: '#e0f7ff', fontSize: 14, fontWeight: '700', lineHeight: 18, marginTop: 10 },
-  tileTitleDim: { color: '#3a5060' },
-  tileSubtitle: { color: '#64b5c8', fontSize: 11, marginTop: 4 },
-  tileSubtitleDim: { color: '#2a3a45' },
+  tileTitle: { color: colors.text.primary, fontSize: 14, fontWeight: '700', lineHeight: 18, marginTop: 10 },
+  tileTitleDim: { color: colors.text.muted },
+  tileSubtitle: { color: colors.text.secondary, fontSize: 11, marginTop: 4 },
+  tileSubtitleDim: { color: colors.text.muted },
 
   tileArrow: { alignSelf: 'flex-end', marginTop: 8 },
-  tileArrowText: { color: '#22d3ee', fontSize: 24 },
+  tileArrowText: { color: colors.accent.primary, fontSize: 24 },
 
   comingSoonBadge: {
     alignSelf: 'flex-start',
     marginTop: 10,
     paddingHorizontal: 7,
     paddingVertical: 3,
-    backgroundColor: '#111820',
+    backgroundColor: colors.bg.surface,
     borderRadius: 4,
     borderWidth: 1,
-    borderColor: '#1a2535',
+    borderColor: colors.divider,
   },
-  comingSoonText: { color: '#2e4050', fontSize: 9, fontWeight: '700', letterSpacing: 1.2 },
+  comingSoonText: { color: colors.text.muted, fontSize: 9, fontWeight: '700', letterSpacing: 1.2 },
 });
