@@ -386,7 +386,13 @@ export async function beginGame(
     const candidates = safeCards.filter(c => {
       if (c.sleeveId === null || c.sleeveId === undefined || !c.imagePath) return false;
       if (c.place === 'commander') return true;
-      if (physZones && !physZones.has(c.zone)) return false;
+      // SAM1-81: TKN is "physical via BTFLD" — assignSleeveIds at line 217-218
+      // already bundles TKN with BTFLD for sleeve assignment. Match that
+      // convention here so tokens (zone='TKN') push when BTFLD is in
+      // physicalZones; otherwise the cascade in createTokenFromValues sets
+      // a valid sleeveId that beginGame would silently skip.
+      const effectiveZone = c.zone === 'TKN' ? 'BTFLD' : c.zone;
+      if (physZones && !physZones.has(effectiveZone)) return false;
       return true;
     }).sort((a, b) => (a.sleeveId ?? 0) - (b.sleeveId ?? 0));
 
