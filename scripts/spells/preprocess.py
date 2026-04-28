@@ -7,19 +7,21 @@ Source:   ~/spell-cards-raw/Spell Cards/<png_filename>
 Metadata: scripts/spells/spells.json  (SAM1-59 output)
 Output:   src/assets/dnd/spells/<safe_name>.jpg  (540×760 JPEG, q=95)
 
-Pipeline (Option 3 per SAM1-62 discovery):
+Pipeline (Option 3 per SAM1-62 discovery, with SAM1-77 text-crispness tuning):
   - Flatten RGBA onto white (PNG sources may carry alpha).
-  - Proportional shrink + center-crop to 540×760.
+  - Proportional shrink + center-crop to 540×760 via Lanczos.
     Source 822×1122 (aspect 0.733) vs target 540×760 (aspect 0.711):
     scale-by-width then crop ~4px horizontally off each side.
-  - NO luma transform. Spell cards are ~70% white-background text blocks;
-    the gamma-to-140 pipeline used for playing-card skins can't move the
-    mean off the white pixels, and linear dimming the whites to grey
-    reduces text/background contrast unnecessarily. Native brightness
-    goes straight to the sleeve; firmware handles final tonemap.
-  - Save JPEG at quality 95 (bumped from skin-pipeline's 90 to reduce
-    ringing at text edges; e-ink renders high-frequency text poorly when
-    JPEG compression introduces 8×8 block artifacts).
+  - SAM1-77: post-resize UnsharpMask + gamma 1.15. Lanczos downscale
+    smears 2-source-pixel text strokes into mid-grey AA bands; an
+    unsharp pass restores stroke definition and the gamma push pulls
+    residual mid-grey toward black where e-ink renders crisply. White
+    backgrounds are preserved (gamma>1 leaves 1.0→1.0). Measured impact:
+    +5–8 units of body-region contrast std, −3pp midtone smear, on
+    representative spells (Dancing Lights / Fireball / Polymorph).
+  - Save JPEG at quality 95 with PIL's default subsampling (4:2:0).
+    Quality and chroma subsampling were measured to have no effect on
+    body text rendering — the bottleneck was Lanczos AA, not JPEG.
 
 Filename: lowercase, spaces→underscores, apostrophes stripped, slashes→
 underscores. "Bigby's Hand" → "bigbys_hand", "Antipathy/Sympathy" →
@@ -33,7 +35,8 @@ import os
 import re
 import sys
 from pathlib import Path
-from PIL import Image
+import numpy as np
+from PIL import Image, ImageFilter
 
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parent.parent
@@ -44,6 +47,12 @@ DEST_DIR = REPO_ROOT / 'src' / 'assets' / 'dnd' / 'spells'
 JPEG_QUALITY = 95
 TARGET_W = 540
 TARGET_H = 760
+
+# SAM1-77: text-crispness tuning (variant VS2).
+UNSHARP_RADIUS = 1.0
+UNSHARP_PERCENT = 75
+UNSHARP_THRESHOLD = 2
+GAMMA = 1.15
 
 
 def safe_filename(spell_name: str) -> str:
@@ -82,15 +91,24 @@ def resize_to_target(img: Image.Image) -> Image.Image:
 
 
 def luma_mean(img: Image.Image) -> float:
-    # Quick mean-luma sampler for reporting only; no transform applied.
-    import numpy as np
+    # Quick mean-luma sampler for reporting only.
     arr = np.array(img, dtype=float)
     return float((0.2126 * arr[:, :, 0] + 0.7152 * arr[:, :, 1] + 0.0722 * arr[:, :, 2]).mean())
+
+
+def apply_gamma(img: Image.Image, gamma: float) -> Image.Image:
+    arr = np.array(img, dtype=np.float32) / 255.0
+    arr = np.clip(arr ** gamma, 0, 1) * 255.0
+    return Image.fromarray(arr.astype(np.uint8))
 
 
 def process(src_path: Path, dest_path: Path) -> float:
     img = flatten_to_rgb(Image.open(src_path))
     img = resize_to_target(img)
+    img = img.filter(ImageFilter.UnsharpMask(
+        radius=UNSHARP_RADIUS, percent=UNSHARP_PERCENT, threshold=UNSHARP_THRESHOLD,
+    ))
+    img = apply_gamma(img, GAMMA)
     img.save(dest_path, 'JPEG', quality=JPEG_QUALITY)
     return luma_mean(img)
 
