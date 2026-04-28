@@ -173,6 +173,13 @@ export default function GameSelectScreen() {
     <View style={styles.container}>
       <AmbientLayer active={isFocused} />
       <StatusBar barStyle="light-content" />
+      <Pressable
+        style={styles.settingsBtn}
+        onPress={() => router.push('/settings')}
+        hitSlop={12}
+      >
+        <Text style={styles.settingsIcon}>⚙️</Text>
+      </Pressable>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>The Arcanum</Text>
         <Text style={styles.headerSubtitle}>Choose your game</Text>
@@ -224,6 +231,15 @@ function makeStyles(colors: Theme) { return StyleSheet.create({
     marginTop: 4,
     letterSpacing: 0.8,
   },
+
+  settingsBtn: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    padding: 8,
+    zIndex: 10,
+  },
+  settingsIcon: { fontSize: 22 },
 
   resumeBanner: {
     marginHorizontal: 16,

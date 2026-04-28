@@ -1,17 +1,13 @@
-import { useEffect, useMemo } from 'react';
-import { Stack, router } from 'expo-router';
+import { useEffect } from 'react';
+import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { loadSettings } from '../src/storage/deckStorage';
 import { configurePiDebug } from '../src/api/piServer';
 import { ThemeProvider, useTheme } from '../src/theme/colors';
 
 function StackWithTheme() {
   const colors = useTheme();
-  const styles = useMemo(() => StyleSheet.create({
-    gearBtn: { marginRight: 4 },
-    gearIcon: { fontSize: 20, color: colors.text.primary },
-  }), [colors]);
 
   return (
     <Stack
@@ -31,14 +27,7 @@ function StackWithTheme() {
       />
       <Stack.Screen
         name="mtg/index"
-        options={{
-          title: 'MTG Deck Manager',
-          headerRight: () => (
-            <Pressable onPress={() => router.push('/settings')} hitSlop={8} style={styles.gearBtn}>
-              <Text style={styles.gearIcon}>⚙️</Text>
-            </Pressable>
-          ),
-        }}
+        options={{ title: 'MTG Deck Manager' }}
       />
       <Stack.Screen
         name="coming-soon"
