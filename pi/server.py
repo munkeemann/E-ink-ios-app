@@ -23,6 +23,24 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(message)s"
 )
 
+
+class _PollingAccessLogFilter(logging.Filter):
+    """Silence werkzeug access logs for the two read-only polling endpoints
+    (/zones every 500ms, /sleeves on screen mounts). They drown out the real
+    /display, /set_zone, /zone_update events that we actually want to read
+    when diagnosing a session. Application-level logs from these handlers
+    (none today) would still pass through this filter unchanged — it only
+    matches the werkzeug access-log format."""
+
+    _NOISY = ("GET /zones", "GET /sleeves")
+
+    def filter(self, record: logging.LogRecord) -> bool:  # True = keep
+        msg = record.getMessage()
+        return not any(path in msg for path in self._NOISY)
+
+
+logging.getLogger("werkzeug").addFilter(_PollingAccessLogFilter())
+
 app = Flask(__name__)
 
 # sleeve_id -> ip
