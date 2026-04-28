@@ -9,6 +9,7 @@ import {
 import { router, useFocusEffect } from 'expo-router';
 import { listDecks } from '../../src/storage/dndStorage';
 import { DndDeck } from '../../src/types/dnd';
+import { colors } from '../../src/theme/colors';
 
 export default function DndDeckPickerScreen() {
   const [decks, setDecks] = useState<DndDeck[]>([]);
@@ -60,29 +61,29 @@ export default function DndDeckPickerScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#060c14' },
+  container: { flex: 1, backgroundColor: colors.bg.app },
   list: { padding: 16, paddingBottom: 96 },
 
   deckTile: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#071a2a',
+    backgroundColor: colors.bg.surface,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#0e7490',
+    borderColor: colors.accent.dark,
     padding: 14,
     marginBottom: 10,
   },
-  deckTilePressed: { backgroundColor: '#0c2340', borderColor: '#22d3ee' },
+  deckTilePressed: { backgroundColor: colors.bg.elevated, borderColor: colors.accent.primary },
   deckTileBody: { flex: 1, gap: 3 },
-  deckName: { color: '#e0f7ff', fontSize: 16, fontWeight: '700' },
-  deckMeta: { color: '#64b5c8', fontSize: 12 },
-  deckSpells: { color: '#3a6070', fontSize: 11, marginTop: 2 },
-  deckArrow: { color: '#22d3ee', fontSize: 24, marginLeft: 8 },
+  deckName: { color: colors.text.primary, fontSize: 16, fontWeight: '700' },
+  deckMeta: { color: colors.text.secondary, fontSize: 12 },
+  deckSpells: { color: colors.text.muted, fontSize: 11, marginTop: 2 },
+  deckArrow: { color: colors.accent.primary, fontSize: 24, marginLeft: 8 },
 
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, padding: 32 },
-  emptyTitle: { color: '#22d3ee', fontSize: 22, fontWeight: '700' },
-  emptyHint: { color: '#64b5c8', fontSize: 14, textAlign: 'center' },
+  emptyTitle: { color: colors.accent.primary, fontSize: 22, fontWeight: '700' },
+  emptyHint: { color: colors.text.secondary, fontSize: 14, textAlign: 'center' },
 
   newBtn: {
     position: 'absolute',
@@ -91,14 +92,14 @@ const styles = StyleSheet.create({
     right: 16,
     height: 52,
     borderRadius: 10,
-    backgroundColor: '#22d3ee',
+    backgroundColor: colors.accent.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#22d3ee',
+    shadowColor: colors.accent.primary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 4,
   },
-  newBtnLabel: { color: '#060c14', fontSize: 16, fontWeight: '800', letterSpacing: 0.8 },
+  newBtnLabel: { color: colors.bg.app, fontSize: 16, fontWeight: '800', letterSpacing: 0.8 },
 });

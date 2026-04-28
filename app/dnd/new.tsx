@@ -19,6 +19,7 @@ import {
 import { saveDeck } from '../../src/storage/dndStorage';
 import spellMeta from '../../src/assets/dnd/spells.json';
 import spellImages from '../../src/assets/dnd/spells/index';
+import { colors } from '../../src/theme/colors';
 
 interface SpellMeta {
   level: number;
@@ -162,7 +163,7 @@ export default function DndNewWizardScreen() {
             disabled={saving || !deckName.trim()}
           >
             {saving ? (
-              <ActivityIndicator color="#060c14" />
+              <ActivityIndicator color={colors.bg.app} />
             ) : (
               <Text style={styles.saveBtnLabel}>Save Deck</Text>
             )}
@@ -406,7 +407,7 @@ function Step5NameAndSave({ value, onChange, selectedCount }: { value: string; o
       <TextInput
         style={styles.input}
         placeholder="e.g. Kelenna's Wizard 8"
-        placeholderTextColor="#3a6070"
+        placeholderTextColor={colors.text.muted}
         value={value}
         onChangeText={onChange}
         autoFocus
@@ -421,18 +422,18 @@ function Step5NameAndSave({ value, onChange, selectedCount }: { value: string; o
 // ── Styles ────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: '#060c14' },
+  scroll: { flex: 1, backgroundColor: colors.bg.app },
   container: { padding: 20, gap: 16, paddingBottom: 40 },
 
   stepBadge: {
-    color: '#22d3ee',
+    color: colors.accent.primary,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1.2,
     alignSelf: 'center',
   },
   title: {
-    color: '#22d3ee',
+    color: colors.accent.primary,
     fontSize: 24,
     fontWeight: '800',
     letterSpacing: 1,
@@ -440,15 +441,15 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    backgroundColor: '#071a2a',
+    backgroundColor: colors.bg.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#0e7490',
+    borderColor: colors.accent.dark,
     padding: 16,
     gap: 14,
   },
-  label: { color: '#64b5c8', fontSize: 13, letterSpacing: 0.6, fontWeight: '700' },
-  hint: { color: '#3a6070', fontSize: 12, lineHeight: 16 },
+  label: { color: colors.text.secondary, fontSize: 13, letterSpacing: 0.6, fontWeight: '700' },
+  hint: { color: colors.text.muted, fontSize: 12, lineHeight: 16 },
 
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
@@ -456,29 +457,29 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#1a3a50',
-    backgroundColor: '#040d16',
+    borderColor: colors.divider,
+    backgroundColor: colors.bg.app,
   },
-  chipActive: { borderColor: '#22d3ee', backgroundColor: '#071e30' },
-  chipText: { color: '#3a6070', fontSize: 13, fontWeight: '600' },
-  chipTextActive: { color: '#22d3ee' },
+  chipActive: { borderColor: colors.accent.primary, backgroundColor: colors.bg.surface },
+  chipText: { color: colors.text.muted, fontSize: 13, fontWeight: '600' },
+  chipTextActive: { color: colors.accent.primary },
 
   stepper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 24 },
   stepBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#0e7490',
+    backgroundColor: colors.accent.dark,
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepBtnDisabled: { opacity: 0.3 },
-  stepLabel: { color: '#e0f7ff', fontSize: 22, fontWeight: '700', lineHeight: 26 },
-  countBig: { color: '#22d3ee', fontSize: 40, fontWeight: '800', minWidth: 72, textAlign: 'center' },
+  stepLabel: { color: colors.text.primary, fontSize: 22, fontWeight: '700', lineHeight: 26 },
+  countBig: { color: colors.accent.primary, fontSize: 40, fontWeight: '800', minWidth: 72, textAlign: 'center' },
 
   counterRow: { flexDirection: 'row', gap: 14, flexWrap: 'wrap' },
-  counterText: { color: '#22d3ee', fontSize: 13, fontWeight: '700' },
-  counterTextOver: { color: '#f59e0b' },
+  counterText: { color: colors.accent.primary, fontSize: 13, fontWeight: '700' },
+  counterTextOver: { color: colors.status.warning },
 
   toggleRow: {
     flexDirection: 'row',
@@ -486,19 +487,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 8,
     paddingHorizontal: 10,
-    backgroundColor: '#040d16',
+    backgroundColor: colors.bg.app,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#1a3a50',
+    borderColor: colors.divider,
   },
-  toggleText: { color: '#64b5c8', fontSize: 12 },
-  toggleSwitch: { color: '#22d3ee', fontSize: 11, fontWeight: '800', letterSpacing: 1 },
+  toggleText: { color: colors.text.secondary, fontSize: 12 },
+  toggleSwitch: { color: colors.accent.primary, fontSize: 11, fontWeight: '800', letterSpacing: 1 },
 
-  emptyMsg: { color: '#3a6070', fontSize: 13, textAlign: 'center', padding: 16 },
+  emptyMsg: { color: colors.text.muted, fontSize: 13, textAlign: 'center', padding: 16 },
 
   levelSection: { gap: 6 },
   levelHeader: {
-    color: '#22d3ee',
+    color: colors.accent.primary,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 1,
@@ -508,26 +509,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 6,
-    backgroundColor: '#040d16',
+    backgroundColor: colors.bg.app,
     borderWidth: 1,
-    borderColor: '#0a2c3d',
+    borderColor: colors.bg.elevated,
   },
-  spellRowSelected: { borderColor: '#22d3ee', backgroundColor: '#071e30' },
-  spellRowPressed: { backgroundColor: '#0c2340' },
+  spellRowSelected: { borderColor: colors.accent.primary, backgroundColor: colors.bg.surface },
+  spellRowPressed: { backgroundColor: colors.bg.elevated },
   spellRowBody: { gap: 2 },
-  spellName: { color: '#e0f7ff', fontSize: 14, fontWeight: '600' },
-  spellNameSelected: { color: '#22d3ee' },
-  spellMeta: { color: '#3a6070', fontSize: 11 },
-  noArtBadge: { color: '#7d5260', fontSize: 11, fontWeight: '700' },
+  spellName: { color: colors.text.primary, fontSize: 14, fontWeight: '600' },
+  spellNameSelected: { color: colors.accent.primary },
+  spellMeta: { color: colors.text.muted, fontSize: 11 },
+  noArtBadge: { color: colors.text.muted, fontSize: 11, fontWeight: '700' },
 
   input: {
     borderWidth: 1,
-    borderColor: '#0e7490',
-    backgroundColor: '#040d16',
+    borderColor: colors.accent.dark,
+    backgroundColor: colors.bg.app,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: '#e0f7ff',
+    color: colors.text.primary,
     fontSize: 15,
   },
 
@@ -537,30 +538,30 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#1a3a50',
-    backgroundColor: '#040d16',
+    borderColor: colors.divider,
+    backgroundColor: colors.bg.app,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backBtnLabel: { color: '#64b5c8', fontSize: 15, fontWeight: '700' },
+  backBtnLabel: { color: colors.text.secondary, fontSize: 15, fontWeight: '700' },
   nextBtn: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 10,
-    backgroundColor: '#22d3ee',
+    backgroundColor: colors.accent.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   nextBtnDisabled: { opacity: 0.4 },
-  nextBtnLabel: { color: '#060c14', fontSize: 15, fontWeight: '800' },
+  nextBtnLabel: { color: colors.bg.app, fontSize: 15, fontWeight: '800' },
   saveBtn: {
     flex: 1,
     height: 52,
     borderRadius: 10,
-    backgroundColor: '#22d3ee',
+    backgroundColor: colors.accent.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   saveBtnDisabled: { opacity: 0.4 },
-  saveBtnLabel: { color: '#060c14', fontSize: 16, fontWeight: '800', letterSpacing: 0.8 },
+  saveBtnLabel: { color: colors.bg.app, fontSize: 16, fontWeight: '800', letterSpacing: 0.8 },
 });

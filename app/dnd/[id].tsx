@@ -13,6 +13,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { getDeck, deleteDeck } from '../../src/storage/dndStorage';
 import { DndDeck } from '../../src/types/dnd';
 import spellMeta from '../../src/assets/dnd/spells.json';
+import { colors } from '../../src/theme/colors';
 import spellImages from '../../src/assets/dnd/spells/index';
 import { sendToSleeve, clearMemo, dndSpellDescriptor, PI_SERVER } from '../../src/api/sleeveService';
 import { getRegisteredSleeves } from '../../src/api/piServer';
@@ -135,7 +136,7 @@ export default function DndDeckViewScreen() {
   if (!loaded) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color="#22d3ee" size="large" />
+        <ActivityIndicator color={colors.accent.primary} size="large" />
       </View>
     );
   }
@@ -333,7 +334,7 @@ export default function DndDeckViewScreen() {
           disabled={busy || deck.spells.length === 0}
         >
           {busy ? (
-            <ActivityIndicator color="#060c14" />
+            <ActivityIndicator color={colors.bg.app} />
           ) : (
             <Text style={styles.playBtnLabel}>Play</Text>
           )}
@@ -348,70 +349,70 @@ export default function DndDeckViewScreen() {
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: '#060c14' },
+  scroll: { flex: 1, backgroundColor: colors.bg.app },
   container: { padding: 16, gap: 14, paddingBottom: 40 },
-  loading: { flex: 1, backgroundColor: '#060c14', alignItems: 'center', justifyContent: 'center' },
+  loading: { flex: 1, backgroundColor: colors.bg.app, alignItems: 'center', justifyContent: 'center' },
 
   header: {
-    backgroundColor: '#071a2a',
+    backgroundColor: colors.bg.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#0e7490',
+    borderColor: colors.accent.dark,
     padding: 16,
     gap: 4,
   },
-  deckName: { color: '#22d3ee', fontSize: 22, fontWeight: '800' },
-  deckMeta: { color: '#64b5c8', fontSize: 13, marginTop: 2 },
-  deckCount: { color: '#3a6070', fontSize: 12, marginTop: 2 },
+  deckName: { color: colors.accent.primary, fontSize: 22, fontWeight: '800' },
+  deckMeta: { color: colors.text.secondary, fontSize: 13, marginTop: 2 },
+  deckCount: { color: colors.text.muted, fontSize: 12, marginTop: 2 },
 
   empty: { padding: 24, alignItems: 'center' },
-  emptyText: { color: '#3a6070', fontSize: 14 },
+  emptyText: { color: colors.text.muted, fontSize: 14 },
 
   levelSection: {
-    backgroundColor: '#071a2a',
+    backgroundColor: colors.bg.surface,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#0e7490',
+    borderColor: colors.accent.dark,
     padding: 12,
     gap: 6,
   },
   levelHeader: {
-    color: '#22d3ee',
+    color: colors.accent.primary,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 1,
     marginBottom: 4,
   },
-  spellRow: { paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#0a2c3d' },
-  spellName: { color: '#e0f7ff', fontSize: 14, fontWeight: '600' },
-  spellMeta: { color: '#64b5c8', fontSize: 11, marginTop: 2 },
-  noArtBadge: { color: '#7d5260', fontSize: 11, fontWeight: '700' },
+  spellRow: { paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.bg.elevated },
+  spellName: { color: colors.text.primary, fontSize: 14, fontWeight: '600' },
+  spellMeta: { color: colors.text.secondary, fontSize: 11, marginTop: 2 },
+  noArtBadge: { color: colors.text.muted, fontSize: 11, fontWeight: '700' },
 
   footer: { gap: 10, marginTop: 8 },
   playBtn: {
     height: 56,
     borderRadius: 10,
-    backgroundColor: '#22d3ee',
+    backgroundColor: colors.accent.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   playBtnPressed: { opacity: 0.7 },
-  playBtnDisabled: { backgroundColor: '#0a2c3d' },
-  playBtnLabel: { color: '#060c14', fontSize: 18, fontWeight: '800', letterSpacing: 0.5 },
+  playBtnDisabled: { backgroundColor: colors.bg.elevated },
+  playBtnLabel: { color: colors.bg.app, fontSize: 18, fontWeight: '800', letterSpacing: 0.5 },
 
   deleteBtn: {
     height: 44,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#2a1520',
-    backgroundColor: '#0f0a0d',
+    borderColor: colors.divider,
+    backgroundColor: colors.bg.app,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  deleteBtnLabel: { color: '#7d5260', fontSize: 14, fontWeight: '700' },
+  deleteBtnLabel: { color: colors.text.muted, fontSize: 14, fontWeight: '700' },
 
-  missing: { flex: 1, backgroundColor: '#060c14', alignItems: 'center', justifyContent: 'center', gap: 14 },
-  missingTitle: { color: '#64b5c8', fontSize: 16 },
-  missingBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, backgroundColor: '#0e7490' },
-  missingBtnLabel: { color: '#e0f7ff', fontSize: 14, fontWeight: '700' },
+  missing: { flex: 1, backgroundColor: colors.bg.app, alignItems: 'center', justifyContent: 'center', gap: 14 },
+  missingTitle: { color: colors.text.secondary, fontSize: 16 },
+  missingBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, backgroundColor: colors.accent.dark },
+  missingBtnLabel: { color: colors.text.primary, fontSize: 14, fontWeight: '700' },
 });
