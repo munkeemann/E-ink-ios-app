@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -18,10 +18,12 @@ import { clearMemo } from '../../src/api/sleeveService';
 import { fetchPrintings, ScryfallPrinting } from '../../src/api/scryfall';
 import { getDeck, loadSettings, saveDeck } from '../../src/storage/deckStorage';
 import { AppSettings, CardInstance, Deck, TokenTemplate } from '../../src/types';
-import { colors } from '../../src/theme/colors';
+import { Theme, useTheme } from '../../src/theme/colors';
 
 function ArtPopupContent({ card }: { card: CardInstance | null }) {
   console.log('[ArtPopup] imagePath:', card?.imagePath);
+  const colors = useTheme();
+  const artPopupStyles = useMemo(() => makeArtPopupStyles(colors), [colors]);
   const [showBack, setShowBack] = useState(false);
   if (!card) return null;
   const uri = showBack && card.backImagePath ? card.backImagePath : card.imagePath;
@@ -42,7 +44,7 @@ function ArtPopupContent({ card }: { card: CardInstance | null }) {
   );
 }
 
-const artPopupStyles = StyleSheet.create({
+function makeArtPopupStyles(colors: Theme) { return StyleSheet.create({
   wrap: { flex: 1, width: '100%', alignItems: 'center', gap: 12 },
   img: { width: '90%', height: '80%' },
   flipBtn: {
@@ -54,12 +56,14 @@ const artPopupStyles = StyleSheet.create({
     borderColor: colors.overlay.light,
   },
   flipLabel: { color: colors.text.primary, fontSize: 14, fontWeight: '700' },
-});
+}); }
 
 const MTG_COLORS = ['W', 'U', 'B', 'R', 'G'];
 const COLOR_LABELS: Record<string, string> = { W: '☀️', U: '💧', B: '💀', R: '🔥', G: '🌲' };
 
 export default function DeckPreviewScreen() {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { id } = useLocalSearchParams<{ id: string }>();
   const [deck, setDeck] = useState<Deck | null>(null);
   const [sending, setSending] = useState(false);
@@ -70,6 +74,7 @@ export default function DeckPreviewScreen() {
     librarySleeveDepth: 1,
     devMode: false,
     piDebugAlerts: false,
+    theme: 'default',
   });
 
   const [viewMode, setViewMode] = useState<'list' | 'gallery'>('list');
@@ -617,7 +622,7 @@ export default function DeckPreviewScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: Theme) { return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg.app },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: {
@@ -884,4 +889,4 @@ const styles = StyleSheet.create({
   printingMeta: { color: colors.text.muted, fontSize: 12 },
   printingCurrentBadge: { color: colors.accent.primary, fontSize: 18, fontWeight: '700', width: 20, textAlign: 'center' },
   printingArrow: { color: colors.text.muted, fontSize: 20, width: 20, textAlign: 'center' },
-});
+}); }

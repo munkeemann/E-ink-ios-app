@@ -28,7 +28,7 @@ import {
 } from '../../src/cah/packGroups';
 import { loadActivePacks, saveActivePacks } from '../../src/storage/cahPacksStorage';
 import { getPromptsForPacks, getResponsesForPacks } from '../../src/cah/CahContent';
-import { colors } from '../../src/theme/colors';
+import { Theme, useTheme } from '../../src/theme/colors';
 
 type Ruleset = 'official' | 'maxs';
 
@@ -56,6 +56,8 @@ function Stepper({
   onIncrement: () => void;
   hint?: string;
 }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.stepperRow}>
       <View style={styles.stepperLeft}>
@@ -82,6 +84,8 @@ function packBadgeText(chip: PackChip): string | null {
 }
 
 export default function CahSetupScreen() {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [ruleset, setRuleset] = useState<Ruleset>('maxs');
   const [playerCount, setPlayerCount] = useState(4);
   const [handSize, setHandSize] = useState(7);
@@ -411,7 +415,7 @@ export default function CahSetupScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: Theme) { return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg.app },
   content: { padding: 20, gap: 16, paddingBottom: 40 },
 
@@ -524,4 +528,4 @@ const styles = StyleSheet.create({
   startBtnPressed: { opacity: 0.7 },
   startBtnDisabled: { opacity: 0.4 },
   startBtnLabel: { color: colors.bg.app, fontSize: 18, fontWeight: '800', letterSpacing: 0.5 },
-});
+}); }

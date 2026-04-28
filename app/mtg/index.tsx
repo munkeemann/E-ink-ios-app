@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo} from 'react';
 import {
   Alert,
   FlatList,
@@ -11,7 +11,7 @@ import {
 import { router, useFocusEffect } from 'expo-router';
 import { deleteDeck, loadDecks } from '../../src/storage/deckStorage';
 import { Deck } from '../../src/types';
-import { colors } from '../../src/theme/colors';
+import { Theme, useTheme } from '../../src/theme/colors';
 
 const MANA_IMAGES: Record<string, ReturnType<typeof require>> = {
   W: require('../../assets/images/white_mana.png'),
@@ -23,6 +23,8 @@ const MANA_IMAGES: Record<string, ReturnType<typeof require>> = {
 };
 
 export default function DeckListScreen() {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [decks, setDecks] = useState<Deck[]>([]);
 
   useFocusEffect(
@@ -110,7 +112,7 @@ export default function DeckListScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: Theme) { return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg.app },
   list: { padding: 14 },
   tile: {
@@ -166,4 +168,4 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
   },
   fabLabel: { fontSize: 30, color: colors.accent.primary, lineHeight: 34 },
-});
+}); }

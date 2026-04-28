@@ -10,6 +10,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   librarySleeveDepth: 1,
   devMode: false,
   piDebugAlerts: false,
+  theme: 'default',
 };
 
 export async function loadDecks(): Promise<Deck[]> {
@@ -67,12 +68,17 @@ export async function loadSettings(): Promise<AppSettings> {
   const raw = await AsyncStorage.getItem(SETTINGS_KEY);
   if (!raw) return { ...DEFAULT_SETTINGS };
   const parsed = JSON.parse(raw) as Partial<AppSettings>;
+  const themeValid = parsed.theme === 'default' || parsed.theme === 'slate';
+  if (parsed.theme && !themeValid) {
+    console.warn(`[settings] unknown theme "${parsed.theme}", falling back to default`);
+  }
   return {
     sleeveCount: parsed.sleeveCount ?? DEFAULT_SETTINGS.sleeveCount,
     physicalZones: parsed.physicalZones ?? DEFAULT_SETTINGS.physicalZones,
     librarySleeveDepth: parsed.librarySleeveDepth ?? DEFAULT_SETTINGS.librarySleeveDepth,
     devMode: parsed.devMode ?? DEFAULT_SETTINGS.devMode,
     piDebugAlerts: parsed.piDebugAlerts ?? DEFAULT_SETTINGS.piDebugAlerts,
+    theme: themeValid ? parsed.theme as 'default' | 'slate' : DEFAULT_SETTINGS.theme,
   };
 }
 

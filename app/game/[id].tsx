@@ -22,12 +22,14 @@ import { clearMemo } from '../../src/api/sleeveService';
 import { applyZoneTransition, TransitionResult } from '../../src/mtg/zoneTransition';
 import { BUILT_IN_TOKEN_PRESETS, BuiltInTokenPreset } from '../../src/mtg/tokenPresets';
 import { ZONE_COLORS } from '../../src/mtg/zoneColors';
-import { colors } from '../../src/theme/colors';
+import { Theme, useTheme } from '../../src/theme/colors';
 import { getDeck, loadSettings, saveDeck } from '../../src/storage/deckStorage';
 import { AppSettings, CardInstance, Deck, TokenTemplate, TokenType } from '../../src/types';
 
 function ArtPopupContent({ card }: { card: CardInstance | null }) {
   console.log('[ArtPopup] imagePath:', card?.imagePath);
+  const colors = useTheme();
+  const artPopupStyles = useMemo(() => makeArtPopupStyles(colors), [colors]);
   const [showBack, setShowBack] = useState(false);
   if (!card) return null;
   const uri = showBack && card.backImagePath ? card.backImagePath : card.imagePath;
@@ -48,7 +50,7 @@ function ArtPopupContent({ card }: { card: CardInstance | null }) {
   );
 }
 
-const artPopupStyles = StyleSheet.create({
+function makeArtPopupStyles(colors: Theme) { return StyleSheet.create({
   wrap: { flex: 1, width: '100%', alignItems: 'center', gap: 12 },
   img: { width: '90%', height: '80%' },
   flipBtn: {
@@ -60,7 +62,7 @@ const artPopupStyles = StyleSheet.create({
     borderColor: colors.overlay.light,
   },
   flipLabel: { color: colors.text.primary, fontSize: 14, fontWeight: '700' },
-});
+}); }
 
 type Zone = 'LIB' | 'HND' | 'BTFLD' | 'GRV' | 'EXL' | 'CMD' | 'TKN';
 
@@ -124,12 +126,14 @@ function confirmCommanderRedirect(
 }
 
 export default function InGameScreen() {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { id, freshStart } = useLocalSearchParams<{ id: string; freshStart?: string }>();
   const [deck, setDeck] = useState<Deck | null>(null);
   const [busy, setBusy] = useState(false);
   const [busyLabel, setBusyLabel] = useState('');
   const [connectedSleeves, setConnectedSleeves] = useState<number[] | null>(null);
-  const [settings, setSettings] = useState<AppSettings>({ sleeveCount: 5, physicalZones: ['LIB', 'HND', 'BTFLD'], librarySleeveDepth: 1, devMode: false, piDebugAlerts: false });
+  const [settings, setSettings] = useState<AppSettings>({ sleeveCount: 5, physicalZones: ['LIB', 'HND', 'BTFLD'], librarySleeveDepth: 1, devMode: false, piDebugAlerts: false, theme: 'default' });
 
   const [activeZone, setActiveZone] = useState<Zone | null>(null);
   const [selectedCards, setSelectedCards] = useState<Set<string>>(new Set());
@@ -1813,7 +1817,7 @@ export default function InGameScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: Theme) { return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg.app },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
@@ -2089,4 +2093,4 @@ const styles = StyleSheet.create({
   artBackdrop: { flex: 1, backgroundColor: colors.overlay.darker, alignItems: 'center', justifyContent: 'center' },
   artFull: { width: '90%', height: '80%' },
 
-});
+}); }

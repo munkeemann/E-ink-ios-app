@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo} from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { createGame, allSleeveUpdates } from '../../src/holdem/HoldemGame';
@@ -8,11 +8,13 @@ import { prefetchSkin } from './game';
 import { getRegisteredSleeves } from '../../src/api/piServer';
 import { totalSleeveCount } from '../../src/holdem/HoldemSleeveLayout';
 import { SKIN_NAMES } from '../../src/assets/skins/registry';
-import { colors } from '../../src/theme/colors';
+import { Theme, useTheme } from '../../src/theme/colors';
 
 const MIN_PLAYERS = 2;
 
 export default function HoldemSetupScreen() {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [playerCount, setPlayerCount] = useState(2);
   const [cardSkin, setCardSkin] = useState('default');
   const [loading, setLoading] = useState(false);
@@ -123,7 +125,7 @@ export default function HoldemSetupScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: Theme) { return StyleSheet.create({
   scroll: { flex: 1, backgroundColor: colors.bg.app },
   container: {
     flexGrow: 1,
@@ -194,4 +196,4 @@ const styles = StyleSheet.create({
   skinChipText: { color: colors.text.muted, fontSize: 13, fontWeight: '600', textTransform: 'capitalize' },
   skinChipTextUppercase: { textTransform: 'none' },
   skinChipTextActive: { color: colors.accent.primary },
-});
+}); }

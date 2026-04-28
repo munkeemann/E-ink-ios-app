@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo} from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,7 +15,7 @@ import { router } from 'expo-router';
 import { fetchCardByPrinting, fetchCards, fetchTokenImage } from '../src/api/scryfall';
 import { saveDeck } from '../src/storage/deckStorage';
 import { CardInstance, Deck, TokenTemplate } from '../src/types';
-import { colors } from '../src/theme/colors';
+import { Theme, useTheme } from '../src/theme/colors';
 
 interface DeckEntry {
   name: string;
@@ -58,6 +58,8 @@ function parseTokenList(text: string): string[] {
 }
 
 export default function ImportDeckScreen() {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [deckName, setDeckName] = useState('');
   const [deckList, setDeckList] = useState('');
   const [tokenList, setTokenList] = useState('');
@@ -374,7 +376,7 @@ export default function ImportDeckScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: Theme) { return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg.app },
   scroll: { padding: 18 },
   label: {
@@ -410,4 +412,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonText: { color: colors.accent.primary, fontSize: 17, fontWeight: '800' },
-});
+}); }

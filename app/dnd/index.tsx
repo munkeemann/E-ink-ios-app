@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo} from 'react';
 import {
   FlatList,
   Pressable,
@@ -9,9 +9,11 @@ import {
 import { router, useFocusEffect } from 'expo-router';
 import { listDecks } from '../../src/storage/dndStorage';
 import { DndDeck } from '../../src/types/dnd';
-import { colors } from '../../src/theme/colors';
+import { Theme, useTheme } from '../../src/theme/colors';
 
 export default function DndDeckPickerScreen() {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [decks, setDecks] = useState<DndDeck[]>([]);
 
   useFocusEffect(
@@ -60,7 +62,7 @@ export default function DndDeckPickerScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: Theme) { return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg.app },
   list: { padding: 16, paddingBottom: 96 },
 
@@ -102,4 +104,4 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   newBtnLabel: { color: colors.bg.app, fontSize: 16, fontWeight: '800', letterSpacing: 0.8 },
-});
+}); }

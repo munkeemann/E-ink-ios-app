@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -12,6 +12,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { loadSettings, saveSettings } from '../src/storage/deckStorage';
 import { configurePiDebug } from '../src/api/piServer';
 import { AppSettings } from '../src/types';
+import { Theme, ThemeName, useTheme, useThemeName, useSetThemeName } from '../src/theme/colors';
 
 const ZONE_OPTIONS: { id: string; label: string; note?: string }[] = [
   { id: 'LIB',   label: 'Library (top card)' },
@@ -21,13 +22,24 @@ const ZONE_OPTIONS: { id: string; label: string; note?: string }[] = [
   { id: 'EXL',   label: 'Exile',     note: 'virtual by default' },
 ];
 
+const THEME_OPTIONS: { id: ThemeName; label: string }[] = [
+  { id: 'default', label: 'Default' },
+  { id: 'slate',   label: 'Slate' },
+];
+
 export default function SettingsScreen() {
+  const colors = useTheme();
+  const themeName = useThemeName();
+  const setThemeName = useSetThemeName();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+
   const [settings, setSettings] = useState<AppSettings>({
     sleeveCount: 5,
     physicalZones: ['LIB', 'HND', 'BTFLD'],
     librarySleeveDepth: 1,
     devMode: false,
     piDebugAlerts: false,
+    theme: 'default',
   });
   useFocusEffect(
     useCallback(() => {
@@ -59,6 +71,15 @@ export default function SettingsScreen() {
           : [...prev.physicalZones, zoneId],
       };
     });
+  };
+
+  const handlePickTheme = async (id: ThemeName) => {
+    if (id === themeName) return;
+    try {
+      await setThemeName(id);
+    } catch (e) {
+      Alert.alert('Theme error', e instanceof Error ? e.message : String(e));
+    }
   };
 
   const handleSave = async () => {
@@ -140,12 +161,36 @@ export default function SettingsScreen() {
               <Switch
                 value={settings.physicalZones.includes(zone.id)}
                 onValueChange={() => toggleZone(zone.id)}
-                trackColor={{ false: '#4a4f55', true: '#6650a4' }}
-                thumbColor={settings.physicalZones.includes(zone.id) ? '#D0BCFF' : '#9ca3af'}
+                trackColor={{ false: colors.divider, true: colors.accent.dark }}
+                thumbColor={settings.physicalZones.includes(zone.id) ? colors.accent.primary : colors.text.muted}
               />
             </View>
           ))}
         </View>
+
+        {/* Theme */}
+        <Text style={styles.sectionTitle}>Theme</Text>
+        <View style={styles.card}>
+          <View style={styles.themeRow}>
+            {THEME_OPTIONS.map(opt => {
+              const active = themeName === opt.id;
+              return (
+                <Pressable
+                  key={opt.id}
+                  style={[styles.themeChip, active && styles.themeChipActive]}
+                  onPress={() => handlePickTheme(opt.id)}
+                >
+                  <Text style={[styles.themeChipText, active && styles.themeChipTextActive]}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+        <Text style={styles.hint}>
+          Theme applies immediately on selection.
+        </Text>
 
         {/* Dev Mode */}
         <Text style={styles.sectionTitle}>Developer</Text>
@@ -162,8 +207,8 @@ export default function SettingsScreen() {
                 devMode: v,
                 piDebugAlerts: v ? prev.piDebugAlerts : false,
               }))}
-              trackColor={{ false: '#4a4f55', true: '#6650a4' }}
-              thumbColor={settings.devMode ? '#D0BCFF' : '#9ca3af'}
+              trackColor={{ false: colors.divider, true: colors.accent.dark }}
+              thumbColor={settings.devMode ? colors.accent.primary : colors.text.muted}
             />
           </View>
           {settings.devMode && (
@@ -175,8 +220,8 @@ export default function SettingsScreen() {
               <Switch
                 value={settings.piDebugAlerts}
                 onValueChange={v => setSettings(prev => ({ ...prev, piDebugAlerts: v }))}
-                trackColor={{ false: '#4a4f55', true: '#6650a4' }}
-                thumbColor={settings.piDebugAlerts ? '#D0BCFF' : '#9ca3af'}
+                trackColor={{ false: colors.divider, true: colors.accent.dark }}
+                thumbColor={settings.piDebugAlerts ? colors.accent.primary : colors.text.muted}
               />
             </View>
           )}
@@ -191,107 +236,116 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#292E32' },
-  scroll: { padding: 16, paddingBottom: 8 },
+function makeStyles(colors: Theme) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.bg.app },
+    scroll: { padding: 16, paddingBottom: 8 },
 
-  sectionTitle: {
-    color: '#D0BCFF',
-    fontSize: 12,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginTop: 20,
-    marginBottom: 8,
-    marginLeft: 4,
-  },
-  hint: {
-    color: '#625b71',
-    fontSize: 12,
-    lineHeight: 18,
-    marginBottom: 8,
-    marginLeft: 4,
-  },
+    sectionTitle: {
+      color: colors.accent.primary,
+      fontSize: 12,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+      marginTop: 20,
+      marginBottom: 8,
+      marginLeft: 4,
+    },
+    hint: {
+      color: colors.text.muted,
+      fontSize: 12,
+      lineHeight: 18,
+      marginBottom: 8,
+      marginLeft: 4,
+    },
 
-  card: {
-    backgroundColor: '#353A40',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#4a4f55',
-    overflow: 'hidden',
-  },
+    card: {
+      backgroundColor: colors.bg.surface,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.divider,
+      overflow: 'hidden',
+    },
 
-  sleeveRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  sleeveRowBorder: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#4a4f55',
-  },
-  depthLabelCol: { flex: 1, marginRight: 12 },
-  rowLabel: { color: '#D4CDC1', fontSize: 16 },
-  rowSublabel: { color: '#625b71', fontSize: 12, marginTop: 2 },
+    sleeveRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+    },
+    sleeveRowBorder: {
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.divider,
+    },
+    depthLabelCol: { flex: 1, marginRight: 12 },
+    rowLabel: { color: colors.text.primary, fontSize: 16 },
+    rowSublabel: { color: colors.text.muted, fontSize: 12, marginTop: 2 },
 
-  stepper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 0,
-  },
-  stepBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 8,
-    backgroundColor: '#6650a4',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepBtnDisabled: { opacity: 0.35 },
-  stepBtnText: { color: '#D0BCFF', fontSize: 22, fontWeight: '700', lineHeight: 26 },
-  stepValue: {
-    color: '#D0BCFF',
-    fontSize: 22,
-    fontWeight: '800',
-    minWidth: 48,
-    textAlign: 'center',
-  },
+    stepper: { flexDirection: 'row', alignItems: 'center', gap: 0 },
+    stepBtn: {
+      width: 38,
+      height: 38,
+      borderRadius: 8,
+      backgroundColor: colors.accent.dark,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    stepBtnDisabled: { opacity: 0.35 },
+    stepBtnText: { color: colors.accent.primary, fontSize: 22, fontWeight: '700', lineHeight: 26 },
+    stepValue: {
+      color: colors.accent.primary,
+      fontSize: 22,
+      fontWeight: '800',
+      minWidth: 48,
+      textAlign: 'center',
+    },
 
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  toggleRowBorder: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#4a4f55',
-  },
-  subToggleRow: { backgroundColor: '#2e333a' },
-  toggleInfo: { flex: 1 },
-  toggleLabel: { color: '#D4CDC1', fontSize: 15 },
-  toggleNote: { color: '#625b71', fontSize: 12, marginTop: 2 },
+    toggleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+    },
+    toggleRowBorder: {
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.divider,
+    },
+    subToggleRow: { backgroundColor: colors.bg.elevated },
+    toggleInfo: { flex: 1 },
+    toggleLabel: { color: colors.text.primary, fontSize: 15 },
+    toggleNote: { color: colors.text.muted, fontSize: 12, marginTop: 2 },
 
-  saveBtn: {
-    margin: 16,
-    backgroundColor: '#6650a4',
-    borderRadius: 10,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  saveBtnText: { color: '#D0BCFF', fontSize: 17, fontWeight: '800' },
+    themeRow: {
+      flexDirection: 'row',
+      gap: 0,
+    },
+    themeChip: {
+      flex: 1,
+      paddingVertical: 14,
+      alignItems: 'center',
+      backgroundColor: colors.bg.surface,
+    },
+    themeChipActive: {
+      backgroundColor: colors.accent.dark,
+    },
+    themeChipText: {
+      color: colors.text.muted,
+      fontSize: 15,
+      fontWeight: '600',
+    },
+    themeChipTextActive: {
+      color: colors.accent.primary,
+      fontWeight: '800',
+    },
 
-  variantBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: '#6650a4',
-  },
-  variantBtnText: { color: '#D0BCFF', fontSize: 13, fontWeight: '700', minWidth: 72, textAlign: 'center' },
-  variantBtnArrow: { color: '#D0BCFF', fontSize: 18 },
-});
+    saveBtn: {
+      margin: 16,
+      backgroundColor: colors.accent.dark,
+      borderRadius: 10,
+      paddingVertical: 16,
+      alignItems: 'center',
+    },
+    saveBtnText: { color: colors.accent.primary, fontSize: 17, fontWeight: '800' },
+  });
+}

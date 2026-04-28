@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, useMemo} from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -21,7 +21,7 @@ import { sendToSleeve, clearMemo } from '../../src/api/sleeveService';
 import { getRegisteredSleeves } from '../../src/api/piServer';
 import { CahGameState } from '../../src/types/cah';
 import CardRenderer, { CardRendererRef } from '../../src/shared/CardRenderer';
-import { colors } from '../../src/theme/colors';
+import { Theme, useTheme } from '../../src/theme/colors';
 
 const CAPTURE_TIMEOUT_MS = 3000;
 
@@ -73,6 +73,8 @@ async function pushUpdates(
 }
 
 export default function CahGameScreen() {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [state, setState] = useState<CahGameState | null>(null);
   const [busy, setBusy] = useState(false);
   const rendererRef = useRef<CardRendererRef>(null);
@@ -283,7 +285,7 @@ export default function CahGameScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: Theme) { return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg.app },
   content: { padding: 16, paddingBottom: 40, gap: 12 },
   loading: { flex: 1, backgroundColor: colors.bg.app, alignItems: 'center', justifyContent: 'center' },
@@ -420,4 +422,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   endBtnLabel: { color: colors.text.muted, fontSize: 14, fontWeight: '600' },
-});
+}); }

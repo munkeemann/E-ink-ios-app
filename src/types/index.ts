@@ -86,4 +86,6 @@ export interface AppSettings {
   devMode: boolean;
   /** Show blocking debug alerts from Pi network calls (only active when devMode is true) */
   piDebugAlerts: boolean;
+  /** UI theme: 'default' (cyan/teal) or 'slate' (cream-on-slate). */
+  theme: 'default' | 'slate';
 }

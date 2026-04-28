@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo} from 'react';
 import {
   Alert,
   ActivityIndicator,
@@ -13,7 +13,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { getDeck, deleteDeck } from '../../src/storage/dndStorage';
 import { DndDeck } from '../../src/types/dnd';
 import spellMeta from '../../src/assets/dnd/spells.json';
-import { colors } from '../../src/theme/colors';
+import { Theme, useTheme } from '../../src/theme/colors';
 import spellImages from '../../src/assets/dnd/spells/index';
 import { sendToSleeve, clearMemo, dndSpellDescriptor, PI_SERVER } from '../../src/api/sleeveService';
 import { getRegisteredSleeves } from '../../src/api/piServer';
@@ -117,6 +117,8 @@ async function prefetchDeckSpells(names: string[]): Promise<void> {
 }
 
 export default function DndDeckViewScreen() {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { id } = useLocalSearchParams<{ id: string }>();
   const [deck, setDeck] = useState<DndDeck | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -348,7 +350,7 @@ export default function DndDeckViewScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: Theme) { return StyleSheet.create({
   scroll: { flex: 1, backgroundColor: colors.bg.app },
   container: { padding: 16, gap: 14, paddingBottom: 40 },
   loading: { flex: 1, backgroundColor: colors.bg.app, alignItems: 'center', justifyContent: 'center' },
@@ -415,4 +417,4 @@ const styles = StyleSheet.create({
   missingTitle: { color: colors.text.secondary, fontSize: 16 },
   missingBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8, backgroundColor: colors.accent.dark },
   missingBtnLabel: { color: colors.text.primary, fontSize: 14, fontWeight: '700' },
-});
+}); }

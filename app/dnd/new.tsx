@@ -19,7 +19,7 @@ import {
 import { saveDeck } from '../../src/storage/dndStorage';
 import spellMeta from '../../src/assets/dnd/spells.json';
 import spellImages from '../../src/assets/dnd/spells/index';
-import { colors } from '../../src/theme/colors';
+import { Theme, useTheme } from '../../src/theme/colors';
 
 interface SpellMeta {
   level: number;
@@ -35,6 +35,8 @@ const MIN_MOD = 0;
 const MAX_MOD = 5;
 
 export default function DndNewWizardScreen() {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [className, setClassName] = useState<DndClass | null>(null);
   const [level, setLevel] = useState<number>(1);
@@ -183,6 +185,8 @@ function canAdvance(step: number, className: DndClass | null, _deckName: string)
 // ── Step 1: class chip row ────────────────────────────────────────────────
 
 function Step1Class({ value, onSelect }: { value: DndClass | null; onSelect: (c: DndClass) => void }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.card}>
       <Text style={styles.label}>Class</Text>
@@ -204,6 +208,8 @@ function Step1Class({ value, onSelect }: { value: DndClass | null; onSelect: (c:
 // ── Step 2: level stepper ─────────────────────────────────────────────────
 
 function Step2Level({ value, onChange, className }: { value: number; onChange: (v: number) => void; className: DndClass }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const maxSlot = maxSpellLevel(className, value);
   const cantrips = cantripsKnown(className, value);
   const spells = spellsKnownOrPrepared(className, value, 0);
@@ -239,6 +245,8 @@ function Step2Level({ value, onChange, className }: { value: number; onChange: (
 // ── Step 3: ability modifier stepper (prepared casters only) ─────────────
 
 function Step3AbilityMod({ value, onChange, className }: { value: number; onChange: (v: number) => void; className: DndClass }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const abilityName =
     className === 'Wizard' ? 'Intelligence' :
     className === 'Cleric' || className === 'Druid' ? 'Wisdom' :
@@ -286,6 +294,8 @@ interface Step4Props {
 function Step4SpellBrowser({
   className, level, abilityMod, isPrepared, selected, onToggle, showAll, onToggleShowAll,
 }: Step4Props) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const cantripTarget = cantripsKnown(className, level);
   const spellsMeta = spellsKnownOrPrepared(className, level, isPrepared ? abilityMod : 0);
   const maxLvl = maxSpellLevel(className, level);
@@ -401,6 +411,8 @@ function Step4SpellBrowser({
 // ── Step 5: name + save ───────────────────────────────────────────────────
 
 function Step5NameAndSave({ value, onChange, selectedCount }: { value: string; onChange: (v: string) => void; selectedCount: number }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.card}>
       <Text style={styles.label}>Deck name</Text>
@@ -421,7 +433,7 @@ function Step5NameAndSave({ value, onChange, selectedCount }: { value: string; o
 
 // ── Styles ────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+function makeStyles(colors: Theme) { return StyleSheet.create({
   scroll: { flex: 1, backgroundColor: colors.bg.app },
   container: { padding: 20, gap: 16, paddingBottom: 40 },
 
@@ -564,4 +576,4 @@ const styles = StyleSheet.create({
   },
   saveBtnDisabled: { opacity: 0.4 },
   saveBtnLabel: { color: colors.bg.app, fontSize: 16, fontWeight: '800', letterSpacing: 0.8 },
-});
+}); }

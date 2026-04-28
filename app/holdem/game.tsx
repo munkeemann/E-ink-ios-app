@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo} from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -26,7 +26,7 @@ import { sendToSleeve, clearMemo } from '../../src/api/sleeveService';
 import { getRegisteredSleeves } from '../../src/api/piServer';
 import { HoldemGameState, PlayingCard, Suit } from '../../src/types/holdem';
 import { SKIN_ASSETS, skinCardKey } from '../../src/assets/skins/registry';
-import { colors } from '../../src/theme/colors';
+import { Theme, useTheme } from '../../src/theme/colors';
 
 // Pre-built card JPEG assets (Metro requires static require() calls)
 const CARD_ASSETS: Record<string, number> = {
@@ -211,6 +211,8 @@ const SUIT_COLOR: Record<Suit, string> = {
 const COMMUNITY_SLEEVE_LABELS = ['Flop 1', 'Flop 2', 'Flop 3', 'Turn', 'River'];
 
 function CardChip({ card, revealed }: { card: PlayingCard; revealed: boolean }) {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={[styles.chip, !revealed && styles.chipHidden]}>
       <Text style={[styles.chipText, revealed && { color: SUIT_COLOR[card.suit] }]}>
@@ -221,6 +223,8 @@ function CardChip({ card, revealed }: { card: PlayingCard; revealed: boolean }) 
 }
 
 export default function HoldemGameScreen() {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [state, setState] = useState<HoldemGameState | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -418,7 +422,7 @@ export default function HoldemGameScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: Theme) { return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg.app },
   content: { padding: 16, paddingBottom: 40, gap: 12 },
   loading: { flex: 1, backgroundColor: colors.bg.app, alignItems: 'center', justifyContent: 'center' },
@@ -507,4 +511,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   endBtnLabel: { color: colors.text.muted, fontSize: 14, fontWeight: '600' },
-});
+}); }

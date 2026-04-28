@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo} from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,9 +13,11 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { assignSleeveIds, beginGame, getRegisteredSleeves } from '../src/api/piServer';
 import { getDeck, loadSettings, saveDeck } from '../src/storage/deckStorage';
 import { CardInstance, Deck } from '../src/types';
-import { colors } from '../src/theme/colors';
+import { Theme, useTheme } from '../src/theme/colors';
 
 export default function ScryScreen() {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { deckId, count } = useLocalSearchParams<{
     deckId: string;
     count: string;
@@ -225,7 +227,7 @@ export default function ScryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: Theme) { return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg.app },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   sectionHeader: {
@@ -293,4 +295,4 @@ const styles = StyleSheet.create({
   },
   confirmBtnDisabled: { opacity: 0.5 },
   confirmText: { color: colors.accent.primary, fontSize: 16, fontWeight: '800' },
-});
+}); }

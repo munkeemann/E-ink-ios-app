@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -18,7 +18,7 @@ import { CahGameState } from '../src/types/cah';
 import { CahMaxsGameState } from '../src/types/cah_maxs';
 import { clearMemo } from '../src/api/sleeveService';
 import AmbientLayer from '../src/components/AmbientLayer';
-import { colors } from '../src/theme/colors';
+import { Theme, useTheme } from '../src/theme/colors';
 
 type GameDef = {
   id: string;
@@ -71,6 +71,8 @@ type ResumeTarget =
   | { kind: 'cah_maxs'; game: CahMaxsGameState; ts: number };
 
 export default function GameSelectScreen() {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [resume, setResume] = useState<ResumeTarget | null>(null);
   const [isFocused, setIsFocused] = useState(true);
 
@@ -198,7 +200,7 @@ export default function GameSelectScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: Theme) { return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg.app },
 
   header: {
@@ -296,4 +298,4 @@ const styles = StyleSheet.create({
     borderColor: colors.divider,
   },
   comingSoonText: { color: colors.text.muted, fontSize: 9, fontWeight: '700', letterSpacing: 1.2 },
-});
+}); }

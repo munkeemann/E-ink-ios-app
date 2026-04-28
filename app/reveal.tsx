@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useMemo} from 'react';
 import {
   Image,
   Modal,
@@ -12,9 +12,11 @@ import {
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { getDeck, saveDeck } from '../src/storage/deckStorage';
 import { CardInstance, Deck } from '../src/types';
-import { colors } from '../src/theme/colors';
+import { Theme, useTheme } from '../src/theme/colors';
 
 export default function RevealScreen() {
+  const colors = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { deckId, count } = useLocalSearchParams<{ deckId: string; count: string }>();
   const N = Math.max(1, parseInt(count ?? '3', 10));
 
@@ -121,7 +123,7 @@ export default function RevealScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(colors: Theme) { return StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg.app },
   sectionHeader: {
     paddingHorizontal: 16,
@@ -164,4 +166,4 @@ const styles = StyleSheet.create({
   confirmText: { color: colors.accent.primary, fontSize: 16, fontWeight: '800' },
   artBackdrop: { flex: 1, backgroundColor: colors.overlay.darker, alignItems: 'center', justifyContent: 'center' },
   artFull: { width: '90%', height: '80%' },
-});
+}); }
