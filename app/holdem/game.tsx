@@ -26,6 +26,7 @@ import { sendToSleeve, clearMemo } from '../../src/api/sleeveService';
 import { getRegisteredSleeves } from '../../src/api/piServer';
 import { HoldemGameState, PlayingCard, Suit } from '../../src/types/holdem';
 import { SKIN_ASSETS, skinCardKey } from '../../src/assets/skins/registry';
+import { colors } from '../../src/theme/colors';
 
 // Pre-built card JPEG assets (Metro requires static require() calls)
 const CARD_ASSETS: Record<string, number> = {
@@ -201,6 +202,8 @@ export async function prefetchSkin(skinName: string): Promise<void> {
 }
 
 
+// Hold'em card-suit colors — game-element identity (red hearts/diamonds,
+// light spades/clubs), not theme palette.
 const SUIT_COLOR: Record<Suit, string> = {
   S: '#e0f7ff', H: '#f87171', D: '#f87171', C: '#e0f7ff',
 };
@@ -233,7 +236,7 @@ export default function HoldemGameScreen() {
   if (!state) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator color="#22d3ee" size="large" />
+        <ActivityIndicator color={colors.accent.primary} size="large" />
       </View>
     );
   }
@@ -360,7 +363,7 @@ export default function HoldemGameScreen() {
         disabled={busy}
       >
         {busy ? (
-          <ActivityIndicator color="#060c14" />
+          <ActivityIndicator color={colors.bg.app} />
         ) : (
           <Text style={styles.advanceBtnLabel}>
             {PHASE_BUTTON_LABEL[state.phase]}  →
@@ -416,35 +419,35 @@ export default function HoldemGameScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#060c14' },
+  container: { flex: 1, backgroundColor: colors.bg.app },
   content: { padding: 16, paddingBottom: 40, gap: 12 },
-  loading: { flex: 1, backgroundColor: '#060c14', alignItems: 'center', justifyContent: 'center' },
+  loading: { flex: 1, backgroundColor: colors.bg.app, alignItems: 'center', justifyContent: 'center' },
 
   phaseRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   phaseBadge: {
     paddingHorizontal: 12,
     paddingVertical: 5,
-    backgroundColor: '#071a2a',
+    backgroundColor: colors.bg.surface,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#0e7490',
+    borderColor: colors.accent.dark,
   },
-  phaseText: { color: '#22d3ee', fontSize: 12, fontWeight: '700', letterSpacing: 1.2 },
-  sleeveInfo: { color: '#3a6070', fontSize: 12 },
+  phaseText: { color: colors.accent.primary, fontSize: 12, fontWeight: '700', letterSpacing: 1.2 },
+  sleeveInfo: { color: colors.text.muted, fontSize: 12 },
 
   advanceBtn: {
     height: 56,
     borderRadius: 10,
-    backgroundColor: '#22d3ee',
+    backgroundColor: colors.accent.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginVertical: 4,
   },
   advanceBtnPressed: { opacity: 0.7 },
-  advanceBtnLabel: { color: '#060c14', fontSize: 18, fontWeight: '800', letterSpacing: 0.5 },
+  advanceBtnLabel: { color: colors.bg.app, fontSize: 18, fontWeight: '800', letterSpacing: 0.5 },
 
   sectionHeader: {
-    color: '#64b5c8',
+    color: colors.text.secondary,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1.2,
@@ -452,13 +455,13 @@ const styles = StyleSheet.create({
   },
 
   tableCard: {
-    backgroundColor: '#071a2a',
+    backgroundColor: colors.bg.surface,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#0e7490',
+    borderColor: colors.accent.dark,
     overflow: 'hidden',
   },
-  rowBorder: { borderTopWidth: 1, borderTopColor: '#0a2c3d' },
+  rowBorder: { borderTopWidth: 1, borderTopColor: colors.bg.elevated },
 
   playerRow: {
     flexDirection: 'row',
@@ -467,21 +470,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
-  playerLabel: { color: '#64b5c8', fontSize: 14, fontWeight: '600' },
+  playerLabel: { color: colors.text.secondary, fontSize: 14, fontWeight: '600' },
   cardPair: { flexDirection: 'row', gap: 8 },
 
   chip: {
     width: 44,
     height: 44,
     borderRadius: 8,
-    backgroundColor: '#0a2c3d',
+    backgroundColor: colors.bg.elevated,
     borderWidth: 1,
-    borderColor: '#0e7490',
+    borderColor: colors.accent.dark,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chipHidden: { borderColor: '#1a2535', backgroundColor: '#060f18' },
-  chipText: { color: '#3a6070', fontSize: 14, fontWeight: '700' },
+  chipHidden: { borderColor: colors.divider, backgroundColor: colors.bg.app },
+  chipText: { color: colors.text.muted, fontSize: 14, fontWeight: '700' },
 
   communityRow: {
     flexDirection: 'row',
@@ -491,17 +494,17 @@ const styles = StyleSheet.create({
   },
   communityRowTop: { paddingTop: 12 },
   communityCell: { alignItems: 'center', gap: 4 },
-  communityLabel: { color: '#3a6070', fontSize: 10, letterSpacing: 0.4 },
+  communityLabel: { color: colors.text.muted, fontSize: 10, letterSpacing: 0.4 },
 
   endBtn: {
     marginTop: 8,
     height: 44,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#2a1520',
-    backgroundColor: '#0f0a0d',
+    borderColor: colors.divider,
+    backgroundColor: colors.bg.app,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  endBtnLabel: { color: '#7d5260', fontSize: 14, fontWeight: '600' },
+  endBtnLabel: { color: colors.text.muted, fontSize: 14, fontWeight: '600' },
 });

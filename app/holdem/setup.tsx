@@ -8,6 +8,7 @@ import { prefetchSkin } from './game';
 import { getRegisteredSleeves } from '../../src/api/piServer';
 import { totalSleeveCount } from '../../src/holdem/HoldemSleeveLayout';
 import { SKIN_NAMES } from '../../src/assets/skins/registry';
+import { colors } from '../../src/theme/colors';
 
 const MIN_PLAYERS = 2;
 
@@ -113,7 +114,7 @@ export default function HoldemSetupScreen() {
         disabled={loading}
       >
         {loading ? (
-          <ActivityIndicator color="#060c14" />
+          <ActivityIndicator color={colors.bg.app} />
         ) : (
           <Text style={styles.startLabel}>Start Game</Text>
         )}
@@ -123,7 +124,7 @@ export default function HoldemSetupScreen() {
 }
 
 const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: '#060c14' },
+  scroll: { flex: 1, backgroundColor: colors.bg.app },
   container: {
     flexGrow: 1,
     alignItems: 'center',
@@ -133,52 +134,52 @@ const styles = StyleSheet.create({
     gap: 24,
   },
   title: {
-    color: '#22d3ee',
+    color: colors.accent.primary,
     fontSize: 26,
     fontWeight: '800',
     letterSpacing: 1.5,
-    textShadowColor: 'rgba(34,211,238,0.4)',
+    textShadowColor: colors.overlay.accent40,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 12,
   },
 
   card: {
     width: '100%',
-    backgroundColor: '#071a2a',
+    backgroundColor: colors.bg.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#0e7490',
+    borderColor: colors.accent.dark,
     paddingVertical: 24,
     paddingHorizontal: 20,
     alignItems: 'center',
     gap: 16,
   },
-  label: { color: '#64b5c8', fontSize: 14, letterSpacing: 0.6 },
+  label: { color: colors.text.secondary, fontSize: 14, letterSpacing: 0.6 },
 
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 24 },
   stepBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#0e7490',
+    backgroundColor: colors.accent.dark,
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepBtnDisabled: { opacity: 0.3 },
-  stepLabel: { color: '#e0f7ff', fontSize: 22, fontWeight: '700', lineHeight: 26 },
-  count: { color: '#22d3ee', fontSize: 40, fontWeight: '800', minWidth: 48, textAlign: 'center' },
-  hint: { color: '#3a6070', fontSize: 12, letterSpacing: 0.4 },
+  stepLabel: { color: colors.text.primary, fontSize: 22, fontWeight: '700', lineHeight: 26 },
+  count: { color: colors.accent.primary, fontSize: 40, fontWeight: '800', minWidth: 48, textAlign: 'center' },
+  hint: { color: colors.text.muted, fontSize: 12, letterSpacing: 0.4 },
 
   startBtn: {
     width: '100%',
     height: 52,
     borderRadius: 10,
-    backgroundColor: '#22d3ee',
+    backgroundColor: colors.accent.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   startBtnDisabled: { opacity: 0.5 },
-  startLabel: { color: '#060c14', fontSize: 16, fontWeight: '800', letterSpacing: 0.8 },
+  startLabel: { color: colors.bg.app, fontSize: 16, fontWeight: '800', letterSpacing: 0.8 },
 
   skinRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   skinChip: {
@@ -186,11 +187,11 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#1a3a50',
-    backgroundColor: '#040d16',
+    borderColor: colors.divider,
+    backgroundColor: colors.bg.app,
   },
-  skinChipActive: { borderColor: '#22d3ee', backgroundColor: '#071e30' },
-  skinChipText: { color: '#3a6070', fontSize: 13, fontWeight: '600', textTransform: 'capitalize' },
+  skinChipActive: { borderColor: colors.accent.primary, backgroundColor: colors.bg.surface },
+  skinChipText: { color: colors.text.muted, fontSize: 13, fontWeight: '600', textTransform: 'capitalize' },
   skinChipTextUppercase: { textTransform: 'none' },
-  skinChipTextActive: { color: '#22d3ee' },
+  skinChipTextActive: { color: colors.accent.primary },
 });
