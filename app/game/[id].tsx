@@ -999,10 +999,21 @@ export default function InGameScreen() {
 
 
   // ─── Create Token ─────────────────────────────────────────────────────────
-  // SAM1-75: tokens are minted as fresh CardInstances and assigned a free sleeve
-  // from the registered pool. The library is never touched — no cascade, no
-  // place shift, no sleeve theft. If no sleeve is free, the token lives on the
-  // BTFLD tile only (sleeveId=null).
+  // SAM1-75 + SAM1-81: tokens are minted as fresh CardInstances and assigned
+  // a sleeve via two paths:
+  //   (a) Free-sleeve pool: any registered sleeve not currently bound to any
+  //       card and above commander reservations. SAM1-75's preferred path —
+  //       library cards are not touched at all.
+  //   (b) Library-window cascade: if the free pool is empty, the token takes
+  //       the library-top sleeve (lowest LIB-bound sleeveId above commander
+  //       reservations) and each library card cascades up by one slot. The
+  //       bottom physical library card loses its sleeve binding and becomes
+  //       digital-only. .place is preserved on every library card — this is
+  //       a rendering shift, not a library reorder; draw still pulls from
+  //       .place=1. Implements the SAM1-72 digital→physical pattern for the
+  //       no-free-sleeve case.
+  // If neither path applies (no registered sleeves at all, or library is
+  // entirely digital) the token lives on the BTFLD tile with sleeveId=null.
   const createTokenFromValues = async (
     name: string,
     type: TokenType,
@@ -1027,7 +1038,9 @@ export default function InGameScreen() {
       const currentDeck = deck!;
       const deckCards = Array.isArray(currentDeck.cards) ? currentDeck.cards : [];
 
-      const cmdCount = deckCards.filter(c => c.place === 'commander').length || 1;
+      // Actual commander count — drop the `|| 1` defensive fallback because
+      // SAM1-81's cascade needs to know whether sleeve 1 is reserved or not.
+      const cmdCount = deckCards.filter(c => c.place === 'commander').length;
       const registered = await getRegisteredSleeves();
       const bound = new Set<number>(
         deckCards.filter(c => c.sleeveId !== null).map(c => c.sleeveId as number),
@@ -1035,7 +1048,26 @@ export default function InGameScreen() {
       const free = registered
         .filter(id => !bound.has(id) && id > cmdCount)
         .sort((a, b) => a - b);
-      const tokenSleeveId: number | null = free.length > 0 ? free[0] : null;
+
+      let tokenSleeveId: number | null = free.length > 0 ? free[0] : null;
+
+      // SAM1-81: cascade path. When no truly-free sleeve exists, displace the
+      // library window: token takes the lowest LIB-bound sleeveId above
+      // commander reservations; each subsequent library card slides into the
+      // next-higher sleeveId; the highest LIB-bound card loses its binding.
+      const cascadedById = new Map<string, CardInstance>();
+      if (tokenSleeveId === null) {
+        const libBound = deckCards
+          .filter(c => c.zone === 'LIB' && c.sleeveId !== null && (c.sleeveId as number) > cmdCount)
+          .sort((a, b) => (a.sleeveId as number) - (b.sleeveId as number));
+        if (libBound.length > 0) {
+          tokenSleeveId = libBound[0].sleeveId;
+          libBound.forEach((c, i) => {
+            const nextSleeveId = libBound[i + 1]?.sleeveId ?? null;
+            cascadedById.set(cardKey(c), { ...c, sleeveId: nextSleeveId });
+          });
+        }
+      }
 
       const tokenCard: CardInstance = {
         baseName: name.trim(),
@@ -1057,15 +1089,20 @@ export default function InGameScreen() {
         ? existingTokens
         : [...existingTokens, { name: name.trim(), type, power: effPower, toughness: effToughness, colors }];
 
-      const finalCards = [...deckCards, tokenCard];
+      // Apply cascade (if any) to existing CardInstances; preserve order.
+      const updatedDeckCards = deckCards.map(c => cascadedById.get(cardKey(c)) ?? c);
+      const finalCards = [...updatedDeckCards, tokenCard];
       const updated: Deck = { ...currentDeck, cards: finalCards, tokens: newTokens };
       await saveDeck(updated);
       setDeck(updated);
 
       if (tokenSleeveId !== null) {
-        console.log(`[Token] "${tokenCard.displayName}" → sleeve ${tokenSleeveId} (image=${imagePath ? 'OK' : 'MISS — using card_back'})`);
+        const cascadeNote = cascadedById.size > 0
+          ? ` (cascade: ${cascadedById.size} lib card${cascadedById.size === 1 ? '' : 's'} shifted)`
+          : '';
+        console.log(`[Token] "${tokenCard.displayName}" → sleeve ${tokenSleeveId} (image=${imagePath ? 'OK' : 'MISS — using card_back'})${cascadeNote}`);
       } else {
-        console.log(`[Token] "${tokenCard.displayName}" — no free sleeve, BTFLD tile only`);
+        console.log(`[Token] "${tokenCard.displayName}" — no free sleeve and no library to displace, BTFLD tile only`);
       }
       // SAM1-81: full-sweep refresh — same ritual as handleMillConfirm /
       // handleKeepHand. clearMemo wipes the fingerprint cache so library
