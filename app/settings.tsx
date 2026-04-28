@@ -77,13 +77,20 @@ export default function SettingsScreen() {
     if (id === themeName) return;
     try {
       await setThemeName(id);
+      // SAM1-82: keep the local settings mirror in sync with context, so a
+      // later handleSave doesn't clobber the just-persisted theme with the
+      // stale value from the on-focus loadSettings.
+      setSettings(prev => ({ ...prev, theme: id }));
     } catch (e) {
       Alert.alert('Theme error', e instanceof Error ? e.message : String(e));
     }
   };
 
   const handleSave = async () => {
-    await saveSettings(settings);
+    // SAM1-82: themeName from context is the source of truth for theme;
+    // settings.theme can be stale if the user picked a theme since the
+    // useFocusEffect-driven load. Force the latest into the save.
+    await saveSettings({ ...settings, theme: themeName });
     configurePiDebug(settings.devMode && settings.piDebugAlerts);
     router.back();
   };
