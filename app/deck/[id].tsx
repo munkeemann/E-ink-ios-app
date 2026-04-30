@@ -61,6 +61,15 @@ function makeArtPopupStyles(colors: Theme) { return StyleSheet.create({
 const MTG_COLORS = ['W', 'U', 'B', 'R', 'G'];
 const COLOR_LABELS: Record<string, string> = { W: '☀️', U: '💧', B: '💀', R: '🔥', G: '🌲' };
 
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 export default function DeckPreviewScreen() {
   const colors = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -133,12 +142,19 @@ export default function DeckPreviewScreen() {
           ? { ...c, zone: 'CMD' as const, castCount: 0 }
           : { ...c, zone: 'LIB' as const });
 
-      // Shuffle LIB cards and reassign places
+      // Shuffle LIB and deal a 7-card opening hand into HND.
+      // The mulligan sheet (shown by game/[id].tsx on freshStart=true)
+      // lets the user mulligan or keep these 7 cards. Dealing here gives
+      // assignSleeveIds real HND cards to prioritize over library preview.
       const libCards = resetCards.filter(c => c.zone === 'LIB');
       const nonLibCards = resetCards.filter(c => c.zone !== 'LIB');
-      const shuffled = [...libCards].sort(() => Math.random() - 0.5)
+      const shuffled = shuffle(libCards);
+      const OPENING_HAND_SIZE = 7;
+      const openingHand = shuffled.slice(0, OPENING_HAND_SIZE)
+        .map((c, i) => ({ ...c, zone: 'HND' as const, place: String(i + 1) }));
+      const remainingLib = shuffled.slice(OPENING_HAND_SIZE)
         .map((c, i) => ({ ...c, place: String(i + 1) }));
-      const unsleevedCards = [...nonLibCards, ...shuffled];
+      const unsleevedCards = [...nonLibCards, ...openingHand, ...remainingLib];
 
       // Assign permanent sleeveIds based on settings
       const settings = await loadSettings();

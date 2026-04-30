@@ -189,8 +189,10 @@ export async function pushZoneUpdateViaPi(
  * Assigns permanent sleeveIds to cards at game-start based on settings.
  * Commanders occupy sleeves 1..commanderCount in deck-list order (SAM1-69:
  * partner decks have two commanders). Non-commander cards take sleeves
- * starting at commanderCount+1 and are filled from physicalZones in order:
- *   LIB (top librarySleeveDepth cards), HND, BTFLD/TKN, GRV, EXL.
+ * starting at commanderCount+1 and are filled from physicalZones in this
+ * priority: HND, BTFLD/TKN, GRV, EXL, then LIB (top librarySleeveDepth
+ * cards). HND beats LIB on purpose — when sleeves are scarce, hand is
+ * core game state and library preview is a nice-to-have.
  * All other cards get sleeveId null.
  * Returns a new cards array with sleeveId assigned.
  */
@@ -225,7 +227,7 @@ export function assignSleeveIds(
     }
   };
 
-  for (const zone of ['LIB', 'HND', 'BTFLD', 'GRV', 'EXL']) {
+  for (const zone of ['HND', 'BTFLD', 'GRV', 'EXL', 'LIB']) {
     if (nonCommanderSleeved.length >= nonCommanderSlots) break;
     if (physZones.has(zone)) addZone(zone);
   }
