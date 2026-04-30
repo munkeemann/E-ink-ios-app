@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppSettings, Deck } from '../types';
+import { getRegisteredSleeves } from '../api/piServer';
 
 const KEY = 'decks_v1';
 const SETTINGS_KEY = 'app_settings';
@@ -84,4 +85,24 @@ export async function loadSettings(): Promise<AppSettings> {
 
 export async function saveSettings(s: AppSettings): Promise<void> {
   await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+}
+
+/**
+ * Bumps stored sleeveCount upward to match the Pi's registered-sleeve count
+ * when more sleeves are registered than configured. Never lowers the count —
+ * a transiently offline sleeve shouldn't clobber a manually configured value
+ * (e.g. partner-commander setups where the user pre-allocated extra slots).
+ * Persists the bump so subsequent launches without Pi reachability keep it.
+ * Returns the (possibly updated) AppSettings; never throws — getRegisteredSleeves
+ * already handles network failure by returning [].
+ */
+export async function syncSleeveCountFromPi(): Promise<AppSettings> {
+  const stored = await loadSettings();
+  const registered = await getRegisteredSleeves();
+  const newCount = Math.max(stored.sleeveCount, registered.length);
+  if (newCount === stored.sleeveCount) return stored;
+  console.log(`[settings] Auto-synced sleeveCount: stored=${stored.sleeveCount}, registered=${registered.length}, new=${newCount}`);
+  const updated = { ...stored, sleeveCount: newCount };
+  await saveSettings(updated);
+  return updated;
 }

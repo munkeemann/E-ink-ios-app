@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
-import { loadSettings } from '../src/storage/deckStorage';
+import { loadSettings, syncSleeveCountFromPi } from '../src/storage/deckStorage';
 import { configurePiDebug } from '../src/api/piServer';
 import { ThemeProvider, useTheme } from '../src/theme/colors';
 
@@ -77,6 +77,7 @@ function StackWithTheme() {
 export default function RootLayout() {
   useEffect(() => {
     loadSettings().then(s => configurePiDebug(s.devMode && s.piDebugAlerts));
+    syncSleeveCountFromPi().catch(e => console.warn('[settings] sleeveCount sync failed:', e));
   }, []);
 
   return (

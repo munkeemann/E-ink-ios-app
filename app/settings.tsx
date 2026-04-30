@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { loadSettings, saveSettings } from '../src/storage/deckStorage';
+import { loadSettings, saveSettings, syncSleeveCountFromPi } from '../src/storage/deckStorage';
 import { configurePiDebug } from '../src/api/piServer';
 import { AppSettings } from '../src/types';
 import { Theme, ThemeName, useTheme, useThemeName, useSetThemeName } from '../src/theme/colors';
@@ -44,6 +44,7 @@ export default function SettingsScreen() {
   useFocusEffect(
     useCallback(() => {
       loadSettings().then(setSettings);
+      syncSleeveCountFromPi().then(setSettings);
     }, []),
   );
 
