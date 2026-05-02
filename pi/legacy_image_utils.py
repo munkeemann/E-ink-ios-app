@@ -1,9 +1,9 @@
-"""Offline image utilities. NOT on the /display request path.
+"""Image normalisation utilities — used by /bake (deck-save-time, low-frequency),
+NOT by /display (per-push hot path).
 
-Kept for one-off scripts that still need to normalise a non-baseline JPEG
-into the format the ESP32 esp_jpg_decode accepts (baseline + sRGB +
-TrueColor + 4:2:0 chroma subsampling). Production /display assumes the
-client (iOS app) pre-bakes the JPEG and is a thin proxy.
+Normalises a JPEG into the format the ESP32 esp_jpg_decode accepts:
+baseline (non-progressive) + sRGB + TrueColor + 4:2:0 chroma subsampling,
+resized and centered to fit the sleeve display.
 """
 import logging
 import os
@@ -11,8 +11,9 @@ import subprocess
 import tempfile
 
 
-def convert_to_baseline(jpeg_bytes: bytes) -> bytes:
+def convert_to_baseline(jpeg_bytes: bytes, width: int = 540, height: int = 760) -> bytes:
     """Convert JPEG to baseline (non-progressive) and resize for sleeve display."""
+    geom = f"{width}x{height}"
     with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as fin:
         fin.write(jpeg_bytes)
         fin_path = fin.name
@@ -22,9 +23,9 @@ def convert_to_baseline(jpeg_bytes: bytes) -> bytes:
     try:
         result = subprocess.run([
             "convert", fin_path,
-            "-resize", "540x760^",
+            "-resize", f"{geom}^",
             "-gravity", "North",
-            "-extent", "540x760",
+            "-extent", geom,
             "-colorspace", "sRGB",
             "-type", "TrueColor",
             "-strip",

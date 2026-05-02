@@ -5,9 +5,12 @@ import logging
 import struct
 import subprocess
 import threading
+import time
 import requests
 from PIL import Image
 from flask import Flask, request, jsonify
+
+from legacy_image_utils import convert_to_baseline
 
 HOST = "0.0.0.0"
 PORT = 5050
@@ -217,6 +220,34 @@ def display():
         return jsonify(error=str(e)), 502
 
 
+@app.post("/bake")
+def bake():
+    """Normalise a raw JPEG into sleeve-ready bytes (baseline + sRGB + TrueColor +
+    4:2:0). Called by iOS at deck-save time, result cached client-side. Off the
+    /display hot path — keeps per-push latency low."""
+    raw = request.get_data()
+    if not raw:
+        return jsonify(error="request body must contain JPEG bytes"), 400
+
+    try:
+        width = int(request.args.get("width", 540))
+        height = int(request.args.get("height", 760))
+    except ValueError:
+        return jsonify(error="width and height must be integers"), 400
+
+    t0 = time.perf_counter()
+    try:
+        baked = convert_to_baseline(raw, width=width, height=height)
+    except subprocess.CalledProcessError as e:
+        stderr = (e.stderr or b"").decode(errors="replace").strip()
+        logging.warning(f"/bake conversion failed (input {len(raw)} bytes, prefix {raw[:4].hex()}): {stderr}")
+        return jsonify(error="conversion failed", detail=stderr), 400
+    elapsed_ms = (time.perf_counter() - t0) * 1000.0
+
+    logging.info(f"/bake ok: in={len(raw)}B out={len(baked)}B {width}x{height} elapsed={elapsed_ms:.0f}ms")
+    return baked, 200, {"Content-Type": "image/jpeg"}
+
+
 @app.post("/clear")
 def clear():
     _raw_id = request.args.get("sleeve_id")
@@ -373,5 +404,6 @@ if __name__ == "__main__":
     threading.Thread(target=_ping_loop, daemon=True).start()
     configure_network()
     logging.info("Display path: thin proxy mode (no ImageMagick on /display)")
+    logging.info("Bake endpoint available at /bake (ImageMagick on demand, off /display hot path)")
     logging.info(f"Begin Game Server listening on {HOST}:{PORT}")
     app.run(host=HOST, port=PORT, threaded=True)
