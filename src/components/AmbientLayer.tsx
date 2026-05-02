@@ -14,17 +14,18 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import Svg, { Defs, RadialGradient, Stop, Rect } from 'react-native-svg';
+import { useTheme } from '../theme/colors';
 
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
 
 const { width: W, height: H } = Dimensions.get('window');
 
-const TEAL = '#88DBD9';
-const PURPLE_R = 128;
-const PURPLE_G = 131;
-const PURPLE_B = 211;
+// TODO: move to theme tokens once an arcane.purple slot exists in
+// src/theme/colors.ts. Used as the secondary glow color (~30% of glyphs
+// and particles) and as the vignette edge color.
+const ARCANE_PURPLE = '#5B3A8A';
 
-const SYMBOLS = ['✦', '☽', '◈', '✧', '⬡', '◉', '✶', '❖', '⟐', '✺'];
+const SYMBOLS = ['✦', '☽', '◈', '✧', '⛤', '☥', '✶', '❖', '★', '✺'];
 const GLYPH_R = 20;
 
 // ── Seeded pseudo-random for stable layout between renders ────────────────────
@@ -33,14 +34,21 @@ function mkRand(seed: number) {
   return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
 }
 const rand = mkRand(137);
+// Independent stream so adding colorRole assignment doesn't shift the
+// position/timing values produced by `rand`.
+const colorRand = mkRand(739);
 
 // ── Config types ──────────────────────────────────────────────────────────────
+type ColorRole = 'primary' | 'secondary';
+const SECONDARY_THRESHOLD = 0.3; // ~30% of glyphs/particles use secondary (purple)
+
 interface GlyphCfg {
   id: number;
   symbol: string;
   x: number;       // px from left (centre of glyph)
   dur: number;     // traversal ms
   delay: number;   // initial delay ms
+  colorRole: ColorRole;
 }
 interface ParticleCfg {
   id: number;
@@ -49,6 +57,7 @@ interface ParticleCfg {
   dur: number;
   delay: number;
   maxOp: number;
+  colorRole: ColorRole;
 }
 
 // Generated once at module load — deterministic from seed
@@ -58,6 +67,7 @@ const GLYPH_CFGS: GlyphCfg[] = Array.from({ length: 7 }, (_, i) => ({
   x: Math.round(rand() * (W - GLYPH_R * 6) + GLYPH_R * 3),
   dur: Math.round((20 + rand() * 10) * 1000),
   delay: Math.round(rand() * 26000),
+  colorRole: colorRand() < SECONDARY_THRESHOLD ? 'secondary' : 'primary',
 }));
 
 const PARTICLE_CFGS: ParticleCfg[] = Array.from({ length: 35 }, (_, i) => ({
@@ -67,14 +77,13 @@ const PARTICLE_CFGS: ParticleCfg[] = Array.from({ length: 35 }, (_, i) => ({
   dur: Math.round((8 + rand() * 4) * 1000),
   delay: Math.round(rand() * 11000),
   maxOp: parseFloat((0.22 + rand() * 0.18).toFixed(2)),
+  colorRole: colorRand() < SECONDARY_THRESHOLD ? 'secondary' : 'primary',
 }));
 
 // ── Radial vignette glow ──────────────────────────────────────────────────────
-// Single SVG RadialGradient: transparent at centre, purple at edges.
+// Single SVG RadialGradient: transparent at centre, ARCANE_PURPLE at edges.
 // No per-edge strips means no corner intersections / plaid artefact.
 // Breathing drives the Rect's fillOpacity between 0.3 and 0.6.
-
-const PURPLE_HEX = `#${PURPLE_R.toString(16).padStart(2,'0')}${PURPLE_G.toString(16).padStart(2,'0')}${PURPLE_B.toString(16).padStart(2,'0')}`;
 
 function EdgeGlows({ active }: { active: boolean }) {
   const breathe = useSharedValue(0.3);
@@ -112,8 +121,8 @@ function EdgeGlows({ active }: { active: boolean }) {
           fx="50%"
           fy="50%"
         >
-          <Stop offset="0%"   stopColor={PURPLE_HEX} stopOpacity="0" />
-          <Stop offset="100%" stopColor={PURPLE_HEX} stopOpacity="1" />
+          <Stop offset="0%"   stopColor={ARCANE_PURPLE} stopOpacity="0" />
+          <Stop offset="100%" stopColor={ARCANE_PURPLE} stopOpacity="1" />
         </RadialGradient>
       </Defs>
       <AnimatedRect
@@ -135,7 +144,7 @@ function EdgeGlows({ active }: { active: boolean }) {
 
 const GLYPH_OFF = GLYPH_R * 2 + 20;  // px off-screen buffer
 
-function Glyph({ cfg, active }: { cfg: GlyphCfg; active: boolean }) {
+function Glyph({ cfg, color, active }: { cfg: GlyphCfg; color: string; active: boolean }) {
   const y   = useSharedValue(H + GLYPH_OFF);
   const rot = useSharedValue(0);
 
@@ -177,8 +186,8 @@ function Glyph({ cfg, active }: { cfg: GlyphCfg; active: boolean }) {
 
   return (
     <Animated.View style={[styles.glyphWrap, { left: cfg.x - GLYPH_R }, animStyle]}>
-      <View style={styles.glyphCircle}>
-        <Text style={styles.glyphSymbol}>{cfg.symbol}</Text>
+      <View style={[styles.glyphCircle, { borderColor: color, shadowColor: color }]}>
+        <Text style={[styles.glyphSymbol, { color, textShadowColor: color }]}>{cfg.symbol}</Text>
       </View>
     </Animated.View>
   );
@@ -186,7 +195,7 @@ function Glyph({ cfg, active }: { cfg: GlyphCfg; active: boolean }) {
 
 // ── Single particle ───────────────────────────────────────────────────────────
 
-function Particle({ cfg, active }: { cfg: ParticleCfg; active: boolean }) {
+function Particle({ cfg, color, active }: { cfg: ParticleCfg; color: string; active: boolean }) {
   const POFF = cfg.r + 10;
   const y = useSharedValue(H + POFF);
 
@@ -219,7 +228,14 @@ function Particle({ cfg, active }: { cfg: ParticleCfg; active: boolean }) {
     <Animated.View
       style={[
         styles.particle,
-        { left: cfg.x - cfg.r, width: d, height: d, borderRadius: cfg.r },
+        {
+          left: cfg.x - cfg.r,
+          width: d,
+          height: d,
+          borderRadius: cfg.r,
+          backgroundColor: color,
+          shadowColor: color,
+        },
         animStyle,
       ]}
     />
@@ -229,14 +245,18 @@ function Particle({ cfg, active }: { cfg: ParticleCfg; active: boolean }) {
 // ── Ambient layer — position:absolute behind all UI ───────────────────────────
 
 export default function AmbientLayer({ active }: { active: boolean }) {
+  const colors = useTheme();
+  const colorFor = (role: ColorRole): string =>
+    role === 'primary' ? colors.accent.primary : ARCANE_PURPLE;
+
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <EdgeGlows active={active} />
       {GLYPH_CFGS.map(cfg => (
-        <Glyph key={cfg.id} cfg={cfg} active={active} />
+        <Glyph key={cfg.id} cfg={cfg} active={active} color={colorFor(cfg.colorRole)} />
       ))}
       {PARTICLE_CFGS.map(cfg => (
-        <Particle key={cfg.id} cfg={cfg} active={active} />
+        <Particle key={cfg.id} cfg={cfg} active={active} color={colorFor(cfg.colorRole)} />
       ))}
     </View>
   );
@@ -256,31 +276,27 @@ const styles = StyleSheet.create({
     height: GLYPH_R * 2,
     borderRadius: GLYPH_R,
     borderWidth: 1.5,
-    borderColor: TEAL,
     alignItems: 'center',
     justifyContent: 'center',
-    // glow via shadow (iOS) / elevation (Android)
-    shadowColor: TEAL,
+    // borderColor + shadowColor are theme-driven per glyph (set inline)
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.9,
     shadowRadius: 10,
     elevation: 4,
   },
   glyphSymbol: {
-    color: TEAL,
     fontSize: 13,
     lineHeight: 15,
     textAlign: 'center',
     includeFontPadding: false,
-    textShadowColor: TEAL,
+    // color + textShadowColor are theme-driven per glyph (set inline)
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 8,
   },
   particle: {
     position: 'absolute',
     top: 0,
-    backgroundColor: TEAL,
-    shadowColor: TEAL,
+    // backgroundColor + shadowColor are theme-driven per particle (set inline)
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.7,
     shadowRadius: 4,
