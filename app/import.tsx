@@ -198,7 +198,6 @@ export default function ImportDeckScreen() {
             scryfallId: fetched.scryfallId,
             manaValue: fetched.manaValue,
             castCount: 0,
-            sleeveImagePath: fetched.sleeveImagePath,
           });
         }
       }
@@ -218,7 +217,6 @@ export default function ImportDeckScreen() {
           collectorNumber: entry.collectorNumber ?? fetched.collectorNumber,
           scryfallId: fetched.scryfallId,
           manaValue: fetched.manaValue,
-          sleeveImagePath: fetched.sleeveImagePath,
         });
       });
 
@@ -265,7 +263,7 @@ export default function ImportDeckScreen() {
         colors: [...allColors].sort((a, b) => WUBRG.indexOf(a) - WUBRG.indexOf(b)),
         cards,
         tokens: tokens.length > 0 ? tokens : undefined,
-        schemaVersion: 3,
+        schemaVersion: 2,
       };
 
       await saveDeck(deck);

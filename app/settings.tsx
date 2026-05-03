@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { bakeAllDecks, loadSettings, saveSettings, syncSleeveCountFromPi } from '../src/storage/deckStorage';
+import { loadSettings, saveSettings, syncSleeveCountFromPi } from '../src/storage/deckStorage';
 import { configurePiDebug } from '../src/api/piServer';
 import { AppSettings } from '../src/types';
 import { Theme, ThemeName, useTheme, useThemeName, useSetThemeName } from '../src/theme/colors';
@@ -41,7 +41,6 @@ export default function SettingsScreen() {
     piDebugAlerts: false,
     theme: 'default',
   });
-  const [baking, setBaking] = useState<{ done: number; total: number } | null>(null);
   useFocusEffect(
     useCallback(() => {
       loadSettings().then(setSettings);
@@ -86,34 +85,6 @@ export default function SettingsScreen() {
     } catch (e) {
       Alert.alert('Theme error', e instanceof Error ? e.message : String(e));
     }
-  };
-
-  const handleRebakeAll = async () => {
-    if (baking) return;
-    Alert.alert(
-      'Re-bake all decks?',
-      'Walks every saved deck and asks the Pi to bake a sleeve-ready JPEG for each card. The Pi must be reachable. Failed cards are skipped silently.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Re-bake',
-          onPress: async () => {
-            setBaking({ done: 0, total: 0 });
-            try {
-              const result = await bakeAllDecks((done, total) => setBaking({ done, total }));
-              Alert.alert(
-                'Bake complete',
-                `${result.deckCount} deck${result.deckCount === 1 ? '' : 's'}: ${result.cardsBaked} baked, ${result.cardsSkipped} skipped.`,
-              );
-            } catch (e) {
-              Alert.alert('Bake error', e instanceof Error ? e.message : String(e));
-            } finally {
-              setBaking(null);
-            }
-          },
-        },
-      ],
-    );
   };
 
   const handleSave = async () => {
@@ -228,30 +199,6 @@ export default function SettingsScreen() {
         <Text style={styles.hint}>
           Theme applies immediately on selection.
         </Text>
-
-        {/* Sleeve cache */}
-        <Text style={styles.sectionTitle}>Sleeve Cache</Text>
-        <Text style={styles.hint}>
-          Pre-bakes every card image to a sleeve-ready JPEG on the Pi. Game start then reads bytes from local cache instead of fetching Scryfall + converting.
-        </Text>
-        <View style={styles.card}>
-          <Pressable
-            style={[styles.bakeRow, baking !== null && styles.bakeRowDisabled]}
-            onPress={handleRebakeAll}
-            disabled={baking !== null}
-          >
-            <View style={styles.toggleInfo}>
-              <Text style={styles.toggleLabel}>Re-bake all decks for sleeves</Text>
-              {baking !== null ? (
-                <Text style={styles.toggleNote}>
-                  Baking… {baking.done}/{baking.total} deck{baking.total === 1 ? '' : 's'}
-                </Text>
-              ) : (
-                <Text style={styles.toggleNote}>Requires the Pi to be reachable.</Text>
-              )}
-            </View>
-          </Pressable>
-        </View>
 
         {/* Dev Mode */}
         <Text style={styles.sectionTitle}>Developer</Text>
@@ -408,13 +355,5 @@ function makeStyles(colors: Theme) {
       alignItems: 'center',
     },
     saveBtnText: { color: colors.accent.primary, fontSize: 17, fontWeight: '800' },
-
-    bakeRow: {
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-    },
-    bakeRowDisabled: {
-      opacity: 0.5,
-    },
   });
 }

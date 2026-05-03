@@ -40,16 +40,6 @@ export interface CardInstance {
    * SAM1-69: when partner commanders land, each commander CardInstance carries its own counter.
    */
   castCount?: number;
-  /**
-   * Local file URI of the sleeve-baked JPEG (540x760 baseline, 4:2:0, sRGB, q=85).
-   * Computed at deck import time via POST /bake on the Pi and cached on disk.
-   * When present, beginGame reads these bytes directly — no Scryfall fetch
-   * or format conversion at game start. When absent (older decks pre schema v3,
-   * or bake failed), beginGame falls back to fetching imagePath at game start.
-   * Front face only for now; flip-card mechanics may want both faces baked
-   * in a future pass — re-evaluate when that feature ships.
-   */
-  sleeveImagePath?: string;
 }
 
 export type TokenType = 'creature' | 'artifact' | 'enchantment' | 'planeswalker' | 'land';
@@ -81,10 +71,6 @@ export interface Deck {
   /**
    * 1 (or absent) = original schema, no printing metadata.
    * 2 = cards may carry setCode / collectorNumber / scryfallId.
-   * 3 = cards may carry sleeveImagePath (sleeve-baked JPEG cache; written
-   *     at deck import via POST /bake on the Pi). Older decks remain valid;
-   *     beginGame falls back to fetching imagePath when sleeveImagePath is
-   *     absent. The Settings "Re-bake all decks" button upgrades older decks.
    */
   schemaVersion?: number;
 }
@@ -100,6 +86,6 @@ export interface AppSettings {
   devMode: boolean;
   /** Show blocking debug alerts from Pi network calls (only active when devMode is true) */
   piDebugAlerts: boolean;
-  /** UI theme: 'default' (cyan/teal), 'slate' (cream-on-slate), or 'arcane' (parchment + gold). */
-  theme: 'default' | 'slate' | 'arcane';
+  /** UI theme: 'default' (cyan/teal) or 'slate' (cream-on-slate). */
+  theme: 'default' | 'slate';
 }

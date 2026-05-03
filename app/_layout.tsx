@@ -2,22 +2,9 @@ import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
-import { useFonts } from 'expo-font';
-import * as SplashScreen from 'expo-splash-screen';
-import { Cinzel_400Regular, Cinzel_600SemiBold, Cinzel_700Bold } from '@expo-google-fonts/cinzel';
-import {
-  EBGaramond_400Regular,
-  EBGaramond_400Regular_Italic,
-  EBGaramond_700Bold,
-} from '@expo-google-fonts/eb-garamond';
 import { loadSettings, syncSleeveCountFromPi } from '../src/storage/deckStorage';
 import { configurePiDebug } from '../src/api/piServer';
 import { ThemeProvider, useTheme } from '../src/theme/colors';
-import { fonts } from '../src/theme/fonts';
-
-// Module-level: must run before any render so the splash stays visible
-// while fonts are loading.
-SplashScreen.preventAutoHideAsync();
 
 function StackWithTheme() {
   const colors = useTheme();
@@ -27,7 +14,7 @@ function StackWithTheme() {
       screenOptions={{
         headerStyle: { backgroundColor: colors.bg.app },
         headerTintColor: colors.accent.primary,
-        headerTitleStyle: { fontFamily: fonts.displayBold, color: colors.text.primary },
+        headerTitleStyle: { fontWeight: 'bold', color: colors.text.primary },
         contentStyle: { backgroundColor: colors.bg.app },
       }}
     >
@@ -88,25 +75,10 @@ function StackWithTheme() {
 }
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
-    Cinzel_400Regular,
-    Cinzel_600SemiBold,
-    Cinzel_700Bold,
-    EBGaramond_400Regular,
-    EBGaramond_400Regular_Italic,
-    EBGaramond_700Bold,
-  });
-
-  useEffect(() => {
-    if (fontsLoaded) SplashScreen.hideAsync();
-  }, [fontsLoaded]);
-
   useEffect(() => {
     loadSettings().then(s => configurePiDebug(s.devMode && s.piDebugAlerts));
     syncSleeveCountFromPi().catch(e => console.warn('[settings] sleeveCount sync failed:', e));
   }, []);
-
-  if (!fontsLoaded) return null;
 
   return (
     <GestureHandlerRootView style={rootStyles.root}>

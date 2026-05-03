@@ -1,7 +1,6 @@
 import { Alert } from 'react-native';
 import { AppSettings, CardInstance } from '../types';
 import { PI_SERVER, mtgDescriptor, sendToSleeve } from './sleeveService';
-import { readBakedBytes } from '../storage/sleeveCache';
 
 export { PI_SERVER };
 
@@ -30,23 +29,6 @@ const alertWait = (title: string, message: string): Promise<void> => {
 const INTER_CARD_DELAY_MS = 500;
 
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
-
-/**
- * Minimal counting semaphore — caps concurrent in-flight async work.
- * Used by beginGame to fan out per-sleeve POSTs in parallel without
- * overwhelming the Pi. Acquire before work, release in a `finally`.
- */
-function makeSemaphore(max: number) {
-  let active = 0;
-  const queue: Array<() => void> = [];
-  return {
-    acquire: (): Promise<void> => new Promise(resolve => {
-      if (active < max) { active++; resolve(); }
-      else queue.push(() => { active++; resolve(); });
-    }),
-    release: () => { active--; const next = queue.shift(); if (next) next(); },
-  };
-}
 
 /**
  * Returns the list of registered sleeve IDs from the Pi, or an empty array
@@ -293,18 +275,12 @@ export async function pushCardToSleeve(
     return;
   }
   try {
-    console.log('[push] sleeve', card.sleeveId, 'sleeveImagePath:', card.sleeveImagePath ? 'present' : 'missing');
-    let buf: ArrayBuffer;
-    if (card.sleeveImagePath) {
-      buf = await readBakedBytes(card.sleeveImagePath);
-    } else {
-      const imageResp = await fetch(card.imagePath);
-      if (!imageResp.ok) return;
-      buf = await imageResp.arrayBuffer();
-    }
+    const imageResp = await fetch(card.imagePath);
+    if (!imageResp.ok) return;
+    const buf = await imageResp.arrayBuffer();
     await sendToSleeve(card.sleeveId, mtgDescriptor(card.sleeveId, card.zone, commanderSleeveCount), buf, serverUrl);
   } catch {
-    // Pi offline / Scryfall offline / baked cache evicted — fail silently
+    // Pi offline — fail silently
   }
 }
 
@@ -435,65 +411,37 @@ export async function beginGame(
     await alertWait(`beginGame: plan (first 5 of ${safeCards.length})`, reasons || '(no cards)');
     await alertWait('beginGame: candidates', `${candidates.length} cards have sleeveId; registered=[${[...registeredSet].join(',')}]`);
 
-    // Pre-split: log each unregistered sleeve once, then dispatch eligible
-    // ones in parallel under a concurrency cap. `total` is fixed at dispatch
-    // time so it doesn't race with the parallel sent-counter increments.
-    const eligible: CardInstance[] = [];
-    for (const card of candidates) {
-      if (registeredSet.has(card.sleeveId!)) eligible.push(card);
-      else console.log(`[Pi] Sleeve ${card.sleeveId} not registered — skipping`);
-    }
-    const total = eligible.length;
-
-    const t0 = Date.now();
-    const sem = makeSemaphore(8);
     let sent = 0;
-
-    const tasks = eligible.map(card => (async () => {
+    let total = 0;
+    for (const card of candidates) {
       const sid = card.sleeveId!;
-      await sem.acquire();
-      const start = Date.now();
-      try {
-        console.log('[push] sleeve', sid, 'sleeveImagePath:', card.sleeveImagePath ? 'present' : 'missing');
-        let arrayBuffer: ArrayBuffer;
-        if (card.sleeveImagePath) {
-          await alertWait(`beginGame: sleeve ${sid}`, `Reading baked sleeve cache:\n${card.sleeveImagePath}`);
-          arrayBuffer = await readBakedBytes(card.sleeveImagePath);
-        } else {
-          await alertWait(`beginGame: sleeve ${sid}`, `Fetching image:\n${card.imagePath}`);
-          const imageResp = await fetch(card.imagePath);
-          if (!imageResp.ok) throw new Error(`Scryfall fetch failed: HTTP ${imageResp.status}`);
-          arrayBuffer = await imageResp.arrayBuffer();
-        }
-
-        await alertWait(`beginGame: sleeve ${sid}`, `Image bytes ready (${arrayBuffer.byteLength} bytes). POSTing to Pi…`);
-        await sendToSleeve(sid, mtgDescriptor(sid, card.zone, commanderSleeveCount), arrayBuffer, serverUrl);
-        const ms = Date.now() - start;
-        console.log(`[Pi] sleeve ${sid} ✓ in ${ms}ms`);
-        await alertWait(`beginGame: sleeve ${sid} ✓`, `Sent OK in ${ms}ms`);
-        return { ok: true as const, sid, ms };
-      } catch (e) {
-        const ms = Date.now() - start;
-        const msg = e instanceof Error ? e.message : String(e);
-        console.error(`[Pi] Sleeve ${sid} failed in ${ms}ms:`, msg);
-        await alertWait(`beginGame: sleeve ${sid} ERROR`, `${msg} (${ms}ms)`);
-        return { ok: false as const, sid, ms, msg };
-      } finally {
-        sem.release();
-        sent++;
-        onProgress?.(sent, candidates.length);
+      if (!registeredSet.has(sid)) {
+        console.log(`[Pi] Sleeve ${sid} not registered — skipping`);
+        continue;
       }
-    })());
+      total++;
+      try {
+        await alertWait(`beginGame: sleeve ${sid}`, `Fetching image:\n${card.imagePath}`);
+        const imageResp = await fetch(card.imagePath);
+        if (!imageResp.ok) throw new Error(`Scryfall fetch failed: HTTP ${imageResp.status}`);
+        const arrayBuffer = await imageResp.arrayBuffer();
 
-    const results = await Promise.allSettled(tasks);
-    const okCount = results.reduce(
-      (n, r) => n + (r.status === 'fulfilled' && r.value.ok ? 1 : 0),
-      0,
-    );
-    const elapsed = Date.now() - t0;
+        await alertWait(`beginGame: sleeve ${sid}`, `Image fetched (${arrayBuffer.byteLength} bytes). POSTing to Pi…`);
+        await sendToSleeve(sid, mtgDescriptor(sid, card.zone, commanderSleeveCount), arrayBuffer, serverUrl);
+        await alertWait(`beginGame: sleeve ${sid} ✓`, 'Sent OK');
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error(`[Pi] Sleeve ${sid} failed:`, msg);
+        await alertWait(`beginGame: sleeve ${sid} ERROR`, msg);
+      }
 
-    await alertWait('beginGame: DONE', `${okCount}/${total} registered sleeves pushed in ${elapsed}ms`);
-    console.log(`[Pi] beginGame complete: ${okCount}/${total} registered sleeves pushed in ${elapsed}ms`);
+      sent++;
+      onProgress?.(sent, candidates.length);
+      await sleep(INTER_CARD_DELAY_MS);
+    }
+
+    await alertWait('beginGame: DONE', `${sent}/${total} registered sleeves pushed`);
+    console.log(`[Pi] beginGame complete: ${sent}/${total} registered sleeves pushed`);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error('[Pi] beginGame outer catch:', msg);

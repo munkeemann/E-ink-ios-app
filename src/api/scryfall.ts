@@ -1,13 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { bakeForSleeve } from './sleeveCache';
 
-// Bumped from v3 → v4 to force a fresh download: v3 SlimCards lacked the
-// Scryfall printing UUID, which is now required as the sleeve-bake cache key.
-const BULK_DATA_KEY = 'scryfall_bulk_data_v4';
-const BULK_TIMESTAMP_KEY = 'scryfall_bulk_last_fetched_v4';
+const BULK_DATA_KEY = 'scryfall_bulk_data_v3';
+const BULK_TIMESTAMP_KEY = 'scryfall_bulk_last_fetched_v3';
 const BULK_TTL_MS = 24 * 60 * 60 * 1000;
 const TOKEN_CACHE_PREFIX = 'token_cache_';
-const BAKE_CONCURRENCY = 8;
 
 export interface FetchedCard {
   imagePath: string;
@@ -18,39 +14,6 @@ export interface FetchedCard {
   collectorNumber?: string;
   manaValue?: number;
   keywords?: string[];
-  /** Local file URI of the baked sleeve JPEG; absent if bake failed/skipped. */
-  sleeveImagePath?: string;
-}
-
-// Minimal counting semaphore — caps concurrent /bake calls during deck import
-// so a 100-card deck doesn't fire 100 simultaneous POSTs at the Pi.
-function makeSemaphore(max: number) {
-  let active = 0;
-  const queue: Array<() => void> = [];
-  return {
-    acquire: (): Promise<void> => new Promise(resolve => {
-      if (active < max) { active++; resolve(); }
-      else queue.push(() => { active++; resolve(); });
-    }),
-    release: () => { active--; const next = queue.shift(); if (next) next(); },
-  };
-}
-
-async function bakeAll(cards: FetchedCard[]): Promise<void> {
-  console.log(`[bake] ${cards.length} cards; missing imagePath: ${cards.filter(c => !c.imagePath).length}; missing scryfallId: ${cards.filter(c => !c.scryfallId).length}`);
-  const sem = makeSemaphore(BAKE_CONCURRENCY);
-  await Promise.allSettled(
-    cards.map(async card => {
-      if (!card.imagePath || !card.scryfallId) return;
-      await sem.acquire();
-      try {
-        const path = await bakeForSleeve(card.imagePath, card.scryfallId);
-        if (path) card.sleeveImagePath = path;
-      } finally {
-        sem.release();
-      }
-    }),
-  );
 }
 
 export interface ScryfallPrinting {
@@ -65,8 +28,6 @@ export interface ScryfallPrinting {
 
 interface SlimCard {
   name: string;
-  /** Scryfall printing UUID — required as the sleeve-bake cache key. */
-  id: string;
   imagePath: string;
   backImagePath: string;
   colorIdentity: string[];
@@ -142,7 +103,6 @@ async function downloadBulkData(
   // Store only the fields we need to keep AsyncStorage size manageable
   return allCards.map(card => ({
     name: card.name as string,
-    id: card.id as string,
     imagePath: extractImageUrl(card) ?? '',
     backImagePath: extractBackImageUrl(card),
     colorIdentity: Array.isArray(card.color_identity)
@@ -248,7 +208,6 @@ export async function fetchCards(
         imagePath: card.imagePath,
         backImagePath: card.backImagePath ?? '',
         colorIdentity: card.colorIdentity,
-        scryfallId: card.id,
         manaValue: card.manaValue,
         keywords: card.keywords,
       };
@@ -286,11 +245,6 @@ export async function fetchCards(
     onProgress?.(i + 1, names.length);
   }
 
-  // Bake every resolved card's image into a sleeve-ready JPEG and cache it.
-  // Best-effort: failures (Pi offline, Scryfall non-200) leave sleeveImagePath
-  // unset; beginGame falls back to fetching imagePath at game start.
-  await bakeAll(Object.values(results));
-
   return { results, errors };
 }
 
@@ -313,7 +267,7 @@ export async function fetchCardByPrinting(
     const colorIdentity = Array.isArray(card.color_identity)
       ? (card.color_identity as unknown[]).filter((x): x is string => typeof x === 'string')
       : [];
-    const fetched: FetchedCard = {
+    return {
       imagePath: extractImageUrl(card) ?? '',
       backImagePath: extractBackImageUrl(card),
       colorIdentity,
@@ -325,8 +279,6 @@ export async function fetchCardByPrinting(
         ? (card.keywords as unknown[]).filter((x): x is string => typeof x === 'string')
         : undefined,
     };
-    await bakeAll([fetched]);
-    return fetched;
   } catch {
     return null;
   }
