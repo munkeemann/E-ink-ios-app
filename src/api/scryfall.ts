@@ -1,6 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { bakeForSleeve } from './sleeveCache';
-import { alertWait } from './piServer';
 
 // Bumped from v3 → v4 to force a fresh download: v3 SlimCards lacked the
 // Scryfall printing UUID, which is now required as the sleeve-bake cache key.
@@ -38,9 +37,7 @@ function makeSemaphore(max: number) {
 }
 
 async function bakeAll(cards: FetchedCard[]): Promise<void> {
-  const startMsg = `${cards.length} cards; missing imagePath: ${cards.filter(c => !c.imagePath).length}; missing scryfallId: ${cards.filter(c => !c.scryfallId).length}`;
-  console.log(`[bake] ${startMsg}`);
-  await alertWait('[bake]', startMsg);
+  console.log(`[bake] ${cards.length} cards; missing imagePath: ${cards.filter(c => !c.imagePath).length}; missing scryfallId: ${cards.filter(c => !c.scryfallId).length}`);
   const sem = makeSemaphore(BAKE_CONCURRENCY);
   await Promise.allSettled(
     cards.map(async card => {
@@ -54,8 +51,6 @@ async function bakeAll(cards: FetchedCard[]): Promise<void> {
       }
     }),
   );
-  const baked = cards.filter(c => c.sleeveImagePath).length;
-  await alertWait('[bake] done', `${baked}/${cards.length} cards have sleeveImagePath set`);
 }
 
 export interface ScryfallPrinting {

@@ -17,7 +17,7 @@ export function configurePiDebug(enabled: boolean): void {
  * Blocking alert — must be dismissed before the caller continues.
  * No-ops (console.log only) when piDebugAlerts is disabled.
  */
-export const alertWait = (title: string, message: string): Promise<void> => {
+const alertWait = (title: string, message: string): Promise<void> => {
   if (!_piDebugAlerts) {
     console.log(`[Pi][debug] ${title}: ${message}`);
     return Promise.resolve();
