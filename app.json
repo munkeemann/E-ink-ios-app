@@ -28,8 +28,7 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true
-        },
-        "NSLocalNetworkUsageDescription": "E-Cards needs local-network access to send card images to your e-ink sleeve hub on the same Wi-Fi."
+        }
       }
     },
     "newArchEnabled": false,

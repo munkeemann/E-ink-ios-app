@@ -19,19 +19,7 @@
  * need to include face index, and bake would need to fetch backImagePath too.
  */
 import { PI_SERVER } from './sleeveService';
-import { alertWait } from './piServer';
 import { bakedExists, bakedPathFor, writeBakedBytes } from '../storage/sleeveCache';
-
-// Diagnostic single-fire flags: alert on the FIRST time each null-return path
-// trips, so during a 78-card import we get one alert per failure mode instead
-// of 78 stacked dialogs. Module-level so they persist across concurrent
-// bakeForSleeve calls within the same session. Reset on app restart.
-let _alertedGuard = false;
-let _alertedScryfallHttp = false;
-let _alertedScryfallThrew = false;
-let _alertedPiHttp = false;
-let _alertedPiThrew = false;
-let _alertedWriteThrew = false;
 
 async function timedFetch(uri: string, init: RequestInit, timeoutMs: number): Promise<Response> {
   const controller = new AbortController();
@@ -50,13 +38,7 @@ export async function bakeForSleeve(
   serverUrl: string = PI_SERVER,
 ): Promise<string | null> {
   console.log('[bake] called for', scryfallId);
-  if (!scryfallUrl || !scryfallId) {
-    if (!_alertedGuard) {
-      _alertedGuard = true;
-      await alertWait('[bake]', 'guard: missing url/id');
-    }
-    return null;
-  }
+  if (!scryfallUrl || !scryfallId) return null;
 
   // Cache hit short-circuit: idempotent re-bake calls (settings migration
   // re-run, deck re-import of a shared printing) skip the Scryfall fetch
@@ -72,20 +54,12 @@ export async function bakeForSleeve(
     const rawResp = await timedFetch(scryfallUrl, {}, 5000);
     if (!rawResp.ok) {
       console.warn(`[bake] scryfall fetch HTTP ${rawResp.status} for ${scryfallId}`);
-      if (!_alertedScryfallHttp) {
-        _alertedScryfallHttp = true;
-        await alertWait('[bake]', `scryfall HTTP ${rawResp.status}`);
-      }
       return null;
     }
     rawBytes = await rawResp.arrayBuffer();
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.warn(`[bake] scryfall fetch error for ${scryfallId}: ${msg}`);
-    if (!_alertedScryfallThrew) {
-      _alertedScryfallThrew = true;
-      await alertWait('[bake]', `scryfall fetch threw: ${msg}`);
-    }
     return null;
   }
 
@@ -102,20 +76,12 @@ export async function bakeForSleeve(
     );
     if (!bakeResp.ok) {
       console.warn(`[bake] Pi /bake HTTP ${bakeResp.status} for ${scryfallId}`);
-      if (!_alertedPiHttp) {
-        _alertedPiHttp = true;
-        await alertWait('[bake]', `Pi HTTP ${bakeResp.status}`);
-      }
       return null;
     }
     bakedBytes = await bakeResp.arrayBuffer();
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.warn(`[bake] Pi /bake error for ${scryfallId}: ${msg}`);
-    if (!_alertedPiThrew) {
-      _alertedPiThrew = true;
-      await alertWait('[bake]', `Pi fetch threw: ${msg}`);
-    }
     return null;
   }
 
@@ -126,10 +92,6 @@ export async function bakeForSleeve(
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.warn(`[bake] write error for ${scryfallId}: ${msg}`);
-    if (!_alertedWriteThrew) {
-      _alertedWriteThrew = true;
-      await alertWait('[bake]', `write threw: ${msg}`);
-    }
     return null;
   }
 }
