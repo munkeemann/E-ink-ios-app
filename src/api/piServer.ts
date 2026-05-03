@@ -31,6 +31,23 @@ const INTER_CARD_DELAY_MS = 500;
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
 
 /**
+ * Minimal counting semaphore — caps concurrent in-flight async work.
+ * Used by beginGame to fan out per-sleeve POSTs in parallel without
+ * overwhelming the Pi. Acquire before work, release in a `finally`.
+ */
+function makeSemaphore(max: number) {
+  let active = 0;
+  const queue: Array<() => void> = [];
+  return {
+    acquire: (): Promise<void> => new Promise(resolve => {
+      if (active < max) { active++; resolve(); }
+      else queue.push(() => { active++; resolve(); });
+    }),
+    release: () => { active--; const next = queue.shift(); if (next) next(); },
+  };
+}
+
+/**
  * Returns the list of registered sleeve IDs from the Pi, or an empty array
  * if the Pi is unreachable or returns no sleeves.
  */
@@ -411,15 +428,24 @@ export async function beginGame(
     await alertWait(`beginGame: plan (first 5 of ${safeCards.length})`, reasons || '(no cards)');
     await alertWait('beginGame: candidates', `${candidates.length} cards have sleeveId; registered=[${[...registeredSet].join(',')}]`);
 
-    let sent = 0;
-    let total = 0;
+    // Pre-split: log each unregistered sleeve once, then dispatch eligible
+    // ones in parallel under a concurrency cap. `total` is fixed at dispatch
+    // time so it doesn't race with the parallel sent-counter increments.
+    const eligible: CardInstance[] = [];
     for (const card of candidates) {
+      if (registeredSet.has(card.sleeveId!)) eligible.push(card);
+      else console.log(`[Pi] Sleeve ${card.sleeveId} not registered — skipping`);
+    }
+    const total = eligible.length;
+
+    const t0 = Date.now();
+    const sem = makeSemaphore(8);
+    let sent = 0;
+
+    const tasks = eligible.map(card => (async () => {
       const sid = card.sleeveId!;
-      if (!registeredSet.has(sid)) {
-        console.log(`[Pi] Sleeve ${sid} not registered — skipping`);
-        continue;
-      }
-      total++;
+      await sem.acquire();
+      const start = Date.now();
       try {
         await alertWait(`beginGame: sleeve ${sid}`, `Fetching image:\n${card.imagePath}`);
         const imageResp = await fetch(card.imagePath);
@@ -428,20 +454,32 @@ export async function beginGame(
 
         await alertWait(`beginGame: sleeve ${sid}`, `Image fetched (${arrayBuffer.byteLength} bytes). POSTing to Pi…`);
         await sendToSleeve(sid, mtgDescriptor(sid, card.zone, commanderSleeveCount), arrayBuffer, serverUrl);
-        await alertWait(`beginGame: sleeve ${sid} ✓`, 'Sent OK');
+        const ms = Date.now() - start;
+        console.log(`[Pi] sleeve ${sid} ✓ in ${ms}ms`);
+        await alertWait(`beginGame: sleeve ${sid} ✓`, `Sent OK in ${ms}ms`);
+        return { ok: true as const, sid, ms };
       } catch (e) {
+        const ms = Date.now() - start;
         const msg = e instanceof Error ? e.message : String(e);
-        console.error(`[Pi] Sleeve ${sid} failed:`, msg);
-        await alertWait(`beginGame: sleeve ${sid} ERROR`, msg);
+        console.error(`[Pi] Sleeve ${sid} failed in ${ms}ms:`, msg);
+        await alertWait(`beginGame: sleeve ${sid} ERROR`, `${msg} (${ms}ms)`);
+        return { ok: false as const, sid, ms, msg };
+      } finally {
+        sem.release();
+        sent++;
+        onProgress?.(sent, candidates.length);
       }
+    })());
 
-      sent++;
-      onProgress?.(sent, candidates.length);
-      await sleep(INTER_CARD_DELAY_MS);
-    }
+    const results = await Promise.allSettled(tasks);
+    const okCount = results.reduce(
+      (n, r) => n + (r.status === 'fulfilled' && r.value.ok ? 1 : 0),
+      0,
+    );
+    const elapsed = Date.now() - t0;
 
-    await alertWait('beginGame: DONE', `${sent}/${total} registered sleeves pushed`);
-    console.log(`[Pi] beginGame complete: ${sent}/${total} registered sleeves pushed`);
+    await alertWait('beginGame: DONE', `${okCount}/${total} registered sleeves pushed in ${elapsed}ms`);
+    console.log(`[Pi] beginGame complete: ${okCount}/${total} registered sleeves pushed in ${elapsed}ms`);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error('[Pi] beginGame outer catch:', msg);
