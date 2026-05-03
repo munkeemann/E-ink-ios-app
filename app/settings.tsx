@@ -11,7 +11,6 @@ import {
 import { router, useFocusEffect } from 'expo-router';
 import { bakeAllDecks, loadSettings, saveSettings, syncSleeveCountFromPi } from '../src/storage/deckStorage';
 import { configurePiDebug } from '../src/api/piServer';
-import { clearBulkCache } from '../src/api/scryfall';
 import { AppSettings } from '../src/types';
 import { Theme, ThemeName, useTheme, useThemeName, useSetThemeName } from '../src/theme/colors';
 
@@ -110,28 +109,6 @@ export default function SettingsScreen() {
               Alert.alert('Bake error', e instanceof Error ? e.message : String(e));
             } finally {
               setBaking(null);
-            }
-          },
-        },
-      ],
-    );
-  };
-
-  const handleResetBulkCache = () => {
-    Alert.alert(
-      'Reset Scryfall bulk cache?',
-      'This will force a fresh bulk-data download on your next deck import. Continue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reset',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await clearBulkCache();
-              Alert.alert('Bulk cache cleared', 'Next import will redownload (~100MB).');
-            } catch (e) {
-              Alert.alert('Reset error', e instanceof Error ? e.message : String(e));
             }
           },
         },
@@ -272,20 +249,6 @@ export default function SettingsScreen() {
               ) : (
                 <Text style={styles.toggleNote}>Requires the Pi to be reachable.</Text>
               )}
-            </View>
-          </Pressable>
-        </View>
-
-        {/* Advanced / Diagnostics */}
-        <Text style={styles.sectionTitle}>Advanced / Diagnostics</Text>
-        <Text style={styles.hint}>
-          Use only if cards aren't baking correctly during import.
-        </Text>
-        <View style={styles.card}>
-          <Pressable style={styles.bakeRow} onPress={handleResetBulkCache}>
-            <View style={styles.toggleInfo}>
-              <Text style={styles.toggleLabel}>Reset Scryfall bulk cache</Text>
-              <Text style={styles.toggleNote}>Forces a fresh bulk-data download on next import.</Text>
             </View>
           </Pressable>
         </View>

@@ -161,32 +161,12 @@ async function ensureBulkData(
   const lastFetched = await AsyncStorage.getItem(BULK_TIMESTAMP_KEY);
   if (lastFetched && Date.now() - parseInt(lastFetched, 10) < BULK_TTL_MS) {
     const cached = await AsyncStorage.getItem(BULK_DATA_KEY);
-    if (cached) {
-      const parsed = JSON.parse(cached) as SlimCard[];
-      // Self-heal pre-v4 shape: an install whose v4-keyed blob predates the
-      // SlimCard.id field would silently break bake (Guard A drops every
-      // card in scryfall.ts:bakeAll). Treat missing `id` as expired.
-      if (parsed.length > 0 && !parsed[0].id) {
-        console.warn('[bulk] cached data is pre-v4 shape (missing id), forcing redownload');
-      } else {
-        return parsed;
-      }
-    }
+    if (cached) return JSON.parse(cached) as SlimCard[];
   }
   const cards = await downloadBulkData(onDownloadProgress);
   await AsyncStorage.setItem(BULK_DATA_KEY, JSON.stringify(cards));
   await AsyncStorage.setItem(BULK_TIMESTAMP_KEY, String(Date.now()));
   return cards;
-}
-
-/**
- * Manual reset: drops the bulk-data blob and its timestamp so the next
- * fetchCards triggers a full Scryfall redownload (~100MB). Exposed for the
- * Settings "Reset Scryfall bulk cache" diagnostic button.
- */
-export async function clearBulkCache(): Promise<void> {
-  await AsyncStorage.removeItem(BULK_DATA_KEY);
-  await AsyncStorage.removeItem(BULK_TIMESTAMP_KEY);
 }
 
 /**
