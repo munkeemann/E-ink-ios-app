@@ -2,8 +2,10 @@
 import io
 import json
 import logging
+import os
 import struct
 import subprocess
+import tempfile
 import threading
 import requests
 from PIL import Image
@@ -116,6 +118,45 @@ def _frame_v2(descriptor: dict, jpeg_bytes: bytes) -> bytes:
     return struct.pack(">H", len(desc_bytes)) + desc_bytes + jpeg_bytes
 
 
+def convert_to_baseline(jpeg_bytes: bytes) -> bytes:
+    """Convert JPEG to baseline (non-progressive) and resize for sleeve display."""
+    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as fin:
+        fin.write(jpeg_bytes)
+        fin_path = fin.name
+
+    fout_path = fin_path.replace(".jpg", "_baseline.jpg")
+
+    try:
+        result = subprocess.run([
+            "convert", fin_path,
+            "-resize", "540x760^",
+            "-gravity", "North",
+            "-extent", "540x760",
+            "-colorspace", "sRGB",
+            "-type", "TrueColor",
+            "-strip",
+            "-sampling-factor", "4:2:0",
+            "-level", "10%,100%",
+            "-interlace", "none",
+            "-quality", "85",
+            fout_path
+        ], check=True, capture_output=True)
+        if result.stderr:
+            logging.info(f"ImageMagick stderr: {result.stderr.decode().strip()}")
+
+        identify = subprocess.run([
+            "identify", "-format", "%[jpeg:sampling-factor] %[colorspace]", fout_path
+        ], capture_output=True)
+        logging.info(f"JPEG properties: {identify.stdout.decode().strip()}")
+
+        with open(fout_path, "rb") as f:
+            return f.read()
+    finally:
+        os.unlink(fin_path)
+        if os.path.exists(fout_path):
+            os.unlink(fout_path)
+
+
 @app.post("/diag")
 def diag():
     body = request.get_data(as_text=True)
@@ -170,14 +211,17 @@ def display():
         if descriptor.get("v") != 2:
             return jsonify(error=f"unsupported descriptor version: {descriptor.get('v')!r}"), 400
 
-        # Optional image field — thin-proxy mode, validate SOI marker only
+        # Optional image field
         jpeg_bytes = b""
         image_file = request.files.get("image")
         if image_file:
-            jpeg_bytes = image_file.read()
-            if len(jpeg_bytes) < 2 or jpeg_bytes[:2] != b"\xff\xd8":
-                logging.warning(f"Rejected /display request: missing SOI marker (got: {jpeg_bytes[:4].hex() if jpeg_bytes else 'empty'})")
-                return jsonify(error="image field is not a valid JPEG (missing SOI marker)"), 400
+            raw_jpeg = image_file.read()
+            try:
+                jpeg_bytes = convert_to_baseline(raw_jpeg)
+                logging.info(f"Converted multipart image to baseline JPEG ({len(jpeg_bytes)} bytes)")
+            except Exception as e:
+                logging.error(f"Image conversion failed: {e}")
+                return jsonify(error=f"image conversion failed: {e}"), 500
 
     else:
         # Legacy fallback: synthesize descriptor from query params + raw JPEG body
@@ -188,9 +232,14 @@ def display():
         jpeg_bytes = request.get_data()
 
         if not face_down:
-            if len(jpeg_bytes) < 2 or jpeg_bytes[:2] != b"\xff\xd8":
-                logging.warning(f"Rejected /display request: missing SOI marker (got: {jpeg_bytes[:4].hex() if jpeg_bytes else 'empty'})")
-                return jsonify(error="image field is not a valid JPEG (missing SOI marker)"), 400
+            if not jpeg_bytes:
+                return jsonify(error="request body must contain JPEG bytes"), 400
+            try:
+                jpeg_bytes = convert_to_baseline(jpeg_bytes)
+                logging.info(f"Converted to baseline JPEG ({len(jpeg_bytes)} bytes)")
+            except Exception as e:
+                logging.error(f"Image conversion failed: {e}")
+                return jsonify(error=f"image conversion failed: {e}"), 500
 
         descriptor = _build_descriptor(sleeve_id, card_label, zone, face_down)
 
@@ -372,6 +421,5 @@ if __name__ == "__main__":
     _load_registry()
     threading.Thread(target=_ping_loop, daemon=True).start()
     configure_network()
-    logging.info("Display path: thin proxy mode (no ImageMagick on /display)")
     logging.info(f"Begin Game Server listening on {HOST}:{PORT}")
     app.run(host=HOST, port=PORT, threaded=True)
